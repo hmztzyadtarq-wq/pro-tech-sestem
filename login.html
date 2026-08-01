@@ -112,22 +112,29 @@
         </form>
     </div>
 
-    <script>
+ 
+     <script>
         function handleLogin(e) {
             e.preventDefault();
             let user = document.getElementById('loginUser').value.trim();
             let pass = document.getElementById('loginPass').value.trim();
             
-            // بيانات الدخول الافتراضية (يمكنك تعديلها كما تحب)
-            // الافتراضي هنا: admin / 123456 أو وائل / 123
+            // التحقق من حسابات المديرين
             if ((user === 'admin' && pass === '123456') || (user === 'وائل' && pass === '123') || (user === 'protech' && pass === '2026')) {
                 localStorage.setItem('protech_logged_in', 'true');
                 window.location.href = 'index.html';
-            } else {
+            } 
+            // التحقق من حساب الموظف (يوجهه لصفحة employee.html مباشرة)
+            else if ((user === 'employee' || user === 'موظف') && pass === '606060') {
+                localStorage.setItem('protech_logged_in', 'true');
+                window.location.href = 'employee.html';
+            } 
+            else {
                 let err = document.getElementById('errorMsg');
                 err.style.display = 'block';
             }
         }
     </script>
+   
 </body>
 </html>
