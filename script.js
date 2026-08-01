@@ -1,4 +1,3 @@
-
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-analytics.js";
@@ -59,18 +58,16 @@ async function loadDataFromFirebase() {
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
             const data = docSnap.data();
-            if(data.inventory) inventory = data.inventory;
-            if(data.customers) customers = data.customers;
+            if(data.inventory && data.inventory.length > 0) inventory = data.inventory;
+            if(data.customers && data.customers.length > 0) customers = data.customers;
             if(data.invoices) invoices = data.invoices;
             if(data.purchases) purchases = data.purchases;
             if(data.settings) settings = data.settings;
         } else {
-            // If no data exists in Firestore yet, push the initial defaults
             await saveDataToFirebase();
         }
     } catch (error) {
         console.error("Error loading from Firebase, falling back to localStorage:", error);
-        // Fallback to localStorage if offline
         inventory = JSON.parse(localStorage.getItem('protech_inventory')) || inventory;
         customers = JSON.parse(localStorage.getItem('protech_customers')) || customers;
         invoices = JSON.parse(localStorage.getItem('protech_invoices')) || invoices;
@@ -95,14 +92,12 @@ async function saveDataToFirebase() {
 }
 
 function saveData() {
-    // Keep localStorage as local backup
     localStorage.setItem('protech_inventory', JSON.stringify(inventory));
     localStorage.setItem('protech_customers', JSON.stringify(customers));
     localStorage.setItem('protech_invoices', JSON.stringify(invoices));
     localStorage.setItem('protech_purchases', JSON.stringify(purchases));
     localStorage.setItem('protech_settings', JSON.stringify(settings));
     
-    // Save to Firebase Cloud
     saveDataToFirebase();
 }
 
@@ -114,18 +109,16 @@ function refreshAllData() {
     renderCustomers();
     populateSelects();
 }
+
+// Global functions attached to window so HTML onclick works correctly
 window.switchTab = function(tabId) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.sidebar .nav-links li').forEach(el => el.classList.remove('active'));
     
     let targetTab = document.getElementById('tab-' + tabId);
     if(targetTab) targetTab.classList.add('active');
-    
-    if(event && event.currentTarget) {
-        event.currentTarget.classList.add('active');
-    }
-}
-
+    if(event && event.currentTarget) event.currentTarget.classList.add('active');
+};
 
 function renderDashboard() {
     let totalStock = inventory.reduce((sum, item) => sum + Number(item.qty), 0);
@@ -133,10 +126,15 @@ function renderDashboard() {
     let totalPurchases = purchases.reduce((sum, p) => sum + Number(p.cost), 0);
     let totalProfit = totalSales - totalPurchases;
 
-    document.getElementById('statTotalStock').innerText = totalStock;
-    document.getElementById('statTotalSales').innerText = totalSales.toLocaleString();
-    document.getElementById('statTotalPurchases').innerText = totalPurchases.toLocaleString();
-    document.getElementById('statTotalCustomers').innerText = customers.length;
+    let elStock = document.getElementById('statTotalStock');
+    let elSales = document.getElementById('statTotalSales');
+    let elPurchases = document.getElementById('statTotalPurchases');
+    let elCust = document.getElementById('statTotalCustomers');
+
+    if(elStock) elStock.innerText = totalStock;
+    if(elSales) elSales.innerText = totalSales.toLocaleString();
+    if(elPurchases) elPurchases.innerText = totalPurchases.toLocaleString();
+    if(elCust) elCust.innerText = customers.length;
 
     let statsGrid = document.querySelector('.stats-grid');
     if(statsGrid && !document.getElementById('statTotalProfit')) {
@@ -205,39 +203,50 @@ function renderInventory() {
     });
 }
 
-function filterInventory() {
-    let query = document.getElementById('searchInventory').value.toLowerCase();
+window.filterInventory = function() {
+    let searchInput = document.getElementById('searchInventory');
+    if(!searchInput) return;
+    let query = searchInput.value.toLowerCase();
     let rows = document.querySelectorAll('#inventoryTableBody tr');
     rows.forEach(row => {
         row.style.display = row.innerText.toLowerCase().includes(query) ? '' : 'none';
     });
-}
+};
 
-function openAddProductModal() { document.getElementById('addProductModal').style.display = 'flex'; }
-function closeAddProductModal() { document.getElementById('addProductModal').style.display = 'none'; }
+window.openAddProductModal = function() { 
+    let modal = document.getElementById('addProductModal');
+    if(modal) modal.style.display = 'flex'; 
+};
 
-function addNewProduct(e) {
-    e.preventDefault();
-    let code = document.getElementById('prodCode').value;
-    let name = document.getElementById('prodName').value;
-    let qty = Number(document.getElementById('prodQty').value);
-    let unit = document.getElementById('prodUnit').value;
-    let price = Number(document.getElementById('prodPrice').value);
+window.closeAddProductModal = function() { 
+    let modal = document.getElementById('addProductModal');
+    if(modal) modal.style.display = 'none'; 
+};
+
+window.addNewProduct = function(e) {
+    if(e) e.preventDefault();
+    let code = document.getElementById('prodCode')?.value;
+    let name = document.getElementById('prodName')?.value;
+    let qty = Number(document.getElementById('prodQty')?.value);
+    let unit = document.getElementById('prodUnit')?.value;
+    let price = Number(document.getElementById('prodPrice')?.value);
+
+    if(!code || !name) return;
 
     inventory.push({ code, name, qty, unit, price });
     saveData();
     refreshAllData();
-    closeAddProductModal();
-    e.target.reset();
-}
+    window.closeAddProductModal();
+    if(e && e.target) e.target.reset();
+};
 
-function deleteProduct(index) {
+window.deleteProduct = function(index) {
     if(confirm('هل أنت متأكد من حذف هذا الصنف؟')) {
         inventory.splice(index, 1);
         saveData();
         refreshAllData();
     }
-}
+};
 
 function renderPurchases() {
     let tbody = document.getElementById('purchasesTableBody');
@@ -261,15 +270,22 @@ function renderPurchases() {
     });
 }
 
-function openNewPurchaseModal() { document.getElementById('newPurchaseModal').style.display = 'flex'; }
-function closeNewPurchaseModal() { document.getElementById('newPurchaseModal').style.display = 'none'; }
+window.openNewPurchaseModal = function() { 
+    let modal = document.getElementById('newPurchaseModal');
+    if(modal) modal.style.display = 'flex'; 
+};
 
-function createNewPurchase(e) {
-    e.preventDefault();
-    let supplier = document.getElementById('purchaseSupplier').value;
-    let prodCode = document.getElementById('purchaseProductSelect').value;
-    let qty = Number(document.getElementById('purchaseQty').value);
-    let unitCost = Number(document.getElementById('purchaseUnitCost').value || document.getElementById('purchaseCost').value);
+window.closeNewPurchaseModal = function() { 
+    let modal = document.getElementById('newPurchaseModal');
+    if(modal) modal.style.display = 'none'; 
+};
+
+window.createNewPurchase = function(e) {
+    if(e) e.preventDefault();
+    let supplier = document.getElementById('purchaseSupplier')?.value;
+    let prodCode = document.getElementById('purchaseProductSelect')?.value;
+    let qty = Number(document.getElementById('purchaseQty')?.value);
+    let unitCost = Number(document.getElementById('purchaseUnitCost')?.value || document.getElementById('purchaseCost')?.value);
     let totalCost = unitCost * qty;
 
     let product = inventory.find(i => i.code === prodCode);
@@ -286,14 +302,14 @@ function createNewPurchase(e) {
         });
         saveData();
         refreshAllData();
-        closeNewPurchaseModal();
-        e.target.reset();
+        window.closeNewPurchaseModal();
+        if(e && e.target) e.target.reset();
         alert('تم تسجيل الشراء وزيادة المخزون بنجاح!');
     }
-}
+};
 
-function deletePurchase(index) {
-    if(confirm('هل تريد حذف عملية الشراء هذه؟ (سيتم خصم الكمية المضافة من المخزون تصحيحاً للخطأ).')) {
+window.deletePurchase = function(index) {
+    if(confirm('هل تريد حذف عملية الشراء هذه؟ (سيتم خصم الكمية المضافة من المخزون).')) {
         let p = purchases[index];
         let product = inventory.find(i => i.code === p.productCode);
         if(product) {
@@ -304,7 +320,7 @@ function deletePurchase(index) {
         saveData();
         refreshAllData();
     }
-}
+};
 
 function populateSelects() {
     let custSelect = document.getElementById('invoiceCustomerSelect');
@@ -322,7 +338,7 @@ function populateSelects() {
         inventory.forEach(i => {
             prodSelect.innerHTML += `<option value="${i.code}" data-price="${i.price}" data-qty="${i.qty}">${i.name} (المتاح: ${i.qty} ${i.unit} - ${i.price} ج.م)</option>`;
         });
-        updateMaxQuantity();
+        window.updateMaxQuantity();
     }
 
     let purProdSelect = document.getElementById('purchaseProductSelect');
@@ -334,15 +350,15 @@ function populateSelects() {
     }
 }
 
-function handleCustomerSelectChange() {
-    let val = document.getElementById('invoiceCustomerSelect').value;
+window.handleCustomerSelectChange = function() {
+    let val = document.getElementById('invoiceCustomerSelect')?.value;
     let newDiv = document.getElementById('newCustomerDiv');
     if(newDiv) {
         newDiv.style.display = (val === 'NEW_CUSTOMER') ? 'block' : 'none';
     }
-}
+};
 
-function updateMaxQuantity() {
+window.updateMaxQuantity = function() {
     let select = document.getElementById('invoiceProductSelect');
     if(!select || select.options.length === 0) return;
     let opt = select.options[select.selectedIndex];
@@ -353,26 +369,31 @@ function updateMaxQuantity() {
         let qtyInput = document.getElementById('invoiceQty');
         if(qtyInput) qtyInput.max = maxQty;
     }
-}
+};
 
-function openNewInvoiceModal() {
-    document.getElementById('newInvoiceModal').style.display = 'flex';
+window.openNewInvoiceModal = function() {
+    let modal = document.getElementById('newInvoiceModal');
+    if(modal) modal.style.display = 'flex';
     populateSelects();
-}
-function closeNewInvoiceModal() { document.getElementById('newInvoiceModal').style.display = 'none'; }
+};
 
-function createNewInvoice(e) {
-    e.preventDefault();
+window.closeNewInvoiceModal = function() { 
+    let modal = document.getElementById('newInvoiceModal');
+    if(modal) modal.style.display = 'none'; 
+};
+
+window.createNewInvoice = function(e) {
+    if(e) e.preventDefault();
     
-    let customerSelectVal = document.getElementById('invoiceCustomerSelect').value;
+    let customerSelectVal = document.getElementById('invoiceCustomerSelect')?.value;
     let customerName = customerSelectVal;
     let customerPhone = '';
     let customerAddress = '';
 
     if(customerSelectVal === 'NEW_CUSTOMER') {
-        customerName = document.getElementById('newCustomerName').value.trim();
-        customerPhone = document.getElementById('newCustomerPhone').value.trim();
-        customerAddress = document.getElementById('newCustomerAddress').value.trim();
+        customerName = document.getElementById('newCustomerName')?.value.trim();
+        customerPhone = document.getElementById('newCustomerPhone')?.value.trim();
+        customerAddress = document.getElementById('newCustomerAddress')?.value.trim();
         if(customerName) {
             customers.push({ name: customerName, phone: customerPhone, address: customerAddress });
         }
@@ -385,11 +406,12 @@ function createNewInvoice(e) {
     }
 
     let prodSelect = document.getElementById('invoiceProductSelect');
+    if(!prodSelect) return;
     let prodCode = prodSelect.value;
     let opt = prodSelect.options[prodSelect.selectedIndex];
     let productName = opt.text.split(' (')[0];
     let unitPrice = Number(opt.getAttribute('data-price'));
-    let qty = Number(document.getElementById('invoiceQty').value);
+    let qty = Number(document.getElementById('invoiceQty')?.value);
     let availableQty = Number(opt.getAttribute('data-qty'));
 
     if(qty > availableQty) {
@@ -399,12 +421,12 @@ function createNewInvoice(e) {
 
     let totalAmount = unitPrice * qty;
 
-    let paymentStatus = document.getElementById('invoicePaymentStatus').value;
+    let paymentStatus = document.getElementById('invoicePaymentStatus')?.value;
     let paidAmount = totalAmount;
     let remainingAmount = 0;
 
     if(paymentStatus === 'لم يدفع') {
-        remainingAmount = Number(document.getElementById('invoiceRemainingInput').value) || 0;
+        remainingAmount = Number(document.getElementById('invoiceRemainingInput')?.value) || 0;
         paidAmount = totalAmount - remainingAmount;
         if(paidAmount < 0) paidAmount = 0;
     }
@@ -433,9 +455,9 @@ function createNewInvoice(e) {
     invoices.push(newInv);
     saveData();
     refreshAllData();
-    closeNewInvoiceModal();
-    showInvoiceModal(newInv);
-}
+    window.closeNewInvoiceModal();
+    window.showInvoiceModal(newInv);
+};
 
 function renderInvoices() {
     let tbody = document.getElementById('invoicesTableBody');
@@ -446,6 +468,7 @@ function renderInvoices() {
             ? `<span class="badge-danger">متبقي: ${inv.remaining} ج.م</span>` 
             : '<span class="badge-success">تم الدفع بالكامل</span>';
         
+        let invString = encodeURIComponent(JSON.stringify(inv));
         tbody.innerHTML += `
             <tr>
                 <td><strong>${inv.id}</strong></td>
@@ -454,7 +477,7 @@ function renderInvoices() {
                 <td>${inv.total.toLocaleString()} ج.م</td>
                 <td>${statusBadge}</td>
                 <td>
-                    <button class="btn-primary-sm" onclick='showInvoiceModal(${JSON.stringify(inv)})'><i class="fas fa-eye"></i> معاينة</button>
+                    <button class="btn-primary-sm" onclick='showInvoiceModalEncoded("${invString}")'><i class="fas fa-eye"></i> معاينة</button>
                     <button class="btn-danger-sm" onclick="deleteInvoice('${inv.id}')"><i class="fas fa-trash"></i></button>
                 </td>
             </tr>
@@ -462,21 +485,23 @@ function renderInvoices() {
     });
 }
 
-function filterInvoices() {
-    let query = document.getElementById('searchInvoices').value.toLowerCase();
+window.filterInvoices = function() {
+    let searchInput = document.getElementById('searchInvoices');
+    if(!searchInput) return;
+    let query = searchInput.value.toLowerCase();
     let rows = document.querySelectorAll('#invoicesTableBody tr');
     rows.forEach(row => {
         row.style.display = row.innerText.toLowerCase().includes(query) ? '' : 'none';
     });
-}
+};
 
-function deleteInvoice(id) {
+window.deleteInvoice = function(id) {
     if(confirm('هل تريد حذف هذه الفاتورة؟')) {
         invoices = invoices.filter(i => i.id !== id);
         saveData();
         refreshAllData();
     }
-}
+};
 
 function renderCustomers() {
     let tbody = document.getElementById('customersTableBody');
@@ -506,14 +531,21 @@ function renderCustomers() {
     });
 }
 
-function openAddCustomerModal() { document.getElementById('addCustomerModal').style.display = 'flex'; }
-function closeAddCustomerModal() { document.getElementById('addCustomerModal').style.display = 'none'; }
+window.openAddCustomerModal = function() { 
+    let modal = document.getElementById('addCustomerModal');
+    if(modal) modal.style.display = 'flex'; 
+};
 
-function addNewCustomerDirect(e) {
-    e.preventDefault();
-    let name = document.getElementById('custName').value.trim();
-    let phone = document.getElementById('custPhone').value.trim();
-    let address = document.getElementById('custAddress').value.trim();
+window.closeAddCustomerModal = function() { 
+    let modal = document.getElementById('addCustomerModal');
+    if(modal) modal.style.display = 'none'; 
+};
+
+window.addNewCustomerDirect = function(e) {
+    if(e) e.preventDefault();
+    let name = document.getElementById('custName')?.value.trim();
+    let phone = document.getElementById('custPhone')?.value.trim();
+    let address = document.getElementById('custAddress')?.value.trim();
 
     if(!name) return;
     if(customers.some(c => c.name === name)) {
@@ -524,20 +556,25 @@ function addNewCustomerDirect(e) {
     customers.push({ name, phone, address });
     saveData();
     refreshAllData();
-    closeAddCustomerModal();
-    e.target.reset();
+    window.closeAddCustomerModal();
+    if(e && e.target) e.target.reset();
     alert('تم حفظ العميل بنجاح!');
-}
+};
 
-function deleteCustomer(index) {
+window.deleteCustomer = function(index) {
     if(confirm('هل أنت متأكد من حذف هذا العميل من الدليل؟')) {
         customers.splice(index, 1);
         saveData();
         refreshAllData();
     }
-}
+};
 
-function showInvoiceModal(inv) {
+window.showInvoiceModalEncoded = function(encodedInv) {
+    let inv = JSON.parse(decodeURIComponent(encodedInv));
+    window.showInvoiceModal(inv);
+};
+
+window.showInvoiceModal = function(inv) {
     currentInvoiceData = inv;
     let area = document.getElementById('printableInvoiceArea');
     if(!area) return;
@@ -605,25 +642,29 @@ function showInvoiceModal(inv) {
             <button onclick="sendToWhatsAppNabawy()" style="background: #10b981; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; margin-left: 5px;"><i class="fab fa-whatsapp"></i> إرسال لمحمد النبوي</button>
         </div>
     `;
-    document.getElementById('invoiceModal').style.display = 'flex';
-}
+    let invoiceModal = document.getElementById('invoiceModal');
+    if(invoiceModal) invoiceModal.style.display = 'flex';
+};
 
-window.showInvoiceModal = showInvoiceModal;
+window.closeInvoiceModal = function() { 
+    let modal = document.getElementById('invoiceModal');
+    if(modal) modal.style.display = 'none'; 
+};
 
-function closeInvoiceModal() { document.getElementById('invoiceModal').style.display = 'none'; }
-
-function downloadPDF() {
+window.downloadPDF = function() {
+    if(!window.jspdf || !currentInvoiceData) return;
     const { jsPDF } = window.jspdf;
     let element = document.getElementById('printableInvoiceArea');
+    if(!element) return;
     html2canvas(element, { scale: 2 }).then(canvas => {
         let imgData = canvas.toDataURL('image/png');
         let pdf = new jsPDF('p', 'mm', 'a4');
         pdf.addImage(imgData, 'PNG', 0, 0, 210, (canvas.height * 210) / canvas.width);
         pdf.save(`Invoice-${currentInvoiceData.id}.pdf`);
     });
-}
+};
 
-function sendToWhatsApp() {
+window.sendToWhatsApp = function() {
     if(!currentInvoiceData) return;
     let msg = `*${settings.companyName}*\n` +
               `📄 *فاتورة رقم:* ${currentInvoiceData.id}\n` +
@@ -634,9 +675,9 @@ function sendToWhatsApp() {
               `شكراً لتعاملكم معنا!`;
     let phone = settings.whatsapp.replace(/[^0-9]/g, '');
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
-}
+};
 
-function sendToWhatsAppNabawy() {
+window.sendToWhatsAppNabawy = function() {
     if(!currentInvoiceData) return;
     let msg = `*${settings.companyName}*\n` +
               `📄 *فاتورة رقم:* ${currentInvoiceData.id}\n` +
@@ -646,23 +687,21 @@ function sendToWhatsAppNabawy() {
               `📌 *المتبقي:* ${(currentInvoiceData.remaining || 0).toLocaleString()} ج.م`;
     let phone = (settings.whatsappNabawy || '01092201111').replace(/[^0-9]/g, '');
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
-}
+};
 
-window.sendToWhatsAppNabawy = sendToWhatsAppNabawy;
-
-function saveSettings(e) {
-    e.preventDefault();
-    settings.companyName = document.getElementById('companyNameInput').value;
-    settings.owner = document.getElementById('companyOwnerInput').value;
-    settings.whatsapp = document.getElementById('whatsappNumberInput').value;
-    settings.address = document.getElementById('companyAddressInput').value;
+window.saveSettings = function(e) {
+    if(e) e.preventDefault();
+    settings.companyName = document.getElementById('companyNameInput')?.value || settings.companyName;
+    settings.owner = document.getElementById('companyOwnerInput')?.value || settings.owner;
+    settings.whatsapp = document.getElementById('whatsappNumberInput')?.value || settings.whatsapp;
+    settings.address = document.getElementById('companyAddressInput')?.value || settings.address;
     saveData();
     alert('تم الحفظ بنجاح!');
-}
+};
 
 function initChart() {
     const ctx = document.getElementById('salesPurchasesChart');
-    if(!ctx) return;
+    if(!ctx || typeof Chart === 'undefined') return;
     mainChartInstance = new Chart(ctx, {
         type: 'line',
         data: {
