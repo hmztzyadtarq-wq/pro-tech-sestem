@@ -191,57 +191,61 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="script.js"></script>
     <script>
-        function handleLogin(e) {
-            e.preventDefault();
-            let user = document.getElementById('loginUser').value.trim();
-            let pass = document.getElementById('loginPass').value.trim();
+<script>
+    function handleLogin(e) {
+        e.preventDefault();
+        let user = document.getElementById('loginUser').value.trim();
+        let pass = document.getElementById('loginPass').value.trim();
+        
+        // التحقق من بيانات الموظف (موظف أو employee مع كلمة المرور 606060)
+        if((user === 'employee' || user === 'موظف') && pass === '606060') {
+            document.getElementById('loginModal').style.display = 'none';
+            document.getElementById('employeeDashboard').style.display = 'block';
             
-            if(user === 'employee' && pass === '1234') {
-                document.getElementById('loginModal').style.display = 'none';
-                document.getElementById('employeeDashboard').style.display = 'block';
-                if(typeof settings !== 'undefined' && settings.companyName) {
-                    document.getElementById('sidebarCompanyName').innerText = settings.companyName;
-                }
-                if(typeof renderInvoices === 'function') renderInvoices();
-                if(typeof renderCustomers === 'function') renderCustomers();
-                if(typeof populateSelects === 'function') populateSelects();
-            } else if(user === 'admin' && pass === 'admin123') {
-                window.location.href = 'index.html';
-            } else {
-                alert('اسم المستخدم أو كلمة المرور غير صحيحة!');
+            if(typeof settings !== 'undefined' && settings.companyName) {
+                document.getElementById('sidebarCompanyName').innerText = settings.companyName;
             }
+            if(typeof renderInvoices === 'function') renderInvoices();
+            if(typeof renderCustomers === 'function') renderCustomers();
+            if(typeof populateSelects === 'function') populateSelects();
+        } else if(user === 'admin' && pass === 'admin123') {
+            window.location.href = 'index.html';
+        } else {
+            alert('اسم المستخدم أو كلمة المرور غير صحيحة!');
         }
+    }
 
-        function logoutSystem() {
-            document.getElementById('loginModal').style.display = 'flex';
-            document.getElementById('employeeDashboard').style.display = 'none';
-            document.getElementById('loginUser').value = '';
-            document.getElementById('loginPass').value = '';
-        }
+    function logoutSystem() {
+        document.getElementById('loginModal').style.display = 'flex';
+        document.getElementById('employeeDashboard').style.display = 'none';
+        document.getElementById('loginUser').value = '';
+        document.getElementById('loginPass').value = '';
+    }
 
-        function switchTab(tabId, event) {
-            event.preventDefault();
-            document.querySelectorAll('.tab-content-area').forEach(el => el.style.display = 'none');
-            document.getElementById('nav-invoices').style.background = 'transparent';
-            document.getElementById('nav-invoices').style.color = '#cbd5e1';
-            document.getElementById('nav-customers').style.background = 'transparent';
-            document.getElementById('nav-customers').style.color = '#cbd5e1';
-            
-            document.getElementById('tab-' + tabId).style.display = 'block';
-            let activeNav = document.getElementById('nav-'+tabId);
-            activeNav.style.background = '#0284c7';
-            activeNav.style.color = '#fff';
-        }
+    function switchTab(tabId, event) {
+        event.preventDefault();
+        document.querySelectorAll('.tab-content-area').forEach(el => el.style.display = 'none');
+        document.getElementById('nav-invoices').style.background = 'transparent';
+        document.getElementById('nav-invoices').style.color = '#cbd5e1';
+        document.getElementById('nav-customers').style.background = 'transparent';
+        document.getElementById('nav-customers').style.color = '#cbd5e1';
+        
+        document.getElementById('tab-' + tabId).style.display = 'block';
+        let activeNav = document.getElementById('nav-'+tabId);
+        activeNav.style.background = '#0284c7';
+        activeNav.style.color = '#fff';
+    }
 
-        function togglePaidInput() {
-            let status = document.getElementById('invoicePaymentStatus').value;
-            let container = document.getElementById('paidAmountContainer');
-            if(status === 'مدفوع جزئياً') {
-                container.style.display = 'block';
-            } else {
-                container.style.display = 'none';
-            }
+    function togglePaidInput() {
+        let status = document.getElementById('invoicePaymentStatus').value;
+        let container = document.getElementById('paidAmountContainer');
+        if(status === 'مدفوع جزئياً') {
+            container.style.display = 'block';
+        } else {
+            container.style.display = 'none';
         }
+    }
+
     </script>
 </body>
 </html>
