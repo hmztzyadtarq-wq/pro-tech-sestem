@@ -114,14 +114,18 @@ function refreshAllData() {
     renderCustomers();
     populateSelects();
 }
-
-function switchTab(tabId) {
+window.switchTab = function(tabId) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.sidebar .nav-links li').forEach(el => el.classList.remove('active'));
     
-    document.getElementById('tab-' + tabId).classList.add('active');
-    event.currentTarget.classList.add('active');
+    let targetTab = document.getElementById('tab-' + tabId);
+    if(targetTab) targetTab.classList.add('active');
+    
+    if(event && event.currentTarget) {
+        event.currentTarget.classList.add('active');
+    }
 }
+
 
 function renderDashboard() {
     let totalStock = inventory.reduce((sum, item) => sum + Number(item.qty), 0);
