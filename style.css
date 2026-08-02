@@ -705,31 +705,44 @@ body {
     display: flex;
     justify-content: space-between;
 }
-/* تحسينات عامة للموبايل */
+/* تنسيقات الشاشات الصغيرة والهواتف */
 @media screen and (max-width: 768px) {
-    /* جعل القوائم الجانبية تترتب رأسياً */
+    /* إلغاء التوزيع الأفقي الثابت وجعل الصفحة تترتب رأسياً */
     body {
-        font-size: 14px;
+        overflow-x: hidden;
     }
-    
-    /* ضبط الحاويات والجداول لتكون قابلة للتمرير الأفقي البسيط لو كبيرة */
+
+    /* ضبط الحاويات الرئيسية لتمتد بكامل الشاشة بدون تداخل */
+    div[style*="display: flex"] {
+        flex-direction: column !important;
+    }
+
+    /* القائمة الجانبية تصبح علوية أو متجاوبة بدلاً من أخذ مساحة ثابتة */
+    div[style*="width: 260px"] {
+        width: 100% !important;
+        box-sizing: border-box;
+    }
+
+    /* المحتوى الرئيسي يأخذ عرض الشاشة بالكامل بدون تداخل في المنتصف */
+    div[style*="flex: 1"] {
+        width: 100% !important;
+        padding: 10px !important;
+        box-sizing: border-box;
+    }
+
+    /* جعل الجداول قابلة للتمرير الأفقي البسيط لتجنب خروج النصوص */
     table {
-        display: block;
         width: 100%;
         overflow-x: auto;
-        white-space: nowrap;
+        display: block;
     }
 
-    /* تصغير الأزرار والمسافات لتناسب الشاشات الصغيرة */
-    button {
-        padding: 8px 12px;
-        font-size: 13px;
-    }
-
-    /* النوافذ المنسدلة (Modals) لتملأ الشاشة بمرونة */
-    div[style*="width: 650px"], div[style*="width: 500px"], div[style*="width: 400px"] {
-        width: 95% !important;
+    /* تصحيح مقاسات النوافذ المنبثقة (Modals) لتناسب الموبايل تماماً */
+    div[style*="position: fixed"] > div {
+        width: 92% !important;
+        max-width: 92% !important;
+        margin: 10px auto !important;
         padding: 15px !important;
-        margin: 10px auto;
+        box-sizing: border-box;
     }
 }
