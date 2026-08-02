@@ -724,3 +724,25 @@ document.addEventListener('touchmove', function(e) {
         e.preventDefault();
     }
 }, { passive: false });
+document.addEventListener("DOMContentLoaded", function() {
+    // إنشاء زر القائمة للموبايل والتابلت تلقائياً لو مش موجود
+    let sidebar = document.querySelector('.sidebar') || document.querySelector('div[style*="width: 260px"]');
+    if (sidebar && !document.getElementById('mobileMenuToggleBtn')) {
+        let btn = document.createElement('button');
+        btn.id = 'mobileMenuToggleBtn';
+        btn.innerHTML = '<i class="fas fa-bars"></i>';
+        document.body.appendChild(btn);
+
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            sidebar.classList.toggle('mobile-open');
+        });
+
+        // إغلاق القائمة لو المستخدم دوس في أي مكان برها
+        document.addEventListener('click', function(e) {
+            if (!sidebar.contains(e.target) && e.target !== btn) {
+                sidebar.classList.remove('mobile-open');
+            }
+        });
+    }
+});
