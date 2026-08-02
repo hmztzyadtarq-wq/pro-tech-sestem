@@ -705,3 +705,31 @@ body {
     display: flex;
     justify-content: space-between;
 }
+/* تحسينات عامة للموبايل */
+@media screen and (max-width: 768px) {
+    /* جعل القوائم الجانبية تترتب رأسياً */
+    body {
+        font-size: 14px;
+    }
+    
+    /* ضبط الحاويات والجداول لتكون قابلة للتمرير الأفقي البسيط لو كبيرة */
+    table {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    /* تصغير الأزرار والمسافات لتناسب الشاشات الصغيرة */
+    button {
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+
+    /* النوافذ المنسدلة (Modals) لتملأ الشاشة بمرونة */
+    div[style*="width: 650px"], div[style*="width: 500px"], div[style*="width: 400px"] {
+        width: 95% !important;
+        padding: 15px !important;
+        margin: 10px auto;
+    }
+}
