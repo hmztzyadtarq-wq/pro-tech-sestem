@@ -10,14 +10,14 @@
 </head>
 <body style="margin: 0; padding: 0; background: #f8fafc; font-family: Tahoma, sans-serif; direction: rtl; text-align: right;">
 
-    <!-- شاشة تسجيل الدخول الخاصة بالموظف داخل الصفحة (في حال فتح الرابط مباشرة) -->
+    <!-- شاشة تسجيل الدخول الخاصة بالموظف -->
     <div id="loginModal" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.95); justify-content: center; align-items: center; z-index: 2000;">
         <div style="background: white; padding: 35px; border-radius: 12px; width: 380px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
             <div style="text-align: center; margin-bottom: 20px;">
                 <h2 style="color: #0284c7; margin: 0 0 5px 0; font-size: 22px;">ProTech System</h2>
                 <p style="color: #64748b; font-size: 13px; margin: 0;">تسجيل دخول الموظف</p>
             </div>
-            <form onsubmit="handleLogin(event)">
+            <form onsubmit="handleEmployeeLogin(event)">
                 <div style="margin-bottom: 15px;">
                     <label style="display: block; font-size: 13px; margin-bottom: 6px; font-weight: bold; color: #334155;">اسم المستخدم:</label>
                     <input type="text" id="loginUser" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; box-sizing: border-box;">
@@ -31,19 +31,19 @@
         </div>
     </div>
 
-    <!-- لوحة الموظف الأساسية (نفس واجهة وبيانات المدير) -->
+    <!-- لوحة الموظف الأساسية (نفس واجهة المدير تماماً) -->
     <div id="employeeDashboard" style="display: none; min-height: 100vh;">
         <div style="display: flex; min-height: 100vh;">
             
             <!-- القائمة الجانبية -->
             <div style="width: 260px; background: #0f172a; color: #fff; padding: 20px; display: flex; flex-direction: column; box-sizing: border-box;">
                 <h2 id="sidebarCompanyName" style="font-size: 18px; margin-bottom: 30px; color: #0284c7; line-height: 1.4;">ProTech System</h2>
-                <ul style="list-style: none; padding: 0; margin: 0; flex: 1;">
+                <ul style="list-style: none; padding: 0; margin: 0; flex: 1;" class="nav-links">
                     <li style="margin-bottom: 8px;">
-                        <a href="#" onclick="switchTab('invoices', event)" id="nav-invoices" style="display: flex; align-items: center; gap: 10px; color: #fff; background: #0284c7; text-decoration: none; padding: 12px 15px; border-radius: 8px; font-size: 14px;"><i class="fas fa-file-invoice-dollar" style="width: 20px;"></i> الفواتير والمبيعات</a>
+                        <a href="#" onclick="switchTab('invoices')" id="nav-invoices" style="display: flex; align-items: center; gap: 10px; color: #fff; background: #0284c7; text-decoration: none; padding: 12px 15px; border-radius: 8px; font-size: 14px;"><i class="fas fa-file-invoice-dollar" style="width: 20px;"></i> الفواتير والمبيعات</a>
                     </li>
                     <li style="margin-bottom: 8px;">
-                        <a href="#" onclick="switchTab('customers', event)" id="nav-customers" style="display: flex; align-items: center; gap: 10px; color: #cbd5e1; text-decoration: none; padding: 12px 15px; border-radius: 8px; font-size: 14px;"><i class="fas fa-users" style="width: 20px;"></i> العملاء</a>
+                        <a href="#" onclick="switchTab('customers')" id="nav-customers" style="display: flex; align-items: center; gap: 10px; color: #cbd5e1; text-decoration: none; padding: 12px 15px; border-radius: 8px; font-size: 14px;"><i class="fas fa-users" style="width: 20px;"></i> العملاء</a>
                     </li>
                 </ul>
                 <div>
@@ -55,7 +55,7 @@
             <div style="flex: 1; padding: 30px; background: #f8fafc; overflow-y: auto; box-sizing: border-box;">
                 
                 <!-- تبويب الفواتير والمبيعات -->
-                <div id="tab-invoices" class="tab-content-area">
+                <div id="tab-invoices" class="tab-content active" style="display: block;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
                         <h1 style="margin: 0; font-size: 22px; color: #1e293b; font-weight: bold;">إدارة الفواتير والمبيعات</h1>
                         <button onclick="openNewInvoiceModal()" style="background: #0284c7; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; box-shadow: 0 2px 4px rgba(2,132,199,0.2);"><i class="fas fa-plus" style="margin-left: 5px;"></i> إنشاء فاتورة جديدة</button>
@@ -83,7 +83,7 @@
                 </div>
 
                 <!-- تبويب العملاء -->
-                <div id="tab-customers" class="tab-content-area" style="display: none;">
+                <div id="tab-customers" class="tab-content" style="display: none;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
                         <h1 style="margin: 0; font-size: 22px; color: #1e293b; font-weight: bold;">دليل العملاء</h1>
                         <button onclick="openAddCustomerModal()" style="background: #0284c7; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; box-shadow: 0 2px 4px rgba(2,132,199,0.2);"><i class="fas fa-user-plus" style="margin-left: 5px;"></i> إضافة عميل جديد</button>
@@ -110,7 +110,7 @@
         </div>
     </div>
 
-    <!-- نافذة معاينة وطباعة الفاتورة (بنفس شكل المدير تماماً) -->
+    <!-- نافذة معاينة وطباعة الفاتورة (مطابقة تماماً لشكل المدير) -->
     <div id="invoiceModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
         <div style="background: white; width: 650px; max-width: 95%; padding: 25px; border-radius: 10px; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
             <div id="printableInvoiceArea"></div>
@@ -152,14 +152,13 @@
                     <label style="display: block; font-size: 13px; margin-bottom: 6px; font-weight: bold; color: #334155;">حالة الدفع:</label>
                     <select id="invoicePaymentStatus" onchange="togglePaidInput()" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; background: #fff; box-sizing: border-box;">
                         <option value="تم الدفع بالكامل">تم الدفع بالكامل</option>
-                        <option value="مدفوع جزئياً">مدفوع جزئياً (آجل)</option>
-                        <option value="لم يدفع">لم يدفع</option>
+                        <option value="لم يدفع">لم يدفع (أو آجل)</option>
                     </select>
                 </div>
 
-                <div id="paidAmountContainer" style="display: none; margin-bottom: 15px;">
-                    <label style="display: block; font-size: 13px; margin-bottom: 6px; font-weight: bold; color: #334155;">المبلغ المدفوع حالياً:</label>
-                    <input type="number" id="invoicePaidAmount" min="0" value="0" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+                <div id="remainingInputContainer" style="display: none; margin-bottom: 15px;">
+                    <label style="display: block; font-size: 13px; margin-bottom: 6px; font-weight: bold; color: #334155;">المبلغ المتبقي (آجل):</label>
+                    <input type="number" id="invoiceRemainingInput" min="0" value="0" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
                 </div>
 
                 <div style="text-align: left; border-top: 1px solid #e2e8f0; padding-top: 15px;">
@@ -186,12 +185,14 @@
         </div>
     </div>
 
-    <!-- المكتبات والملفات المشتركة -->
+    <!-- المكتبات وملف الجافاسكريبت الأساسي -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="script.js"></script>
+    <script type="module" src="script.js"></script>
+    
     <script>
-        function handleLogin(e) {
+        // دالة التحقق من تسجيل دخول الموظف
+        async function handleEmployeeLogin(e) {
             e.preventDefault();
             let user = document.getElementById('loginUser').value.trim();
             let pass = document.getElementById('loginPass').value.trim();
@@ -199,12 +200,14 @@
             if((user === 'employee' || user === 'موظف') && pass === '606060') {
                 document.getElementById('loginModal').style.display = 'none';
                 document.getElementById('employeeDashboard').style.display = 'block';
-                if(typeof settings !== 'undefined' && settings.companyName) {
-                    document.getElementById('sidebarCompanyName').innerText = settings.companyName;
+                
+                // جلب البيانات وعرضها فوراً بناءً على الدوال الموجودة في script.js
+                if(typeof loadDataFromFirebase === 'function') {
+                    await loadDataFromFirebase();
                 }
-                if(typeof renderInvoices === 'function') renderInvoices();
-                if(typeof renderCustomers === 'function') renderCustomers();
-                if(typeof populateSelects === 'function') populateSelects();
+                if(typeof refreshAllData === 'function') {
+                    refreshAllData();
+                }
             } else if(user === 'admin' && pass === 'admin123') {
                 window.location.href = 'index.html';
             } else {
@@ -219,27 +222,11 @@
             document.getElementById('loginPass').value = '';
         }
 
-        function switchTab(tabId, event) {
-            if(event) event.preventDefault();
-            document.querySelectorAll('.tab-content-area').forEach(el => el.style.display = 'none');
-            document.getElementById('nav-invoices').style.background = 'transparent';
-            document.getElementById('nav-invoices').style.color = '#cbd5e1';
-            document.getElementById('nav-customers').style.background = 'transparent';
-            document.getElementById('nav-customers').style.color = '#cbd5e1';
-            
-            document.getElementById('tab-' + tabId).style.display = 'block';
-            let activeNav = document.getElementById('nav-'+tabId);
-            if(activeNav) {
-                activeNav.style.background = '#0284c7';
-                activeNav.style.color = '#fff';
-            }
-        }
-
         function togglePaidInput() {
             let status = document.getElementById('invoicePaymentStatus').value;
-            let container = document.getElementById('paidAmountContainer');
+            let container = document.getElementById('remainingInputContainer');
             if(container) {
-                container.style.display = (status === 'مدفوع جزئياً') ? 'block' : 'none';
+                container.style.display = (status === 'لم يدفع') ? 'block' : 'none';
             }
         }
     </script>
