@@ -714,3 +714,13 @@ function initChart() {
         options: { responsive: true, maintainAspectRatio: false }
     });
 }
+// منع التكبير والتصغير (Pinch-to-Zoom) تماماً بالصوابع على الموبايل والتابلت
+document.addEventListener('gesturestart', function(e) {
+    e.preventDefault();
+});
+
+document.addEventListener('touchmove', function(e) {
+    if (e.scale !== 1) {
+        e.preventDefault();
+    }
+}, { passive: false });
