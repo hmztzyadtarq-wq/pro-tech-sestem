@@ -717,3 +717,25 @@ html, body {
     width: 100%;
     max-width: 100%;
 }
+@media screen and (max-width: 768px) {
+    /* إلغاء التوزيع الأفقي المعقد وجعل العناصر تحت بعضها بانتظام */
+    div, section, header, main {
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    /* جعل أي حاوية رئيسية تأخذ عرض الشاشة بالكامل وبدون توسيط خاطئ */
+    .container, .main-content, div[style*="flex: 1"], div[style*="width: 260px"] {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 10px !important;
+    }
+
+    /* جعل الجداول تسحب بشكل عرضي مرن بدون كسر التصميم */
+    table {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+}
