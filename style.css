@@ -1,3 +1,9 @@
+/* قفل التكبير والتصغير والتحجيم التلقائي للمتصفحات على الموبايل */
+html {
+    touch-action: manipulation;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
 /* ProTech ERP Professional Modern Styling */
 :root {
     --primary: #1e3a8a;
