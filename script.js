@@ -196,7 +196,8 @@ function renderInventory() {
                 <td>${item.unit}</td>
                 <td>${item.price.toLocaleString()} ج.م</td>
                 <td>
-                    <button class="btn-danger-sm" onclick="deleteProduct(${index})"><i class="fas fa-trash"></i> حذف</button>
+                    <button class="btn-primary-sm" onclick="openEditProductModal(${index})" style="background: #0284c7; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;"><i class="fas fa-edit"></i> تعديل</button>
+                    <button class="btn-danger-sm" onclick="deleteProduct(${index})" style="background: #f43f5e; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;"><i class="fas fa-trash"></i> حذف</button>
                 </td>
             </tr>
         `;
