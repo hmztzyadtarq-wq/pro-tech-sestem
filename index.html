@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -330,72 +331,99 @@
         </div>
     </div>
 
-    <!-- New Invoice Creation Modal (مع التحكم اليدوي المدمج في حالة الدفع) -->
-    <div id="newInvoiceModal" class="modal">
-        <div class="modal-content" style="max-width: 500px; background: #1e293b; color: #fff; padding: 25px; border-radius: 12px;">
+    <!-- New Invoice Creation Modal (مع جدول أصناف متعددة ديناميكي متكامل) -->
+    <div id="newInvoiceModal" class="modal" style="display: none;">
+        <div class="modal-content" style="width: 700px; max-width: 95%; background: #1e293b; color: #fff; padding: 25px; border-radius: 12px;">
             <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h3 style="color: #38bdf8; margin: 0;"><i class="fas fa-file-invoice-dollar"></i> إنشاء فاتورة مبيعات جديدة</h3>
                 <span class="close-btn" onclick="closeNewInvoiceModal()" style="cursor: pointer; font-size: 20px;">&times;</span>
             </div>
-            <div class="modal-body">
-                <form onsubmit="createNewInvoice(event)">
-                    <!-- اختيار العميل -->
-                    <div class="form-group" style="margin-bottom: 15px;">
-                        <label style="display: block; margin-bottom: 5px; font-size: 14px; color: #94a3b8;">اختر العميل</label>
-                        <select id="invoiceCustomerSelect" class="form-control" onchange="handleCustomerSelectChange()" required style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #334155; color: #fff; border-radius: 6px;">
-                            <!-- يتم تعبئتها برمجياً -->
+            <div class="modal-body" style="max-height: 75vh; overflow-y: auto; padding: 5px;">
+                
+                <!-- اختيار العميل -->
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; margin-bottom: 5px; font-size: 13px; color: #94a3b8;">اختر العميل:</label>
+                    <select id="invoiceCustomerSelect" onchange="handleCustomerSelectChange()" style="width: 100%; padding: 8px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 4px;">
+                        <option value="">-- اختر عميل مسجل --</option>
+                    </select>
+                </div>
+
+                <!-- بيانات العميل الجديد لو تم اختياره -->
+                <div id="newCustomerDiv" style="display: none; background: #0f172a; padding: 10px; border-radius: 6px; margin-bottom: 12px; border: 1px dashed #475569;">
+                    <input type="text" id="newCustomerName" placeholder="اسم العميل الجديد" style="width: 100%; padding: 6px; margin-bottom: 6px; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 4px;">
+                    <input type="text" id="newCustomerPhone" placeholder="رقم الهاتف" style="width: 100%; padding: 6px; margin-bottom: 6px; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 4px;">
+                    <input type="text" id="newCustomerAddress" placeholder="العنوان" style="width: 100%; padding: 6px; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 4px;">
+                </div>
+
+                <!-- جدول الأصناف المتعددة (الحل الجذري لمشكلة الأصناف المتعددة) -->
+                <div style="margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                        <label style="font-size: 13px; font-weight: bold; color: #38bdf8;">أصناف الفاتورة:</label>
+                        <button type="button" onclick="addInvoiceItemRow()" style="background: #0284c7; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 12px; cursor: pointer;"><i class="fas fa-plus"></i> إضافة صنف آخر</button>
+                    </div>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #0f172a; font-size: 12px; color: #94a3b8;">
+                                <th style="padding: 6px; text-align: right; width: 45%;">الصنف</th>
+                                <th style="padding: 6px; text-align: center; width: 20%;">الكمية</th>
+                                <th style="padding: 6px; text-align: center; width: 25%;">السعر</th>
+                                <th style="padding: 6px; text-align: center; width: 10%;">حذف</th>
+                            </tr>
+                        </thead>
+                        <tbody id="invoiceItemsBody">
+                            <!-- يتم حقن السطور برمجياً هنا -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- الخصم الاختياري -->
+                <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                    <div style="flex: 1;">
+                        <label style="display: block; margin-bottom: 5px; font-size: 12px; color: #94a3b8;">نسبة الخصم الاختياري (%):</label>
+                        <input type="number" id="invoiceDiscountPercent" value="0" min="0" max="100" oninput="calculateInvoiceTotal()" style="width: 100%; padding: 6px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 4px;">
+                    </div>
+                </div>
+
+                <!-- الحساب السابق للعميل -->
+                <div style="background: #0f172a; padding: 10px; border-radius: 6px; margin-bottom: 12px; font-size: 12px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #fbbf24;">تسجيل حساب سابق (لو يوجد):</label>
+                    <div style="display: flex; gap: 8px; margin-bottom: 6px;">
+                        <input type="number" id="invoiceOldBalance" value="0" placeholder="المبلغ" oninput="calculateInvoiceTotal()" style="flex: 1; padding: 6px; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 4px;">
+                        <select id="invoiceOldBalanceType" onchange="calculateInvoiceTotal()" style="flex: 1; padding: 6px; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 4px;">
+                            <option value="none">بدون حساب سابق</option>
+                            <option value="on_him">حساب سابق (عليه - مدين)</option>
+                            <option value="for_him">حساب سابق (له - دائن)</option>
                         </select>
                     </div>
+                    <input type="text" id="invoiceOldBalanceDate" placeholder="تاريخ الحساب السابق (مثال: 2026/01/15)" style="width: 100%; padding: 6px; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 4px;">
+                </div>
 
-                    <!-- بيانات عميل جديد (تظهر عند اختياره) -->
-                    <div id="newCustomerDiv" style="display: none; background: #0f172a; padding: 10px; border-radius: 6px; margin-bottom: 15px;">
-                        <div class="form-group" style="margin-bottom: 10px;">
-                            <input type="text" id="newCustomerName" placeholder="اسم العميل الجديد" style="width: 100%; padding: 8px; background: #1e293b; border: 1px solid #334155; color: #fff; border-radius: 4px;">
-                        </div>
-                        <div class="form-group" style="margin-bottom: 10px;">
-                            <input type="text" id="newCustomerPhone" placeholder="رقم الهاتف / الواتساب" style="width: 100%; padding: 8px; background: #1e293b; border: 1px solid #334155; color: #fff; border-radius: 4px;">
-                        </div>
-                        <div class="form-group">
-                            <input type="text" id="newCustomerAddress" placeholder="عنوان العميل / وجهة الشحن" style="width: 100%; padding: 8px; background: #1e293b; border: 1px solid #334155; color: #fff; border-radius: 4px;">
-                        </div>
-                    </div>
+                <!-- حالة الدفع -->
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; margin-bottom: 5px; font-size: 13px; color: #94a3b8;">حالة الدفع:</label>
+                    <select id="invoicePaymentStatus" onchange="document.getElementById('remainingDiv').style.display = (this.value === 'لم يدفع') ? 'block' : 'none'" style="width: 100%; padding: 8px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 4px;">
+                        <option value="تم الدفع بالكامل">تم الدفع بالكامل</option>
+                        <option value="لم يدفع">متبقي جزء (آجل)</option>
+                    </select>
+                </div>
 
-                    <!-- اختيار الصنف -->
-                    <div class="form-group" style="margin-bottom: 15px;">
-                        <label style="display: block; margin-bottom: 5px; font-size: 14px; color: #94a3b8;">اختر الصنف من المخزون</label>
-                        <select id="invoiceProductSelect" class="form-control" onchange="updateMaxQuantity()" required style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #334155; color: #fff; border-radius: 6px;">
-                            <!-- يتم تعبئتها برمجياً -->
-                        </select>
-                        <small id="maxQtyHint" style="color: #38bdf8; font-size: 12px; display: block; margin-top: 4px;"></small>
-                    </div>
+                <div id="remainingDiv" style="display: none; margin-bottom: 12px;">
+                    <label style="display: block; margin-bottom: 5px; font-size: 13px; color: #f43f5e;">المبلغ المتبقي على العميل:</label>
+                    <input type="number" id="invoiceRemainingInput" value="0" style="width: 100%; padding: 8px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 4px;">
+                </div>
 
-                    <!-- الكمية -->
-                    <div class="form-group" style="margin-bottom: 15px;">
-                        <label style="display: block; margin-bottom: 5px; font-size: 14px; color: #94a3b8;">الكمية المطلوبة</label>
-                        <input type="number" id="invoiceQty" min="1" value="1" required style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #334155; color: #fff; border-radius: 6px;">
-                    </div>
+                <!-- الإجمالي النهائي -->
+                <div style="background: #0f172a; padding: 12px; border-radius: 6px; text-align: center; margin-bottom: 15px;">
+                    <span style="font-size: 14px; color: #94a3b8;">الإجمالي النهائي للفاتورة:</span>
+                    <h2 id="invoiceFinalTotalDisplay" style="margin: 5px 0 0 0; color: #38bdf8;">0 ج.م</h2>
+                </div>
 
-                    <!-- التحكم اليدوي في حالة الدفع -->
-                    <div class="form-group" style="margin-bottom: 15px;">
-                        <label style="display: block; margin-bottom: 5px; font-size: 14px; color: #94a3b8;">حالة الدفع (تحكم يدوي)</label>
-                        <select id="invoicePaymentStatus" class="form-control" onchange="togglePaymentFields(this.value)" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #334155; color: #fff; border-radius: 6px;">
-                            <option value="تم الدفع">تم الدفع بالكامل</option>
-                            <option value="لم يدفع">لم يدفع / عليه متبقي</option>
-                        </select>
-                    </div>
+                <!-- أزرار الحفظ -->
+                <div style="display: flex; gap: 10px;">
+                    <button type="button" onclick="createNewInvoice(event)" style="flex: 2; background: #10b981; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;"><i class="fas fa-save"></i> حفظ وعرض الفاتورة</button>
+                    <button type="button" onclick="closeNewInvoiceModal()" style="flex: 1; background: #475569; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer;">إلغاء</button>
+                </div>
 
-                    <!-- حقل المبلغ المتبقي اليدوي -->
-                    <div class="form-group" id="remainingAmountGroup" style="display: none; margin-bottom: 15px;">
-                        <label style="display: block; margin-bottom: 5px; font-size: 14px; color: #f43f5e;">المبلغ المتبقي على العميل (ج.م)</label>
-                        <input type="number" id="invoiceRemainingInput" placeholder="أدخل المبلغ المتبقي..." style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid #334155; color: #fff; border-radius: 6px;" value="0">
-                    </div>
-
-                    <!-- أزرار الحفظ والإغلاق -->
-                    <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
-                        <button type="button" onclick="closeNewInvoiceModal()" style="padding: 10px 20px; background: #475569; border: none; color: #fff; border-radius: 6px; cursor: pointer;">إلغاء</button>
-                        <button type="submit" style="padding: 10px 20px; background: #0284c7; border: none; color: #fff; border-radius: 6px; cursor: pointer; font-weight: bold;">حفظ وعرض الفاتورة</button>
-                    </div>
-                </form>
             </div>
         </div>
     </div>
@@ -559,15 +587,6 @@
       <script type="module" src="script.js"></script>
       <script>
         // دوال التحكم المساعدة المدمجة واختصار الخروج
-        function togglePaymentFields(status) {
-            let group = document.getElementById('remainingAmountGroup');
-            if(status === 'لم يدفع') {
-                group.style.display = 'block';
-            } else {
-                group.style.display = 'none';
-            }
-        }
-
         function logoutSystem() {
             localStorage.removeItem('protech_logged_in');
             window.location.href = "login.html";
