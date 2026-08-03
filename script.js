@@ -354,9 +354,9 @@ window.addInvoiceItemRow = function() {
     let tbody = document.getElementById('invoiceItemsBody');
     if(!tbody) return;
     
-    let optionsHtml = '';
+    let optionsHtml = '<option value="">-- اختر الصنف --</option>';
     inventory.forEach(i => {
-        optionsHtml += `<option value="${i.code}" data-price="${i.price}" data-qty="${i.qty}">${i.name} (المتاح: ${i.qty})</option>`;
+        optionsHtml += `<option value="${i.code}" data-price="${i.price}" data-qty="${i.qty}">${i.name} (المتاح: ${i.qty} ${i.unit} - ${i.price} ج.م)</option>`;
     });
 
     let tr = document.createElement('tr');
@@ -367,9 +367,7 @@ window.addInvoiceItemRow = function() {
         <td style="padding: 5px; text-align: center;"><button type="button" onclick="this.closest('tr').remove(); calculateInvoiceTotal();" style="background:#f43f5e; color:#fff; border:none; padding:5px 8px; border-radius:4px; cursor:pointer;"><i class="fas fa-trash"></i></button></td>
     `;
     tbody.appendChild(tr);
-    updateRowPrice(tr.querySelector('.inv-item-code'));
 };
-
 window.updateRowPrice = function(selectElem) {
     let opt = selectElem.options[selectElem.selectedIndex];
     let price = opt ? opt.getAttribute('data-price') : 0;
