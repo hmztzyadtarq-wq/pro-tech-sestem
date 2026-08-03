@@ -328,7 +328,7 @@ function populateSelects() {
     if(custSelect) {
         custSelect.innerHTML = '<option value="">-- اختر عميل مسجل --</option>';
         customers.forEach(c => {
-            custSelect.innerHTML += `<option value="${c.name}">${c.name} (${c.phone})</option>`;
+            custSelect.innerHTML += `<option value="${c.name}">${c.name} (${c.phone || 'بدون هاتف'})</option>`;
         });
         custSelect.innerHTML += `<option value="NEW_CUSTOMER" style="color: #0284c7; font-weight: bold;">+ إضافة عميل جديد...</option>`;
     }
@@ -355,9 +355,11 @@ window.addInvoiceItemRow = function() {
     if(!tbody) return;
     
     let optionsHtml = '<option value="">-- اختر الصنف --</option>';
-    inventory.forEach(i => {
-        optionsHtml += `<option value="${i.code}" data-price="${i.price}" data-qty="${i.qty}">${i.name} (المتاح: ${i.qty} ${i.unit} - ${i.price} ج.م)</option>`;
-    });
+    if (typeof inventory !== 'undefined' && inventory.length > 0) {
+        inventory.forEach(i => {
+            optionsHtml += `<option value="${i.code}" data-price="${i.price}" data-qty="${i.qty}">${i.name} (المتاح: ${i.qty} ${i.unit} - ${i.price} ج.م)</option>`;
+        });
+    }
 
     let tr = document.createElement('tr');
     tr.innerHTML = `
@@ -368,6 +370,7 @@ window.addInvoiceItemRow = function() {
     `;
     tbody.appendChild(tr);
 };
+
 window.updateRowPrice = function(selectElem) {
     let opt = selectElem.options[selectElem.selectedIndex];
     let price = opt ? opt.getAttribute('data-price') : 0;
@@ -442,7 +445,10 @@ window.createNewInvoice = function(e) {
         customerPhone = document.getElementById('newCustomerPhone')?.value.trim();
         customerAddress = document.getElementById('newCustomerAddress')?.value.trim();
         if(customerName) {
-            customers.push({ name: customerName, phone: customerPhone, address: customerAddress });
+            // تحقق إذا لم يكن العميل موجود مسبقاً في الدليل لعدم تكراره
+            if(!customers.some(c => c.name === customerName)) {
+                customers.push({ name: customerName, phone: customerPhone, address: customerAddress });
+            }
         }
     } else {
         let foundCust = customers.find(c => c.name === customerSelectVal);
@@ -581,24 +587,30 @@ function renderCustomers() {
     let tbody = document.getElementById('customersTableBody');
     if(!tbody) return;
     tbody.innerHTML = '';
+    
     customers.forEach((c, index) => {
+        // تصفية فواتير هذا العميل حصراً
         let custInvoices = invoices.filter(i => i.customerName === c.name);
-        let totalSpent = custInvoices.reduce((sum, i) => sum + i.total, 0);
-        let totalRemaining = custInvoices.reduce((sum, i) => sum + (i.remaining || 0), 0);
+        
+        // حساب إجمالي المبيعات للعميل
+        let totalSales = custInvoices.reduce((sum, i) => sum + Number(i.total), 0);
+        
+        // حساب الحساب القديم (إجمالي المبالغ المتبقية غير الدفوعة عبر فواتيره السابقة)
+        let totalRemainingBalance = custInvoices.reduce((sum, i) => sum + Number(i.remaining || 0), 0);
 
-        let statusText = totalRemaining > 0 
-            ? `<span style="color: #f43f5e; font-weight: bold;">عليه متبقي: ${totalRemaining} ج.م</span>` 
-            : `<span style="color: #10b981;">الحساب خالص</span>`;
+        let balanceDisplay = totalRemainingBalance > 0 
+            ? `<span style="color: #f43f5e; font-weight: bold;">${totalRemainingBalance.toLocaleString()} ج.م (عليه متبقي)</span>` 
+            : `<span style="color: #10b981; font-weight: bold;">0 ج.م (خالص)</span>`;
 
         tbody.innerHTML += `
             <tr>
                 <td><strong>${c.name}</strong></td>
                 <td>${c.phone || 'غير مسجل'}</td>
-                <td>${statusText}</td>
-                <td>${custInvoices.length} فواتير</td>
+                <td>${c.address || 'غير مسجل'}</td>
+                <td>${balanceDisplay}</td>
+                <td><strong style="color: #0284c7;">${totalSales.toLocaleString()} ج.م</strong></td>
                 <td>
-                    ${totalSpent.toLocaleString()} ج.م
-                    <button class="btn-danger-sm" onclick="deleteCustomer(${index})" style="margin-right: 10px;"><i class="fas fa-trash"></i> حذف</button>
+                    <button class="btn-danger-sm" onclick="deleteCustomer(${index})" style="background: #f43f5e; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;"><i class="fas fa-trash"></i> حذف</button>
                 </td>
             </tr>
         `;
