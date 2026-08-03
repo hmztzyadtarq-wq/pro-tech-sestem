@@ -1,3 +1,4 @@
+
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-analytics.js";
@@ -359,87 +360,30 @@ window.handleCustomerSelectChange = function() {
     }
 };
 
-window.addInvoiceItemRow = function() {
-    let tbody = document.getElementById('invoiceItemsBody');
-    if(!tbody) return;
-    
-    let optionsHtml = '';
-    inventory.forEach(i => {
-        optionsHtml += `<option value="${i.code}" data-price="${i.price}" data-qty="${i.qty}">${i.name} (المتاح: ${i.qty})</option>`;
-    });
-
-    let tr = document.createElement('tr');
-    tr.innerHTML = `
-        <td style="padding: 5px;"><select class="inv-item-code" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px;" onchange="updateRowPrice(this)">${optionsHtml}</select></td>
-        <td style="padding: 5px;"><input type="number" class="inv-item-qty" value="1" min="1" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px; text-align:center;" oninput="calculateInvoiceTotal()"></td>
-        <td style="padding: 5px;"><input type="number" class="inv-item-price" value="0" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px; text-align:center;" oninput="calculateInvoiceTotal()"></td>
-        <td style="padding: 5px; text-align: center;"><button type="button" onclick="this.closest('tr').remove(); calculateInvoiceTotal();" style="background:#f43f5e; color:#fff; border:none; padding:5px 8px; border-radius:4px; cursor:pointer;"><i class="fas fa-trash"></i></button></td>
-    `;
-    tbody.appendChild(tr);
-    updateRowPrice(tr.querySelector('.inv-item-code'));
-};
-
-window.updateRowPrice = function(selectElem) {
-    let opt = selectElem.options[selectElem.selectedIndex];
-    let price = opt ? opt.getAttribute('data-price') : 0;
-    let tr = selectElem.closest('tr');
-    let priceInput = tr.querySelector('.inv-item-price');
-    if(priceInput) priceInput.value = price;
-    calculateInvoiceTotal();
-};
-
-window.calculateInvoiceTotal = function() {
-    let rows = document.querySelectorAll('#invoiceItemsBody tr');
-    let subtotal = 0;
-
-    rows.forEach(tr => {
-        let qty = Number(tr.querySelector('.inv-item-qty')?.value) || 0;
-        let price = Number(tr.querySelector('.inv-item-price')?.value) || 0;
-        subtotal += (qty * price);
-    });
-
-    let oldBalance = Number(document.getElementById('invoiceOldBalance')?.value) || 0;
-    let oldBalanceType = document.getElementById('invoiceOldBalanceType')?.value;
-    let discountPercent = Number(document.getElementById('invoiceDiscountPercent')?.value) || 0;
-
-    let discountAmount = (subtotal * discountPercent) / 100;
-    let netAfterDiscount = subtotal - discountAmount;
-
-    let finalTotal = netAfterDiscount;
-    if(oldBalanceType === 'on_him') {
-        finalTotal += oldBalance;
-    } else {
-        finalTotal -= oldBalance;
+window.updateMaxQuantity = function() {
+    let select = document.getElementById('invoiceProductSelect');
+    if(!select || select.options.length === 0) return;
+    let opt = select.options[select.selectedIndex];
+    if(opt) {
+        let maxQty = opt.getAttribute('data-qty');
+        let hint = document.getElementById('maxQtyHint');
+        if(hint) hint.innerText = `الكمية المتاحة: ${maxQty}`;
+        let qtyInput = document.getElementById('invoiceQty');
+        if(qtyInput) qtyInput.max = maxQty;
     }
-
-    let display = document.getElementById('invoiceFinalTotalDisplay');
-    if(display) display.innerText = finalTotal.toLocaleString() + ' ج.م';
-    
-    return finalTotal;
 };
 
 window.openNewInvoiceModal = function() {
     let modal = document.getElementById('newInvoiceModal');
     if(modal) modal.style.display = 'flex';
     populateSelects();
-    
-    // تصفير الجدول وإضافة صف افتراضي أول
-    let tbody = document.getElementById('invoiceItemsBody');
-    if(tbody) {
-        tbody.innerHTML = '';
-        window.addInvoiceItemRow();
-    }
-    let disc = document.getElementById('invoiceDiscountPercent');
-    if(disc) disc.value = 0;
-    let oldBal = document.getElementById('invoiceOldBalance');
-    if(oldBal) oldBal.value = 0;
-    calculateInvoiceTotal();
 };
 
 window.closeNewInvoiceModal = function() { 
     let modal = document.getElementById('newInvoiceModal');
     if(modal) modal.style.display = 'none'; 
 };
+
 window.createNewInvoice = function(e) {
     if(e) e.preventDefault();
     
@@ -447,104 +391,6 @@ window.createNewInvoice = function(e) {
     let customerName = customerSelectVal;
     let customerPhone = '';
     let customerAddress = '';
-
-    if(customerSelectVal === 'NEW_CUSTOMER') {
-        customerName = document.getElementById('newCustomerName')?.value.trim();
-        customerPhone = document.getElementById('newCustomerPhone')?.value.trim();
-        customerAddress = document.getElementById('newCustomerAddress')?.value.trim();
-        if(customerName) {
-            customers.push({ name: customerName, phone: customerPhone, address: customerAddress });
-        }
-    } else {
-        let foundCust = customers.find(c => c.name === customerSelectVal);
-        if(foundCust) {
-            customerPhone = foundCust.phone;
-            customerAddress = foundCust.address;
-        }
-    }
-
-    let rows = document.querySelectorAll('#invoiceItemsBody tr');
-    if(rows.length === 0) {
-        alert('يجب إضافة صنف واحد على الأقل للفاتورة!');
-        return;
-    }
-
-    let items = [];
-    let subtotal = 0;
-
-    for(let tr of rows) {
-        let prodCode = tr.querySelector('.inv-item-code').value;
-        let opt = tr.querySelector('.inv-item-code').selectedOptions[0];
-        let productName = opt ? opt.text.split(' (')[0] : '';
-        let qty = Number(tr.querySelector('.inv-item-qty').value);
-        let price = Number(tr.querySelector('.inv-item-price').value);
-        let availableQty = Number(opt.getAttribute('data-qty'));
-
-        if(qty > availableQty) {
-            alert(`الكمية المطلوبة للصنف (${productName}) أكبر من المتاح في المخزون!`);
-            return;
-        }
-
-        let itemTotal = qty * price;
-        subtotal += itemTotal;
-        items.push({ code: prodCode, name: productName, qty, price, total: itemTotal });
-    }
-
-    let discountPercent = Number(document.getElementById('invoiceDiscountPercent')?.value) || 0;
-    let discountAmount = (subtotal * discountPercent) / 100;
-    let netAfterDiscount = subtotal - discountAmount;
-
-    let oldBalance = Number(document.getElementById('invoiceOldBalance')?.value) || 0;
-    let oldBalanceType = document.getElementById('invoiceOldBalanceType')?.value;
-    let finalTotal = netAfterDiscount;
-    if(oldBalanceType === 'on_him') finalTotal += oldBalance;
-    else finalTotal -= oldBalance;
-
-    let paymentStatus = document.getElementById('invoicePaymentStatus')?.value;
-    let paidAmount = finalTotal;
-    let remainingAmount = 0;
-
-    if(paymentStatus === 'لم يدفع') {
-        remainingAmount = Number(document.getElementById('invoiceRemainingInput')?.value) || 0;
-        paidAmount = finalTotal - remainingAmount;
-        if(paidAmount < 0) paidAmount = 0;
-    }
-
-    // خصم الكميات من المخزون
-    items.forEach(item => {
-        let prodObj = inventory.find(i => i.code === item.code);
-        if(prodObj) {
-            prodObj.qty -= item.qty;
-        }
-    });
-
-    let invoiceId = 'INV-' + Math.floor(1000 + Math.random() * 9000);
-    let currentDate = new Date().toLocaleDateString('ar-EG');
-
-    let newInv = {
-        id: invoiceId,
-        customerName,
-        customerPhone,
-        customerAddress,
-        items,
-        subtotal,
-        discountPercent,
-        oldBalance,
-        oldBalanceType,
-        total: finalTotal,
-        paid: paidAmount,
-        remaining: remainingAmount,
-        status: paymentStatus === 'لم يدفع' && remainingAmount > 0 ? `متبقي: ${remainingAmount} ج.م` : paymentStatus,
-        date: currentDate
-    };
-
-    invoices.push(newInv);
-    saveData();
-    refreshAllData();
-    window.closeNewInvoiceModal();
-    window.showInvoiceModal(newInv);
-};
-
 
     if(customerSelectVal === 'NEW_CUSTOMER') {
         customerName = document.getElementById('newCustomerName')?.value.trim();
@@ -736,64 +582,16 @@ window.showInvoiceModal = function(inv) {
     if(!area) return;
     
     let itemsHtml = '';
-    if(inv.items) {
-        inv.items.forEach(item => {
-            itemsHtml += `
-                <tr>
-                    <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">${item.name}</td>
-                    <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">${item.qty}</td>
-                    <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">${item.price.toLocaleString()} ج.م</td>
-                    <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: left;">${item.total.toLocaleString()} ج.م</td>
-                </tr>
-            `;
-        });
-    }
-
-    area.innerHTML = `
-        <div style="background: #fff; color: #000; padding: 25px; font-family: Tahoma, sans-serif; direction: rtl; text-align: right;">
-            <div style="border-bottom: 2px solid #333; padding-bottom: 12px; margin-bottom: 15px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <h3 style="margin: 0; color: #0284c7; font-size: 18px;">${settings.companyName}</h3>
-                    <div>
-                        <h4 style="margin: 0; font-size: 16px;">فاتورة مبيعات</h4>
-                        <p style="margin: 2px 0 0 0; font-size: 12px; text-align: left;">رقم: ${inv.id}</p>
-                        <p style="margin: 2px 0 0 0; font-size: 12px; text-align: left;">التاريخ: ${inv.date}</p>
-                    </div>
-                </div>
-            </div>
-
-            <div style="background: #f1f5f9; padding: 10px; margin-bottom: 15px; font-size: 13px; border-radius: 4px;">
-                <strong>العميل:</strong> ${inv.customerName} | <strong>الهاتف:</strong> ${inv.customerPhone || '-'}
-            </div>
-
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 13px;">
-                <thead>
-                    <tr style="background: #e2e8f0;">
-                        <th style="padding: 8px; text-align: right;">الصنف</th>
-                        <th style="padding: 8px; text-align: center;">الكمية</th>
-                        <th style="padding: 8px; text-align: center;">السعر</th>
-                        <th style="padding: 8px; text-align: left;">الإجمالي</th>
-                    </tr>
-                </thead>
-                <tbody>${itemsHtml}</tbody>
-            </table>
-
-            <div style="font-size: 13px; border-top: 1px solid #ccc; padding-top: 10px; text-align: left;">
-                <p style="margin: 3px 0;">إجمالي الأصناف: ${(inv.subtotal || inv.total).toLocaleString()} ج.م</p>
-                ${inv.discountPercent ? `<p style="margin: 3px 0; color: #10b981;">خصم (${inv.discountPercent}%): -${((inv.subtotal * inv.discountPercent)/100).toLocaleString()} ج.م</p>` : ''}
-                ${inv.oldBalance ? `<p style="margin: 3px 0;">حساب سابق: ${inv.oldBalance.toLocaleString()} ج.م</p>` : ''}
-                <p style="margin: 5px 0; font-size: 15px; font-weight: bold; color: #0284c7;">الإجمالي النهائي: ${inv.total.toLocaleString()} ج.م</p>
-                <p style="margin: 3px 0;">المدفوع: ${(inv.paid || 0).toLocaleString()} ج.م</p>
-                <p style="margin: 3px 0; color: #e11d48;">المتبقي: ${(inv.remaining || 0).toLocaleString()} ج.م</p>
-            </div>
-        </div>
-        <div style="text-align: center; margin-top: 15px;">
-            <button onclick="sendToWhatsAppNabawy()" style="background: #10b981; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fab fa-whatsapp"></i> إرسال لمحمد النبوي</button>
-        </div>
-    `;
-    let modal = document.getElementById('invoiceModal');
-    if(modal) modal.style.display = 'flex';
-};
+    inv.items.forEach(item => {
+        itemsHtml += `
+            <tr>
+                <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">${item.name}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">${item.qty}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">${item.price.toLocaleString()} ج.م</td>
+                <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: left;">${item.total.toLocaleString()} ج.م</td>
+            </tr>
+        `;
+    });
 
     area.innerHTML = `
         <div style="background: #fff; color: #000; padding: 25px; font-family: Tahoma, sans-serif; direction: rtl; text-align: right;">
