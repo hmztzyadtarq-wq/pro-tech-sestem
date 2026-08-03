@@ -392,9 +392,11 @@ window.calculateInvoiceTotal = function() {
 
     let oldBalance = Number(document.getElementById('invoiceOldBalance')?.value) || 0;
     let oldBalanceType = document.getElementById('invoiceOldBalanceType')?.value;
+    
+    // دعم الخصم سواء كان كقيمة ثابتة (إذا كان الحقل يحتوي على اسم discountValue) أو نسبة مئوية
     let discountPercent = Number(document.getElementById('invoiceDiscountPercent')?.value) || 0;
-
     let discountAmount = (subtotal * discountPercent) / 100;
+    
     let netAfterDiscount = subtotal - discountAmount;
 
     let finalTotal = netAfterDiscount;
@@ -445,7 +447,6 @@ window.createNewInvoice = function(e) {
         customerPhone = document.getElementById('newCustomerPhone')?.value.trim();
         customerAddress = document.getElementById('newCustomerAddress')?.value.trim();
         if(customerName) {
-            // تحقق إذا لم يكن العميل موجود مسبقاً في الدليل لعدم تكراره
             if(!customers.some(c => c.name === customerName)) {
                 customers.push({ name: customerName, phone: customerPhone, address: customerAddress });
             }
@@ -468,12 +469,13 @@ window.createNewInvoice = function(e) {
     let subtotal = 0;
 
     for(let tr of rows) {
-        let prodCode = tr.querySelector('.inv-item-code').value;
-        let opt = tr.querySelector('.inv-item-code').selectedOptions[0];
+        let selectEl = tr.querySelector('.inv-item-code');
+        let prodCode = selectEl.value;
+        let opt = selectEl.selectedOptions[0];
         let productName = opt ? opt.text.split(' (')[0] : '';
         let qty = Number(tr.querySelector('.inv-item-qty').value);
         let price = Number(tr.querySelector('.inv-item-price').value);
-        let availableQty = Number(opt.getAttribute('data-qty'));
+        let availableQty = Number(opt ? opt.getAttribute('data-qty') : 0);
 
         if(qty > availableQty) {
             alert(`الكمية المطلوبة للصنف (${productName}) أكبر من المتاح في المخزون!`);
@@ -523,6 +525,7 @@ window.createNewInvoice = function(e) {
         items,
         subtotal,
         discountPercent,
+        discountAmount,
         oldBalance,
         oldBalanceType,
         total: finalTotal,
@@ -589,13 +592,8 @@ function renderCustomers() {
     tbody.innerHTML = '';
     
     customers.forEach((c, index) => {
-        // تصفية فواتير هذا العميل حصراً
         let custInvoices = invoices.filter(i => i.customerName === c.name);
-        
-        // حساب إجمالي المبيعات للعميل
         let totalSales = custInvoices.reduce((sum, i) => sum + Number(i.total), 0);
-        
-        // حساب الحساب القديم (إجمالي المبالغ المتبقية غير الدفوعة عبر فواتيره السابقة)
         let totalRemainingBalance = custInvoices.reduce((sum, i) => sum + Number(i.remaining || 0), 0);
 
         let balanceDisplay = totalRemainingBalance > 0 
