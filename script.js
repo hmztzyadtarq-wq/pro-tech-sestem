@@ -1,3 +1,4 @@
+
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-analytics.js";
@@ -340,6 +341,23 @@ function populateSelects() {
             purProdSelect.innerHTML += `<option value="${i.code}">${i.name}</option>`;
         });
     }
+
+    // تعبئة أي قائمة منسدلة خاصة بالأصناف تم العثور عليها في الشاشة (علاج جذري للقائمة الظاهرة في الصورة)
+    let optionsHtml = '<option value="">-- اختر الصنف من المخزون --</option>';
+    if (inventory && inventory.length > 0) {
+        inventory.forEach(i => {
+            optionsHtml += `<option value="${i.code}" data-price="${i.price}" data-qty="${i.qty}">${i.name} (المتاح: ${i.qty} ${i.unit} - ${i.price} ج.م)</option>`;
+        });
+    }
+
+    document.querySelectorAll('select').forEach(sel => {
+        if (sel.id !== 'invoiceCustomerSelect' && sel.id !== 'purchaseProductSelect' && sel.id !== 'invoiceCustomerOldType' && sel.id !== 'invoiceOldBalanceType' && sel.id !== 'invoicePaymentStatus') {
+            // لو القائمة تخص الأصناف أو تحتوي على كلمة صنف أو منتج أو فارغة
+            let currentVal = sel.value;
+            sel.innerHTML = optionsHtml;
+            sel.value = currentVal;
+        }
+    });
 }
 
 window.handleCustomerSelectChange = function() {
@@ -354,7 +372,7 @@ window.addInvoiceItemRow = function() {
     let tbody = document.getElementById('invoiceItemsBody');
     if(!tbody) return;
     
-    let optionsHtml = '<option value="">-- اختر الصنف --</option>';
+    let optionsHtml = '<option value="">-- اختر الصنف من المخزون --</option>';
     if (inventory && inventory.length > 0) {
         inventory.forEach(i => {
             optionsHtml += `<option value="${i.code}" data-price="${i.price}" data-qty="${i.qty}">${i.name} (المتاح: ${i.qty} ${i.unit} - ${i.price} ج.م)</option>`;
@@ -375,8 +393,15 @@ window.updateRowPrice = function(selectElem) {
     let opt = selectElem.options[selectElem.selectedIndex];
     let price = opt ? opt.getAttribute('data-price') : 0;
     let tr = selectElem.closest('tr');
-    let priceInput = tr.querySelector('.inv-item-price');
-    if(priceInput) priceInput.value = price;
+    if(tr) {
+        let priceInput = tr.querySelector('.inv-item-price');
+        if(priceInput) priceInput.value = price;
+    } else {
+        // لو الـ select مش داخل جدول (زي القائمة في الصورة)
+        let container = selectElem.closest('.modal') || document;
+        let priceInput = container.querySelector('input[type="number"]:not([id])');
+        if(priceInput) priceInput.value = price;
+    }
     calculateInvoiceTotal();
 };
 
@@ -384,11 +409,26 @@ window.calculateInvoiceTotal = function() {
     let rows = document.querySelectorAll('#invoiceItemsBody tr');
     let subtotal = 0;
 
-    rows.forEach(tr => {
-        let qty = Number(tr.querySelector('.inv-item-qty')?.value) || 0;
-        let price = Number(tr.querySelector('.inv-item-price')?.value) || 0;
-        subtotal += (qty * price);
-    });
+    if(rows.length > 0) {
+        rows.forEach(tr => {
+            let qty = Number(tr.querySelector('.inv-item-qty')?.value) || 0;
+            let price = Number(tr.querySelector('.inv-item-price')?.value) || 0;
+            subtotal += (qty * price);
+        });
+    } else {
+        // دعم التصميم الظاهر في الصورة لو الشاشات تعتمد على حقول مفردة
+        let modal = document.getElementById('newInvoiceModal');
+        if(modal) {
+            let sel = modal.querySelector('select:not(#invoiceCustomerSelect):not(#invoicePaymentStatus):not(#invoiceOldBalanceType)');
+            let qtyInput = modal.querySelector('input[type="number"]');
+            if(sel && sel.selectedIndex > 0) {
+                let opt = sel.options[sel.selectedIndex];
+                let price = Number(opt.getAttribute('data-price')) || 0;
+                let qty = qtyInput ? (Number(qtyInput.value) || 1) : 1;
+                subtotal = price * qty;
+            }
+        }
+    }
 
     let oldBalance = Number(document.getElementById('invoiceOldBalance')?.value) || 0;
     let oldBalanceType = document.getElementById('invoiceOldBalanceType')?.value;
@@ -420,7 +460,18 @@ window.openNewInvoiceModal = function() {
     if(tbody) {
         tbody.innerHTML = '';
         window.addInvoiceItemRow();
+    } else {
+        // ملء القائمة الظاهرة في الصورة مباشرة لو مفيش جدول أصناف
+        let sel = modal.querySelector('select:not(#invoiceCustomerSelect):not(#invoicePaymentStatus):not(#invoiceOldBalanceType)');
+        if(sel) {
+            let optionsHtml = '<option value="">-- اختر الصنف من المخزون --</option>';
+            inventory.forEach(i => {
+                optionsHtml += `<option value="${i.code}" data-price="${i.price}" data-qty="${i.qty}">${i.name} (المتاح: ${i.qty} ${i.unit} - ${i.price} ج.م)</option>`;
+            });
+            sel.innerHTML = optionsHtml;
+        }
     }
+
     let disc = document.getElementById('invoiceDiscountPercent');
     if(disc) disc.value = 0;
     let oldBal = document.getElementById('invoiceOldBalance');
@@ -459,35 +510,56 @@ window.createNewInvoice = function(e) {
     }
 
     let rows = document.querySelectorAll('#invoiceItemsBody tr');
-    if(rows.length === 0) {
-        alert('يجب إضافة صنف واحد على الأقل للفاتورة!');
-        return;
-    }
-
     let items = [];
     let subtotal = 0;
 
-    for(let tr of rows) {
-        let selectEl = tr.querySelector('.inv-item-code');
-        if(!selectEl || !selectEl.value) {
-            alert('يرجى اختيار صنف صحيح في كل السطور!');
+    if(rows.length > 0) {
+        for(let tr of rows) {
+            let selectEl = tr.querySelector('.inv-item-code');
+            if(!selectEl || !selectEl.value) {
+                alert('يرجى اختيار صنف صحيح في كل السطور!');
+                return;
+            }
+            let prodCode = selectEl.value;
+            let opt = selectEl.selectedOptions[0];
+            let productName = opt ? opt.text.split(' (')[0] : '';
+            let qty = Number(tr.querySelector('.inv-item-qty').value);
+            let price = Number(tr.querySelector('.inv-item-price').value);
+            let availableQty = Number(opt ? opt.getAttribute('data-qty') : 0);
+
+            if(qty > availableQty) {
+                alert(`الكمية المطلوبة للصنف (${productName}) أكبر من المتاح في المخزون!`);
+                return;
+            }
+
+            let itemTotal = qty * price;
+            subtotal += itemTotal;
+            items.push({ code: prodCode, name: productName, qty, price, total: itemTotal });
+        }
+    } else {
+        // التعامل مع التصميم البسيط الظاهر في الصورة
+        let modal = document.getElementById('newInvoiceModal');
+        let sel = modal.querySelector('select:not(#invoiceCustomerSelect):not(#invoicePaymentStatus):not(#invoiceOldBalanceType)');
+        let qtyInput = modal.querySelector('input[type="number"]');
+        
+        if(!sel || !sel.value) {
+            alert('يرجى اختيار الصنف من المخزون!');
             return;
         }
-        let prodCode = selectEl.value;
-        let opt = selectEl.selectedOptions[0];
+        let prodCode = sel.value;
+        let opt = sel.selectedOptions[0];
         let productName = opt ? opt.text.split(' (')[0] : '';
-        let qty = Number(tr.querySelector('.inv-item-qty').value);
-        let price = Number(tr.querySelector('.inv-item-price').value);
-        let availableQty = Number(opt ? opt.getAttribute('data-qty') : 0);
+        let price = Number(opt.getAttribute('data-price')) || 0;
+        let availableQty = Number(opt.getAttribute('data-qty')) || 0;
+        let qty = qtyInput ? (Number(qtyInput.value) || 1) : 1;
 
         if(qty > availableQty) {
-            alert(`الكمية المطلوبة للصنف (${productName}) أكبر من المتاح في المخزون!`);
+            alert(`الكمية المطلوبة أكبر من المتاح في المخزون!`);
             return;
         }
 
-        let itemTotal = qty * price;
-        subtotal += itemTotal;
-        items.push({ code: prodCode, name: productName, qty, price, total: itemTotal });
+        subtotal = qty * price;
+        items.push({ code: prodCode, name: productName, qty, price, total: subtotal });
     }
 
     let discountPercent = Number(document.getElementById('invoiceDiscountPercent')?.value) || 0;
