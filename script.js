@@ -1,4 +1,3 @@
-
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-analytics.js";
@@ -28,8 +27,8 @@ let inventory = [
 ];
 
 let customers = [
-    { name: 'شركة النور للاستيراد', phone: '01012345678', address: 'القاهرة' },
-    { name: 'مؤسسة الهلال التجارية', phone: '01098765432', address: 'الجيزة' }
+    { name: 'شركة النور للاستيراد', phone: '01012345678', address: 'القاهرة', oldBalance: 0, oldBalanceDate: '', balanceType: 'none' },
+    { name: 'مؤسسة الهلال التجارية', phone: '01098765432', address: 'الجيزة', oldBalance: 0, oldBalanceDate: '', balanceType: 'none' }
 ];
 
 let invoices = [];
@@ -98,7 +97,6 @@ function saveData() {
     localStorage.setItem('protech_invoices', JSON.stringify(invoices));
     localStorage.setItem('protech_purchases', JSON.stringify(purchases));
     localStorage.setItem('protech_settings', JSON.stringify(settings));
-    
     saveDataToFirebase();
 }
 
@@ -111,7 +109,6 @@ function refreshAllData() {
     populateSelects();
 }
 
-// Global functions attached to window so HTML onclick works correctly
 window.switchTab = function(tabId) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.sidebar .nav-links li').forEach(el => el.classList.remove('active'));
@@ -151,9 +148,7 @@ function renderDashboard() {
         statsGrid.appendChild(profitCard);
     }
     let profitElem = document.getElementById('statTotalProfit');
-    if(profitElem) {
-        profitElem.innerText = totalProfit.toLocaleString() + ' ج.م';
-    }
+    if(profitElem) profitElem.innerText = totalProfit.toLocaleString() + ' ج.م';
 
     let recentTbody = document.querySelector('#recentInvoicesTable tbody');
     if(recentTbody) {
@@ -197,8 +192,8 @@ function renderInventory() {
                 <td>${item.unit}</td>
                 <td>${item.price.toLocaleString()} ج.م</td>
                 <td>
-                    <button class="btn-primary-sm" onclick="openEditProductModal(${index})" style="background: #0284c7; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;"><i class="fas fa-edit"></i> تعديل</button>
-                    <button class="btn-danger-sm" onclick="deleteProduct(${index})" style="background: #f43f5e; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;"><i class="fas fa-trash"></i> حذف</button>
+                    <button onclick="openEditProductModal(${index})" style="background: #0284c7; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;"><i class="fas fa-edit"></i> تعديل</button>
+                    <button onclick="deleteProduct(${index})" style="background: #f43f5e; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;"><i class="fas fa-trash"></i> حذف</button>
                 </td>
             </tr>
         `;
@@ -209,21 +204,13 @@ window.filterInventory = function() {
     let searchInput = document.getElementById('searchInventory');
     if(!searchInput) return;
     let query = searchInput.value.toLowerCase();
-    let rows = document.querySelectorAll('#inventoryTableBody tr');
-    rows.forEach(row => {
+    document.querySelectorAll('#inventoryTableBody tr').forEach(row => {
         row.style.display = row.innerText.toLowerCase().includes(query) ? '' : 'none';
     });
 };
 
-window.openAddProductModal = function() { 
-    let modal = document.getElementById('addProductModal');
-    if(modal) modal.style.display = 'flex'; 
-};
-
-window.closeAddProductModal = function() { 
-    let modal = document.getElementById('addProductModal');
-    if(modal) modal.style.display = 'none'; 
-};
+window.openAddProductModal = function() { document.getElementById('addProductModal').style.display = 'flex'; };
+window.closeAddProductModal = function() { document.getElementById('addProductModal').style.display = 'none'; };
 
 window.addNewProduct = function(e) {
     if(e) e.preventDefault();
@@ -234,7 +221,6 @@ window.addNewProduct = function(e) {
     let price = Number(document.getElementById('prodPrice')?.value);
 
     if(!code || !name) return;
-
     inventory.push({ code, name, qty, unit, price });
     saveData();
     refreshAllData();
@@ -264,23 +250,14 @@ function renderPurchases() {
                 <td>${(p.unitCost || 0).toLocaleString()} ج.م</td>
                 <td>${p.cost.toLocaleString()} ج.م</td>
                 <td>${p.date}</td>
-                <td>
-                    <button class="btn-danger-sm" onclick="deletePurchase(${index})"><i class="fas fa-trash"></i> حذف</button>
-                </td>
+                <td><button class="btn-danger-sm" onclick="deletePurchase(${index})"><i class="fas fa-trash"></i> حذف</button></td>
             </tr>
         `;
     });
 }
 
-window.openNewPurchaseModal = function() { 
-    let modal = document.getElementById('newPurchaseModal');
-    if(modal) modal.style.display = 'flex'; 
-};
-
-window.closeNewPurchaseModal = function() { 
-    let modal = document.getElementById('newPurchaseModal');
-    if(modal) modal.style.display = 'none'; 
-};
+window.openNewPurchaseModal = function() { document.getElementById('newPurchaseModal').style.display = 'flex'; };
+window.closeNewPurchaseModal = function() { document.getElementById('newPurchaseModal').style.display = 'none'; };
 
 window.createNewPurchase = function(e) {
     if(e) e.preventDefault();
@@ -294,13 +271,8 @@ window.createNewPurchase = function(e) {
     if(product) {
         product.qty += qty;
         purchases.push({
-            supplier,
-            productCode: prodCode,
-            productName: product.name,
-            qty,
-            unitCost,
-            cost: totalCost,
-            date: new Date().toLocaleDateString('ar-EG')
+            supplier, productCode: prodCode, productName: product.name,
+            qty, unitCost, cost: totalCost, date: new Date().toLocaleDateString('ar-EG')
         });
         saveData();
         refreshAllData();
@@ -311,7 +283,7 @@ window.createNewPurchase = function(e) {
 };
 
 window.deletePurchase = function(index) {
-    if(confirm('هل تريد حذف عملية الشراء هذه؟ (سيتم خصم الكمية المضافة من المخزون).')) {
+    if(confirm('هل تريد حذف عملية الشراء هذه؟')) {
         let p = purchases[index];
         let product = inventory.find(i => i.code === p.productCode);
         if(product) {
@@ -341,43 +313,36 @@ function populateSelects() {
             purProdSelect.innerHTML += `<option value="${i.code}">${i.name}</option>`;
         });
     }
-
-    // تعبئة أي قائمة منسدلة خاصة بالأصناف تم العثور عليها في الشاشة (علاج جذري للقائمة الظاهرة في الصورة)
-    let optionsHtml = '<option value="">-- اختر الصنف من المخزون --</option>';
-    if (inventory && inventory.length > 0) {
-        inventory.forEach(i => {
-            optionsHtml += `<option value="${i.code}" data-price="${i.price}" data-qty="${i.qty}">${i.name} (المتاح: ${i.qty} ${i.unit} - ${i.price} ج.م)</option>`;
-        });
-    }
-
-    document.querySelectorAll('select').forEach(sel => {
-        if (sel.id !== 'invoiceCustomerSelect' && sel.id !== 'purchaseProductSelect' && sel.id !== 'invoiceCustomerOldType' && sel.id !== 'invoiceOldBalanceType' && sel.id !== 'invoicePaymentStatus') {
-            // لو القائمة تخص الأصناف أو تحتوي على كلمة صنف أو منتج أو فارغة
-            let currentVal = sel.value;
-            sel.innerHTML = optionsHtml;
-            sel.value = currentVal;
-        }
-    });
 }
 
 window.handleCustomerSelectChange = function() {
     let val = document.getElementById('invoiceCustomerSelect')?.value;
     let newDiv = document.getElementById('newCustomerDiv');
-    if(newDiv) {
-        newDiv.style.display = (val === 'NEW_CUSTOMER') ? 'block' : 'none';
+    if(newDiv) newDiv.style.display = (val === 'NEW_CUSTOMER') ? 'block' : 'none';
+
+    // تحميل الحساب القديم للعميل تلقائياً في الفاتورة لو وجد
+    let found = customers.find(c => c.name === val);
+    if(found) {
+        let oldBalInput = document.getElementById('invoiceOldBalance');
+        let oldBalType = document.getElementById('invoiceOldBalanceType');
+        let oldBalDateInput = document.getElementById('invoiceOldBalanceDate');
+
+        if(oldBalInput) oldBalInput.value = found.oldBalance || 0;
+        if(oldBalType) oldBalType.value = found.balanceType || 'none';
+        if(oldBalDateInput && found.oldBalanceDate) oldBalDateInput.value = found.oldBalanceDate;
+        calculateInvoiceTotal();
     }
 };
 
+// إضافة سطر صنف جديد داخل نافذة الفاتورة المتعددة
 window.addInvoiceItemRow = function() {
     let tbody = document.getElementById('invoiceItemsBody');
     if(!tbody) return;
-    
+
     let optionsHtml = '<option value="">-- اختر الصنف من المخزون --</option>';
-    if (inventory && inventory.length > 0) {
-        inventory.forEach(i => {
-            optionsHtml += `<option value="${i.code}" data-price="${i.price}" data-qty="${i.qty}">${i.name} (المتاح: ${i.qty} ${i.unit} - ${i.price} ج.م)</option>`;
-        });
-    }
+    inventory.forEach(i => {
+        optionsHtml += `<option value="${i.code}" data-price="${i.price}" data-qty="${i.qty}">${i.name} (المتاح: ${i.qty} ${i.unit} - ${i.price} ج.م)</option>`;
+    });
 
     let tr = document.createElement('tr');
     tr.innerHTML = `
@@ -396,11 +361,6 @@ window.updateRowPrice = function(selectElem) {
     if(tr) {
         let priceInput = tr.querySelector('.inv-item-price');
         if(priceInput) priceInput.value = price;
-    } else {
-        // لو الـ select مش داخل جدول (زي القائمة في الصورة)
-        let container = selectElem.closest('.modal') || document;
-        let priceInput = container.querySelector('input[type="number"]:not([id])');
-        if(priceInput) priceInput.value = price;
     }
     calculateInvoiceTotal();
 };
@@ -409,39 +369,23 @@ window.calculateInvoiceTotal = function() {
     let rows = document.querySelectorAll('#invoiceItemsBody tr');
     let subtotal = 0;
 
-    if(rows.length > 0) {
-        rows.forEach(tr => {
-            let qty = Number(tr.querySelector('.inv-item-qty')?.value) || 0;
-            let price = Number(tr.querySelector('.inv-item-price')?.value) || 0;
-            subtotal += (qty * price);
-        });
-    } else {
-        // دعم التصميم الظاهر في الصورة لو الشاشات تعتمد على حقول مفردة
-        let modal = document.getElementById('newInvoiceModal');
-        if(modal) {
-            let sel = modal.querySelector('select:not(#invoiceCustomerSelect):not(#invoicePaymentStatus):not(#invoiceOldBalanceType)');
-            let qtyInput = modal.querySelector('input[type="number"]');
-            if(sel && sel.selectedIndex > 0) {
-                let opt = sel.options[sel.selectedIndex];
-                let price = Number(opt.getAttribute('data-price')) || 0;
-                let qty = qtyInput ? (Number(qtyInput.value) || 1) : 1;
-                subtotal = price * qty;
-            }
-        }
-    }
+    rows.forEach(tr => {
+        let qty = Number(tr.querySelector('.inv-item-qty')?.value) || 0;
+        let price = Number(tr.querySelector('.inv-item-price')?.value) || 0;
+        subtotal += (qty * price);
+    });
+
+    let discountPercent = Number(document.getElementById('invoiceDiscountPercent')?.value) || 0;
+    let discountAmount = (subtotal * discountPercent) / 100;
+    let netAfterDiscount = subtotal - discountAmount;
 
     let oldBalance = Number(document.getElementById('invoiceOldBalance')?.value) || 0;
     let oldBalanceType = document.getElementById('invoiceOldBalanceType')?.value;
-    
-    let discountPercent = Number(document.getElementById('invoiceDiscountPercent')?.value) || 0;
-    let discountAmount = (subtotal * discountPercent) / 100;
-    
-    let netAfterDiscount = subtotal - discountAmount;
 
     let finalTotal = netAfterDiscount;
     if(oldBalanceType === 'on_him') {
         finalTotal += oldBalance;
-    } else {
+    } else if(oldBalanceType === 'for_him') {
         finalTotal -= oldBalance;
     }
 
@@ -455,21 +399,11 @@ window.openNewInvoiceModal = function() {
     let modal = document.getElementById('newInvoiceModal');
     if(modal) modal.style.display = 'flex';
     populateSelects();
-    
+
     let tbody = document.getElementById('invoiceItemsBody');
     if(tbody) {
         tbody.innerHTML = '';
-        window.addInvoiceItemRow();
-    } else {
-        // ملء القائمة الظاهرة في الصورة مباشرة لو مفيش جدول أصناف
-        let sel = modal.querySelector('select:not(#invoiceCustomerSelect):not(#invoicePaymentStatus):not(#invoiceOldBalanceType)');
-        if(sel) {
-            let optionsHtml = '<option value="">-- اختر الصنف من المخزون --</option>';
-            inventory.forEach(i => {
-                optionsHtml += `<option value="${i.code}" data-price="${i.price}" data-qty="${i.qty}">${i.name} (المتاح: ${i.qty} ${i.unit} - ${i.price} ج.م)</option>`;
-            });
-            sel.innerHTML = optionsHtml;
-        }
+        window.addInvoiceItemRow(); // البدء بسطر أول افتراضي
     }
 
     let disc = document.getElementById('invoiceDiscountPercent');
@@ -479,10 +413,7 @@ window.openNewInvoiceModal = function() {
     calculateInvoiceTotal();
 };
 
-window.closeNewInvoiceModal = function() { 
-    let modal = document.getElementById('newInvoiceModal');
-    if(modal) modal.style.display = 'none'; 
-};
+window.closeNewInvoiceModal = function() { document.getElementById('newInvoiceModal').style.display = 'none'; };
 
 window.createNewInvoice = function(e) {
     if(e) e.preventDefault();
@@ -496,10 +427,8 @@ window.createNewInvoice = function(e) {
         customerName = document.getElementById('newCustomerName')?.value.trim();
         customerPhone = document.getElementById('newCustomerPhone')?.value.trim();
         customerAddress = document.getElementById('newCustomerAddress')?.value.trim();
-        if(customerName) {
-            if(!customers.some(c => c.name === customerName)) {
-                customers.push({ name: customerName, phone: customerPhone, address: customerAddress });
-            }
+        if(customerName && !customers.some(c => c.name === customerName)) {
+            customers.push({ name: customerName, phone: customerPhone, address: customerAddress, oldBalance: 0, balanceType: 'none' });
         }
     } else {
         let foundCust = customers.find(c => c.name === customerSelectVal);
@@ -513,53 +442,32 @@ window.createNewInvoice = function(e) {
     let items = [];
     let subtotal = 0;
 
-    if(rows.length > 0) {
-        for(let tr of rows) {
-            let selectEl = tr.querySelector('.inv-item-code');
-            if(!selectEl || !selectEl.value) {
-                alert('يرجى اختيار صنف صحيح في كل السطور!');
-                return;
-            }
-            let prodCode = selectEl.value;
-            let opt = selectEl.selectedOptions[0];
-            let productName = opt ? opt.text.split(' (')[0] : '';
-            let qty = Number(tr.querySelector('.inv-item-qty').value);
-            let price = Number(tr.querySelector('.inv-item-price').value);
-            let availableQty = Number(opt ? opt.getAttribute('data-qty') : 0);
+    if(rows.length === 0) {
+        alert('يرجى إضافة صنف واحد على الأقل للفاتورة!');
+        return;
+    }
 
-            if(qty > availableQty) {
-                alert(`الكمية المطلوبة للصنف (${productName}) أكبر من المتاح في المخزون!`);
-                return;
-            }
-
-            let itemTotal = qty * price;
-            subtotal += itemTotal;
-            items.push({ code: prodCode, name: productName, qty, price, total: itemTotal });
-        }
-    } else {
-        // التعامل مع التصميم البسيط الظاهر في الصورة
-        let modal = document.getElementById('newInvoiceModal');
-        let sel = modal.querySelector('select:not(#invoiceCustomerSelect):not(#invoicePaymentStatus):not(#invoiceOldBalanceType)');
-        let qtyInput = modal.querySelector('input[type="number"]');
-        
-        if(!sel || !sel.value) {
-            alert('يرجى اختيار الصنف من المخزون!');
+    for(let tr of rows) {
+        let selectEl = tr.querySelector('.inv-item-code');
+        if(!selectEl || !selectEl.value) {
+            alert('يرجى اختيار صنف صحيح في كل السطور!');
             return;
         }
-        let prodCode = sel.value;
-        let opt = sel.selectedOptions[0];
+        let prodCode = selectEl.value;
+        let opt = selectEl.selectedOptions[0];
         let productName = opt ? opt.text.split(' (')[0] : '';
-        let price = Number(opt.getAttribute('data-price')) || 0;
-        let availableQty = Number(opt.getAttribute('data-qty')) || 0;
-        let qty = qtyInput ? (Number(qtyInput.value) || 1) : 1;
+        let qty = Number(tr.querySelector('.inv-item-qty').value);
+        let price = Number(tr.querySelector('.inv-item-price').value);
+        let availableQty = Number(opt ? opt.getAttribute('data-qty') : 0);
 
         if(qty > availableQty) {
-            alert(`الكمية المطلوبة أكبر من المتاح في المخزون!`);
+            alert(`الكمية المطلوبة للصنف (${productName}) أكبر من المتاح في المخزون!`);
             return;
         }
 
-        subtotal = qty * price;
-        items.push({ code: prodCode, name: productName, qty, price, total: subtotal });
+        let itemTotal = qty * price;
+        subtotal += itemTotal;
+        items.push({ code: prodCode, name: productName, qty, price, total: itemTotal });
     }
 
     let discountPercent = Number(document.getElementById('invoiceDiscountPercent')?.value) || 0;
@@ -568,9 +476,11 @@ window.createNewInvoice = function(e) {
 
     let oldBalance = Number(document.getElementById('invoiceOldBalance')?.value) || 0;
     let oldBalanceType = document.getElementById('invoiceOldBalanceType')?.value;
+    let oldBalanceDate = document.getElementById('invoiceOldBalanceDate')?.value || '';
+
     let finalTotal = netAfterDiscount;
     if(oldBalanceType === 'on_him') finalTotal += oldBalance;
-    else finalTotal -= oldBalance;
+    else if(oldBalanceType === 'for_him') finalTotal -= oldBalance;
 
     let paymentStatus = document.getElementById('invoicePaymentStatus')?.value;
     let paidAmount = finalTotal;
@@ -582,30 +492,20 @@ window.createNewInvoice = function(e) {
         if(paidAmount < 0) paidAmount = 0;
     }
 
+    // خصم الكميات من المخزون
     items.forEach(item => {
         let prodObj = inventory.find(i => i.code === item.code);
-        if(prodObj) {
-            prodObj.qty -= item.qty;
-        }
+        if(prodObj) prodObj.qty -= item.qty;
     });
 
     let invoiceId = 'INV-' + Math.floor(1000 + Math.random() * 9000);
     let currentDate = new Date().toLocaleDateString('ar-EG');
 
     let newInv = {
-        id: invoiceId,
-        customerName,
-        customerPhone,
-        customerAddress,
-        items,
-        subtotal,
-        discountPercent,
-        discountAmount,
-        oldBalance,
-        oldBalanceType,
-        total: finalTotal,
-        paid: paidAmount,
-        remaining: remainingAmount,
+        id: invoiceId, customerName, customerPhone, customerAddress,
+        items, subtotal, discountPercent, discountAmount,
+        oldBalance, oldBalanceType, oldBalanceDate,
+        total: finalTotal, paid: paidAmount, remaining: remainingAmount,
         status: paymentStatus === 'لم يدفع' && remainingAmount > 0 ? `متبقي: ${remainingAmount} ج.م` : paymentStatus,
         date: currentDate
     };
@@ -622,10 +522,7 @@ function renderInvoices() {
     if(!tbody) return;
     tbody.innerHTML = '';
     invoices.slice().reverse().forEach(inv => {
-        let statusBadge = (inv.remaining > 0) 
-            ? `<span class="badge-danger">متبقي: ${inv.remaining} ج.م</span>` 
-            : '<span class="badge-success">تم الدفع بالكامل</span>';
-        
+        let statusBadge = (inv.remaining > 0) ? `<span class="badge-danger">متبقي: ${inv.remaining} ج.م</span>` : '<span class="badge-success">تم الدفع بالكامل</span>';
         let invString = encodeURIComponent(JSON.stringify(inv));
         tbody.innerHTML += `
             <tr>
@@ -635,8 +532,8 @@ function renderInvoices() {
                 <td>${inv.total.toLocaleString()} ج.م</td>
                 <td>${statusBadge}</td>
                 <td>
-                    <button class="btn-primary-sm" onclick='showInvoiceModalEncoded("${invString}")'><i class="fas fa-eye"></i> معاينة</button>
-                    <button class="btn-danger-sm" onclick="deleteInvoice('${inv.id}')"><i class="fas fa-trash"></i></button>
+                    <button onclick='showInvoiceModalEncoded("${invString}")' style="background: #0284c7; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left:5px;"><i class="fas fa-eye"></i> معاينة</button>
+                    <button onclick="deleteInvoice('${inv.id}')" style="background: #f43f5e; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;"><i class="fas fa-trash"></i></button>
                 </td>
             </tr>
         `;
@@ -644,11 +541,8 @@ function renderInvoices() {
 }
 
 window.filterInvoices = function() {
-    let searchInput = document.getElementById('searchInvoices');
-    if(!searchInput) return;
-    let query = searchInput.value.toLowerCase();
-    let rows = document.querySelectorAll('#invoicesTableBody tr');
-    rows.forEach(row => {
+    let query = document.getElementById('searchInvoices')?.value.toLowerCase() || '';
+    document.querySelectorAll('#invoicesTableBody tr').forEach(row => {
         row.style.display = row.innerText.toLowerCase().includes(query) ? '' : 'none';
     });
 };
@@ -661,6 +555,7 @@ window.deleteInvoice = function(id) {
     }
 };
 
+// صفحة العملاء مع تحديث تفاصيل الحساب القديم وتاريخه
 function renderCustomers() {
     let tbody = document.getElementById('customersTableBody');
     if(!tbody) return;
@@ -669,42 +564,42 @@ function renderCustomers() {
     customers.forEach((c, index) => {
         let custInvoices = invoices.filter(i => i.customerName === c.name);
         let totalSales = custInvoices.reduce((sum, i) => sum + Number(i.total), 0);
-        let totalRemainingBalance = custInvoices.reduce((sum, i) => sum + Number(i.remaining || 0), 0);
+        let totalRemaining = custInvoices.reduce((sum, i) => sum + Number(i.remaining || 0), 0);
 
-        let balanceDisplay = totalRemainingBalance > 0 
-            ? `<span style="color: #f43f5e; font-weight: bold;">${totalRemainingBalance.toLocaleString()} ج.م (عليه متبقي)</span>` 
-            : `<span style="color: #10b981; font-weight: bold;">0 ج.م (خالص)</span>`;
+        let oldBalText = 'لا يوجد';
+        if(c.oldBalance && c.oldBalance > 0) {
+            let typeLabel = c.balanceType === 'on_him' ? 'عليه (مدين)' : 'له (دائن)';
+            oldBalText = `${c.oldBalance.toLocaleString()} ج.م (${typeLabel}) بتاريخ: ${c.oldBalanceDate || 'غير محدد'}`;
+        }
 
         tbody.innerHTML += `
             <tr>
                 <td><strong>${c.name}</strong></td>
                 <td>${c.phone || 'غير مسجل'}</td>
                 <td>${c.address || 'غير مسجل'}</td>
-                <td>${balanceDisplay}</td>
+                <td style="font-size: 12px; color: #cbd5e1;">${oldBalText}</td>
+                <td><strong style="color: #f43f5e;">${totalRemaining.toLocaleString()} ج.م</strong></td>
                 <td><strong style="color: #0284c7;">${totalSales.toLocaleString()} ج.م</strong></td>
                 <td>
-                    <button class="btn-danger-sm" onclick="deleteCustomer(${index})" style="background: #f43f5e; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;"><i class="fas fa-trash"></i> حذف</button>
+                    <button onclick="openEditCustomerBalance(${index})" style="background: #0284c7; color: white; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer; margin-left: 4px;"><i class="fas fa-history"></i> تعديل الحساب</button>
+                    <button onclick="deleteCustomer(${index})" style="background: #f43f5e; color: white; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer;"><i class="fas fa-trash"></i></button>
                 </td>
             </tr>
         `;
     });
 }
 
-window.openAddCustomerModal = function() { 
-    let modal = document.getElementById('addCustomerModal');
-    if(modal) modal.style.display = 'flex'; 
-};
-
-window.closeAddCustomerModal = function() { 
-    let modal = document.getElementById('addCustomerModal');
-    if(modal) modal.style.display = 'none'; 
-};
+window.openAddCustomerModal = function() { document.getElementById('addCustomerModal').style.display = 'flex'; };
+window.closeAddCustomerModal = function() { document.getElementById('addCustomerModal').style.display = 'none'; };
 
 window.addNewCustomerDirect = function(e) {
     if(e) e.preventDefault();
     let name = document.getElementById('custName')?.value.trim();
     let phone = document.getElementById('custPhone')?.value.trim();
     let address = document.getElementById('custAddress')?.value.trim();
+    let oldBalance = Number(document.getElementById('custOldBalance')?.value) || 0;
+    let balanceType = document.getElementById('custBalanceType')?.value || 'none';
+    let oldBalanceDate = document.getElementById('custOldBalanceDate')?.value || '';
 
     if(!name) return;
     if(customers.some(c => c.name === name)) {
@@ -712,12 +607,30 @@ window.addNewCustomerDirect = function(e) {
         return;
     }
 
-    customers.push({ name, phone, address });
+    customers.push({ name, phone, address, oldBalance, balanceType, oldBalanceDate });
     saveData();
     refreshAllData();
     window.closeAddCustomerModal();
     if(e && e.target) e.target.reset();
     alert('تم حفظ العميل بنجاح!');
+};
+
+// تعديل رصيد وحساب العميل القديم وتاريخه من قائمة العملاء
+window.openEditCustomerBalance = function(index) {
+    let c = customers[index];
+    let newBal = prompt(`تعديل الحساب القديم للعميل (${c.name}):\nأدخل قيمة الحساب (بالجنيه):`, c.oldBalance || 0);
+    if(newBal === null) return;
+    
+    let type = prompt(`نوع الحساب:\nاكتب (on_him) لو عليه متبقي\nاكتب (for_him) لو له رصيد متبقي`, c.balanceType || 'on_him');
+    let dateStr = prompt(`أدخل تاريخ الحساب القديم (مثال: 2026/01/15):`, c.oldBalanceDate || new Date().toLocaleDateString());
+
+    c.oldBalance = Number(newBal) || 0;
+    c.balanceType = type === 'for_him' ? 'for_him' : 'on_him';
+    c.oldBalanceDate = dateStr || '';
+
+    saveData();
+    refreshAllData();
+    alert('تم تحديث الحساب القديم للعميل بنجاح!');
 };
 
 window.deleteCustomer = function(index) {
@@ -729,10 +642,10 @@ window.deleteCustomer = function(index) {
 };
 
 window.showInvoiceModalEncoded = function(encodedInv) {
-    let inv = JSON.parse(decodeURIComponent(encodedInv));
-    window.showInvoiceModal(inv);
+    window.showInvoiceModal(JSON.parse(decodeURIComponent(encodedInv)));
 };
 
+// طباعة الفاتورة شاملة الأصناف، الخصم، والحساب القديم وتاريخه
 window.showInvoiceModal = function(inv) {
     currentInvoiceData = inv;
     let area = document.getElementById('printableInvoiceArea');
@@ -750,6 +663,17 @@ window.showInvoiceModal = function(inv) {
                 </tr>
             `;
         });
+    }
+
+    let oldBalPrintHtml = '';
+    if(inv.oldBalance && inv.oldBalance > 0) {
+        let label = inv.oldBalanceType === 'on_him' ? 'حساب سابق (عليه)' : 'حساب سابق (له)';
+        oldBalPrintHtml = `<p style="margin: 3px 0;">${label} بتاريخ (${inv.oldBalanceDate || 'غير محدد'}): ${inv.oldBalance.toLocaleString()} ج.م</p>`;
+    }
+
+    let discountPrintHtml = '';
+    if(inv.discountPercent && inv.discountPercent > 0) {
+        discountPrintHtml = `<p style="margin: 3px 0; color: #10b981;">خصم اختياري (${inv.discountPercent}%): -${(inv.discountAmount || 0).toLocaleString()} ج.م</p>`;
     }
 
     area.innerHTML = `
@@ -790,8 +714,8 @@ window.showInvoiceModal = function(inv) {
 
             <div style="font-size: 13px; border-top: 1px solid #ccc; padding-top: 10px; text-align: left;">
                 <p style="margin: 3px 0;">إجمالي الأصناف: ${(inv.subtotal || inv.total).toLocaleString()} ج.م</p>
-                ${inv.discountPercent ? `<p style="margin: 3px 0; color: #10b981;">خصم (${inv.discountPercent}%): -${((inv.subtotal * inv.discountPercent)/100).toLocaleString()} ج.م</p>` : ''}
-                ${inv.oldBalance ? `<p style="margin: 3px 0;">حساب سابق: ${inv.oldBalance.toLocaleString()} ج.م</p>` : ''}
+                ${discountPrintHtml}
+                ${oldBalPrintHtml}
                 <p style="margin: 5px 0; font-size: 15px; font-weight: bold; color: #0284c7;">الإجمالي النهائي: ${inv.total.toLocaleString()} ج.م</p>
                 <p style="margin: 3px 0;">المدفوع: ${(inv.paid || 0).toLocaleString()} ج.م</p>
                 <p style="margin: 3px 0; color: #e11d48;">المتبقي: ${(inv.remaining || 0).toLocaleString()} ج.م</p>
@@ -801,61 +725,20 @@ window.showInvoiceModal = function(inv) {
             <button onclick="sendToWhatsAppNabawy()" style="background: #10b981; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fab fa-whatsapp"></i> إرسال لمحمد النبوي</button>
         </div>
     `;
-    let modal = document.getElementById('invoiceModal');
-    if(modal) modal.style.display = 'flex';
+    document.getElementById('invoiceModal').style.display = 'flex';
 };
 
-window.closeInvoiceModal = function() { 
-    let modal = document.getElementById('invoiceModal');
-    if(modal) modal.style.display = 'none'; 
-};
-
-window.downloadPDF = function() {
-    if(!window.jspdf || !currentInvoiceData) return;
-    const { jsPDF } = window.jspdf;
-    let element = document.getElementById('printableInvoiceArea');
-    if(!element) return;
-    html2canvas(element, { scale: 2 }).then(canvas => {
-        let imgData = canvas.toDataURL('image/png');
-        let pdf = new jsPDF('p', 'mm', 'a4');
-        pdf.addImage(imgData, 'PNG', 0, 0, 210, (canvas.height * 210) / canvas.width);
-        pdf.save(`Invoice-${currentInvoiceData.id}.pdf`);
-    });
-};
-
-window.sendToWhatsApp = function() {
-    if(!currentInvoiceData) return;
-    let msg = `*${settings.companyName}*\n` +
-              `📄 *فاتورة رقم:* ${currentInvoiceData.id}\n` +
-              `👤 *العميل:* ${currentInvoiceData.customerName}\n` +
-              `💰 *الإجمالي:* ${currentInvoiceData.total.toLocaleString()} ج.م\n` +
-              `💵 *المدفوع:* ${(currentInvoiceData.paid || 0).toLocaleString()} ج.م\n` +
-              `📌 *المتبقي:* ${(currentInvoiceData.remaining || 0).toLocaleString()} ج.م\n` +
-              `شكراً لتعاملكم معنا!`;
-    let phone = settings.whatsapp.replace(/[^0-9]/g, '');
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
-};
+window.closeInvoiceModal = function() { document.getElementById('invoiceModal').style.display = 'none'; };
 
 window.sendToWhatsAppNabawy = function() {
     if(!currentInvoiceData) return;
     let msg = `*${settings.companyName}*\n` +
               `📄 *فاتورة رقم:* ${currentInvoiceData.id}\n` +
               `👤 *العميل:* ${currentInvoiceData.customerName}\n` +
-              `💰 *الإجمالي:* ${currentInvoiceData.total.toLocaleString()} ج.م\n` +
-              `💵 *المدفوع:* ${(currentInvoiceData.paid || 0).toLocaleString()} ج.م\n` +
+              `💰 *الإجمالي النهائي:* ${currentInvoiceData.total.toLocaleString()} ج.م\n` +
               `📌 *المتبقي:* ${(currentInvoiceData.remaining || 0).toLocaleString()} ج.م`;
     let phone = (settings.whatsappNabawy || '01092201111').replace(/[^0-9]/g, '');
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
-};
-
-window.saveSettings = function(e) {
-    if(e) e.preventDefault();
-    settings.companyName = document.getElementById('companyNameInput')?.value || settings.companyName;
-    settings.owner = document.getElementById('companyOwnerInput')?.value || settings.owner;
-    settings.whatsapp = document.getElementById('whatsappNumberInput')?.value || settings.whatsapp;
-    settings.address = document.getElementById('companyAddressInput')?.value || settings.address;
-    saveData();
-    alert('تم الحفظ بنجاح!');
 };
 
 function initChart() {
@@ -874,34 +757,4 @@ function initChart() {
     });
 }
 
-// منع التكبير والتصغير (Pinch-to-Zoom) تماماً بالصوابع على الموبايل والتابلت
-document.addEventListener('gesturestart', function(e) {
-    e.preventDefault();
-});
-
-document.addEventListener('touchmove', function(e) {
-    if (e.scale !== 1) {
-        e.preventDefault();
-    }
-}, { passive: false });
-
-document.addEventListener("DOMContentLoaded", function() {
-    let sidebar = document.querySelector('.sidebar') || document.querySelector('div[style*="width: 260px"]');
-    if (sidebar && !document.getElementById('mobileMenuToggleBtn')) {
-        let btn = document.createElement('button');
-        btn.id = 'mobileMenuToggleBtn';
-        btn.innerHTML = '<i class="fas fa-bars"></i>';
-        document.body.appendChild(btn);
-
-        btn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            sidebar.classList.toggle('mobile-open');
-        });
-
-        document.addEventListener('click', function(e) {
-            if (!sidebar.contains(e.target) && e.target !== btn) {
-                sidebar.classList.remove('mobile-open');
-            }
-        });
-    }
-});
+document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
