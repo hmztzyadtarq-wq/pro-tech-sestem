@@ -355,7 +355,7 @@ window.addInvoiceItemRow = function() {
     if(!tbody) return;
     
     let optionsHtml = '<option value="">-- اختر الصنف --</option>';
-    if (typeof inventory !== 'undefined' && inventory.length > 0) {
+    if (inventory && inventory.length > 0) {
         inventory.forEach(i => {
             optionsHtml += `<option value="${i.code}" data-price="${i.price}" data-qty="${i.qty}">${i.name} (المتاح: ${i.qty} ${i.unit} - ${i.price} ج.م)</option>`;
         });
@@ -393,7 +393,6 @@ window.calculateInvoiceTotal = function() {
     let oldBalance = Number(document.getElementById('invoiceOldBalance')?.value) || 0;
     let oldBalanceType = document.getElementById('invoiceOldBalanceType')?.value;
     
-    // دعم الخصم سواء كان كقيمة ثابتة (إذا كان الحقل يحتوي على اسم discountValue) أو نسبة مئوية
     let discountPercent = Number(document.getElementById('invoiceDiscountPercent')?.value) || 0;
     let discountAmount = (subtotal * discountPercent) / 100;
     
@@ -470,6 +469,10 @@ window.createNewInvoice = function(e) {
 
     for(let tr of rows) {
         let selectEl = tr.querySelector('.inv-item-code');
+        if(!selectEl || !selectEl.value) {
+            alert('يرجى اختيار صنف صحيح في كل السطور!');
+            return;
+        }
         let prodCode = selectEl.value;
         let opt = selectEl.selectedOptions[0];
         let productName = opt ? opt.text.split(' (')[0] : '';
