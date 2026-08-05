@@ -806,3 +806,28 @@ window.printInvoice = function() {
 window.downloadInvoicePDF = function() {
     window.print();
 };
+// === ربط دوال الفاتورة والتحكم بالكائن العام لضمان عمل الأزرار بدون تغيير الشكل ===
+
+window.closeInvoiceModal = function() {
+    let modal = document.getElementById('invoiceModal');
+    if(modal) modal.style.display = 'none';
+};
+
+window.downloadPDF = function() {
+    // الاعتماد على طباعة المتصفح أو نافذة المعاينة المتاحة لديك
+    window.print();
+};
+
+window.sendToWhatsApp = function() {
+    if (typeof currentInvoiceData !== 'undefined' && currentInvoiceData) {
+        let msg = `*${settings.companyName}*\n` +
+                  `📄 *فاتورة رقم:* ${currentInvoiceData.id}\n` +
+                  `👤 *العميل:* ${currentInvoiceData.customerName}\n` +
+                  `💰 *الإجمالي النهائي:* ${currentInvoiceData.total.toLocaleString()} ج.م\n` +
+                  `📌 *المتبقي:* ${(currentInvoiceData.remaining || 0).toLocaleString()} ج.م`;
+        let phone = (settings.whatsapp || '01020008299').replace(/[^0-9]/g, '');
+        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+    } else {
+        alert('لا توجد بيانات فاتورة حالية للإرسال!');
+    }
+};
