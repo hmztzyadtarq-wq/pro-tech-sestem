@@ -756,5 +756,56 @@ function initChart() {
         options: { responsive: true, maintainAspectRatio: false }
     });
 }
+// 1. فتح نافذة التعديل وتعبئة بيانات الصنف الحالي بناءً على ترتيبه (index)
+function openEditProductModal(index) {
+    // التأكد من وجود المصفوفة inventory أو استبدالها بمصدر البيانات لديك
+    const product = inventory[index];
+    if (!product) return;
 
+    document.getElementById('editProdIndex').value = index;
+    document.getElementById('editProdCode').value = product.code || product.id || '';
+    document.getElementById('editProdName').value = product.name || '';
+    document.getElementById('editProdQty').value = product.qty || product.quantity || 0;
+    document.getElementById('editProdUnit').value = product.unit || '';
+    document.getElementById('editProdPrice').value = product.price || 0;
+
+    // إظهار نافذة التعديل
+    document.getElementById('editProductModal').style.display = 'flex';
+}
+
+// 2. إغلاق نافذة التعديل
+function closeEditProductModal() {
+    document.getElementById('editProductModal').style.display = 'none';
+}
+
+// 3. حفظ البيانات المعدلة وتحديث المخزون وقاعدة البيانات
+function saveEditedProduct(event) {
+    event.preventDefault();
+    
+    const index = document.getElementById('editProdIndex').value;
+    if (index === "" || !inventory[index]) return;
+
+    // تحديث بيانات الصنف من الحقول
+    inventory[index].code = document.getElementById('editProdCode').value;
+    inventory[index].name = document.getElementById('editProdName').value;
+    inventory[index].qty = Number(document.getElementById('editProdQty').value);
+    inventory[index].unit = document.getElementById('editProdUnit').value;
+    inventory[index].price = Number(document.getElementById('editProdPrice').value);
+
+    // حفظ التغييرات في التخزين المحلي أو قاعدة البيانات (Firebase)
+    if (typeof saveData === 'function') {
+        saveData();
+    }
+    
+    // تحديث العرض في الجدول ولوحة المؤشرات
+    if (typeof refreshAllData === 'function') {
+        refreshAllData();
+    } else if (typeof renderInventory === 'function') {
+        renderInventory();
+    }
+
+    // إغلاق النافذة وإظهار رسالة نجاح
+    closeEditProductModal();
+    alert('تم تعديل بيانات الصنف بنجاح!');
+}
 document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
