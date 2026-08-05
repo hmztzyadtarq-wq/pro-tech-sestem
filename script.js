@@ -320,7 +320,6 @@ window.handleCustomerSelectChange = function() {
     let newDiv = document.getElementById('newCustomerDiv');
     if(newDiv) newDiv.style.display = (val === 'NEW_CUSTOMER') ? 'block' : 'none';
 
-    // تحميل الحساب القديم للعميل تلقائياً في الفاتورة لو وجد
     let found = customers.find(c => c.name === val);
     if(found) {
         let oldBalInput = document.getElementById('invoiceOldBalance');
@@ -334,7 +333,6 @@ window.handleCustomerSelectChange = function() {
     }
 };
 
-// إضافة سطر صنف جديد داخل نافذة الفاتورة المتعددة
 window.addInvoiceItemRow = function() {
     let tbody = document.getElementById('invoiceItemsBody');
     if(!tbody) return;
@@ -403,7 +401,7 @@ window.openNewInvoiceModal = function() {
     let tbody = document.getElementById('invoiceItemsBody');
     if(tbody) {
         tbody.innerHTML = '';
-        window.addInvoiceItemRow(); // البدء بسطر أول افتراضي
+        window.addInvoiceItemRow();
     }
 
     let disc = document.getElementById('invoiceDiscountPercent');
@@ -492,7 +490,6 @@ window.createNewInvoice = function(e) {
         if(paidAmount < 0) paidAmount = 0;
     }
 
-    // خصم الكميات من المخزون
     items.forEach(item => {
         let prodObj = inventory.find(i => i.code === item.code);
         if(prodObj) prodObj.qty -= item.qty;
@@ -555,7 +552,6 @@ window.deleteInvoice = function(id) {
     }
 };
 
-// صفحة العملاء مع تحديث تفاصيل الحساب القديم وتاريخه
 function renderCustomers() {
     let tbody = document.getElementById('customersTableBody');
     if(!tbody) return;
@@ -615,7 +611,6 @@ window.addNewCustomerDirect = function(e) {
     alert('تم حفظ العميل بنجاح!');
 };
 
-// تعديل رصيد وحساب العميل القديم وتاريخه من قائمة العملاء
 window.openEditCustomerBalance = function(index) {
     let c = customers[index];
     let newBal = prompt(`تعديل الحساب القديم للعميل (${c.name}):\nأدخل قيمة الحساب (بالجنيه):`, c.oldBalance || 0);
@@ -645,7 +640,6 @@ window.showInvoiceModalEncoded = function(encodedInv) {
     window.showInvoiceModal(JSON.parse(decodeURIComponent(encodedInv)));
 };
 
-// طباعة الفاتورة شاملة الأصناف، الخصم، والحساب القديم وتاريخه
 window.showInvoiceModal = function(inv) {
     currentInvoiceData = inv;
     let area = document.getElementById('printableInvoiceArea');
@@ -756,9 +750,10 @@ function initChart() {
         options: { responsive: true, maintainAspectRatio: false }
     });
 }
-// 1. فتح نافذة التعديل وتعبئة بيانات الصنف الحالي بناءً على ترتيبه (index)
-function openEditProductModal(index) {
-    // التأكد من وجود المصفوفة inventory أو استبدالها بمصدر البيانات لديك
+
+// === الدوال المسؤولة عن تعديل تفاصيل صنف المخزون (مربوطة بـ window لضمان العمل الفوري) ===
+
+window.openEditProductModal = function(index) {
     const product = inventory[index];
     if (!product) return;
 
@@ -769,43 +764,30 @@ function openEditProductModal(index) {
     document.getElementById('editProdUnit').value = product.unit || '';
     document.getElementById('editProdPrice').value = product.price || 0;
 
-    // إظهار نافذة التعديل
     document.getElementById('editProductModal').style.display = 'flex';
-}
+};
 
-// 2. إغلاق نافذة التعديل
-function closeEditProductModal() {
+window.closeEditProductModal = function() {
     document.getElementById('editProductModal').style.display = 'none';
-}
+};
 
-// 3. حفظ البيانات المعدلة وتحديث المخزون وقاعدة البيانات
-function saveEditedProduct(event) {
+window.saveEditedProduct = function(event) {
     event.preventDefault();
     
     const index = document.getElementById('editProdIndex').value;
     if (index === "" || !inventory[index]) return;
 
-    // تحديث بيانات الصنف من الحقول
     inventory[index].code = document.getElementById('editProdCode').value;
     inventory[index].name = document.getElementById('editProdName').value;
     inventory[index].qty = Number(document.getElementById('editProdQty').value);
     inventory[index].unit = document.getElementById('editProdUnit').value;
     inventory[index].price = Number(document.getElementById('editProdPrice').value);
 
-    // حفظ التغييرات في التخزين المحلي أو قاعدة البيانات (Firebase)
-    if (typeof saveData === 'function') {
-        saveData();
-    }
-    
-    // تحديث العرض في الجدول ولوحة المؤشرات
-    if (typeof refreshAllData === 'function') {
-        refreshAllData();
-    } else if (typeof renderInventory === 'function') {
-        renderInventory();
-    }
+    saveData();
+    refreshAllData();
 
-    // إغلاق النافذة وإظهار رسالة نجاح
     closeEditProductModal();
     alert('تم تعديل بيانات الصنف بنجاح!');
-}
+};
+
 document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
