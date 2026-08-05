@@ -791,3 +791,18 @@ window.saveEditedProduct = function(event) {
 };
 
 document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
+// دالة طباعة الفاتورة مباشرة
+window.printInvoice = function() {
+    let printContent = document.getElementById('printableInvoiceArea').innerHTML;
+    let originalContent = document.body.innerHTML;
+    
+    document.body.innerHTML = printContent;
+    window.print();
+    document.body.innerHTML = originalContent;
+    location.reload(); // لإعادة تحميل الصفحة واستعادة الحالة الطبيعية بعد الطباعة
+};
+
+// دالة تحميل الفاتورة (أو حفظها كملف PDF / طباعة وهمية)
+window.downloadInvoicePDF = function() {
+    window.print();
+};
