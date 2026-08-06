@@ -650,10 +650,10 @@ window.showInvoiceModal = function(inv) {
         inv.items.forEach(item => {
             itemsHtml += `
                 <tr>
-                    <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">${item.name}</td>
-                    <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">${item.qty}</td>
-                    <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">${item.price.toLocaleString()} ج.م</td>
-                    <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: left;">${item.total.toLocaleString()} ج.م</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: right;">${item.name}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: center;">${item.qty}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: center;">${item.price.toLocaleString()} ج.م</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: left;">${item.total.toLocaleString()} ج.م</td>
                 </tr>
             `;
         });
@@ -667,61 +667,63 @@ window.showInvoiceModal = function(inv) {
 
     let discountPrintHtml = '';
     if(inv.discountPercent && inv.discountPercent > 0) {
-        discountPrintHtml = `<p style="margin: 3px 0; color: #10b981;">خصم اختياري (${inv.discountPercent}%): -${(inv.discountAmount || 0).toLocaleString()} ج.م</p>`;
+        discountPrintHtml = `<p style="margin: 3px 0; color: #10b981;">خصم (${inv.discountPercent}%): -${(inv.discountAmount || 0).toLocaleString()} ج.م</p>`;
     }
 
     area.innerHTML = `
-        <div style="background: #fff; color: #000; padding: 25px; font-family: Tahoma, sans-serif; direction: rtl; text-align: right;">
-            <div style="border-bottom: 2px solid #333; padding-bottom: 12px; margin-bottom: 15px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <h3 style="margin: 0; color: #0284c7; font-size: 18px;">${settings.companyName}</h3>
-                    <div>
-                        <h4 style="margin: 0; font-size: 16px;">فاتورة مبيعات</h4>
-                        <p style="margin: 2px 0 0 0; font-size: 12px; text-align: left;">رقم: ${inv.id}</p>
-                        <p style="margin: 2px 0 0 0; font-size: 12px; text-align: left;">التاريخ: ${inv.date}</p>
-                    </div>
+        <div style="background: #fff; color: #000; padding: 40px; font-family: Tahoma, sans-serif; direction: rtl; text-align: right; width: 100%; box-sizing: border-box;">
+            <!-- ترويسة الفاتورة الرسمية -->
+            <div style="border-bottom: 3px solid #0284c7; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <h2 style="margin: 0 0 5px 0; color: #0284c7; font-size: 22px;">شركة برو تيك للأحبار وماكينات الطباعة</h2>
+                    <p style="margin: 3px 0; font-size: 14px; color: #334155;"><strong>العنوان:</strong> 195 شارع جسر السويس</p>
+                    <p style="margin: 3px 0; font-size: 14px; color: #334155;"><strong>الهاتف:</strong> 01020008299</p>
                 </div>
-                <div style="display: flex; gap: 15px; flex-wrap: wrap; font-size: 12px; color: #475569; background: #f8fafc; padding: 6px 10px; border-radius: 4px;">
-                    <span><strong>صاحب الشركة:</strong> ${settings.owner}</span>
-                    <span>|</span>
-                    <span><strong>الهاتف:</strong> ${settings.whatsapp}</span>
-                    <span>|</span>
-                    <span><strong>العنوان:</strong> ${settings.address}</span>
+                <div style="text-align: left;">
+                    <h3 style="margin: 0 0 5px 0; font-size: 18px; color: #1e293b;">فاتورة مبيعات</h3>
+                    <p style="margin: 3px 0; font-size: 14px;"><strong>رقم الفاتورة:</strong> ${inv.id}</p>
+                    <p style="margin: 3px 0; font-size: 14px;"><strong>التاريخ:</strong> ${inv.date}</p>
                 </div>
             </div>
 
-            <div style="background: #f1f5f9; padding: 10px; margin-bottom: 15px; font-size: 13px; border-radius: 4px;">
-                <strong>العميل:</strong> ${inv.customerName} | <strong>الهاتف:</strong> ${inv.customerPhone || '-'} | <strong>العنوان:</strong> ${inv.customerAddress || '-'}
+            <!-- بيانات العميل -->
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; margin-bottom: 20px; font-size: 14px; border-radius: 6px;">
+                <strong>بيانات العميل:</strong> ${inv.customerName} &nbsp;|&nbsp; <strong>الهاتف:</strong> ${inv.customerPhone || 'غيرموجود'} &nbsp;|&nbsp; <strong>العنوان:</strong> ${inv.customerAddress || 'غير محدد'}
             </div>
 
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 13px;">
+            <!-- جدول الأصناف -->
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
                 <thead>
-                    <tr style="background: #e2e8f0;">
-                        <th style="padding: 8px; text-align: right;">الصنف</th>
-                        <th style="padding: 8px; text-align: center;">الكمية</th>
-                        <th style="padding: 8px; text-align: center;">السعر</th>
-                        <th style="padding: 8px; text-align: left;">الإجمالي</th>
+                    <tr style="background: #f1f5f9; color: #1e293b;">
+                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: right;">الصنف</th>
+                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">الكمية</th>
+                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">السعر</th>
+                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: left;">الإجمالي</th>
                     </tr>
                 </thead>
                 <tbody>${itemsHtml}</tbody>
             </table>
 
-            <div style="font-size: 13px; border-top: 1px solid #ccc; padding-top: 10px; text-align: left;">
-                <p style="margin: 3px 0;">إجمالي الأصناف: ${(inv.subtotal || inv.total).toLocaleString()} ج.م</p>
+            <!-- الحسابات النهائية -->
+            <div style="font-size: 14px; border-top: 2px solid #cbd5e1; padding-top: 15px; text-align: left; width: 350px; margin-right: auto;">
+                <p style="margin: 5px 0;">إجمالي الأصناف: ${(inv.subtotal || inv.total).toLocaleString()} ج.م</p>
                 ${discountPrintHtml}
                 ${oldBalPrintHtml}
-                <p style="margin: 5px 0; font-size: 15px; font-weight: bold; color: #0284c7;">الإجمالي النهائي: ${inv.total.toLocaleString()} ج.م</p>
-                <p style="margin: 3px 0;">المدفوع: ${(inv.paid || 0).toLocaleString()} ج.م</p>
-                <p style="margin: 3px 0; color: #e11d48;">المتبقي: ${(inv.remaining || 0).toLocaleString()} ج.م</p>
+                <p style="margin: 8px 0; font-size: 16px; font-weight: bold; color: #0284c7;">الإجمالي النهائي: ${inv.total.toLocaleString()} ج.م</p>
+                <p style="margin: 5px 0;">المدفوع: ${(inv.paid || 0).toLocaleString()} ج.م</p>
+                <p style="margin: 5px 0; color: #e11d48; font-weight: bold;">المتبقي: ${(inv.remaining || 0).toLocaleString()} ج.م</p>
             </div>
         </div>
-        <div style="text-align: center; margin-top: 15px;">
-            <button onclick="sendToWhatsAppNabawy()" style="background: #10b981; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fab fa-whatsapp"></i> إرسال لمحمد النبوي</button>
+
+        <!-- أزرار التحكم (ستظهر في الموقع فقط وتختفي تلقائياً عند الطباعة) -->
+        <div class="no-print" style="text-align: center; margin-top: 20px; padding: 10px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
+            <button onclick="printInvoice()" style="background: #0284c7; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fas fa-print"></i> طباعة الفاتورة</button>
+            <button onclick="sendToWhatsAppNabawy()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fab fa-whatsapp"></i> إرسال لمحمد النبوي</button>
+            <button onclick="closeInvoiceModal()" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fas fa-times"></i> إغلاق</button>
         </div>
     `;
     document.getElementById('invoiceModal').style.display = 'flex';
 };
-
 window.closeInvoiceModal = function() { document.getElementById('invoiceModal').style.display = 'none'; };
 
 window.sendToWhatsAppNabawy = function() {
@@ -801,7 +803,6 @@ window.printInvoice = function() {
     document.body.innerHTML = originalContent;
     location.reload(); // لإعادة تحميل الصفحة واستعادة الحالة الطبيعية بعد الطباعة
 };
-
 // دالة تحميل الفاتورة (أو حفظها كملف PDF / طباعة وهمية)
 window.downloadInvoicePDF = function() {
     window.print();
@@ -831,3 +832,5 @@ window.sendToWhatsApp = function() {
         alert('لا توجد بيانات فاتورة حالية للإرسال!');
     }
 };
+
+
