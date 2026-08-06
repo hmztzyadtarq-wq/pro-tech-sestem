@@ -760,8 +760,6 @@ function initChart() {
     });
 }
 
-// === الدوال المسؤولة عن تعديل تفاصيل صنف المخزون (مربوطة بـ window لضمان العمل الفوري) ===
-
 window.openEditProductModal = function(index) {
     const product = inventory[index];
     if (!product) return;
@@ -801,7 +799,7 @@ window.saveEditedProduct = function(event) {
 
 document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
 
-// دالة طباعة الفاتورة مباشرة لملء الصفحة بالكامل
+// دالة طباعة الفاتورة بصفحة مستقلة لملء صفحة A4 بالكامل وبدون أي مشاكل في التنسيق
 window.printInvoice = function() {
     let printContent = document.getElementById('printableInvoiceArea').innerHTML;
     
@@ -810,15 +808,17 @@ window.printInvoice = function() {
     printWindow.document.write(`
         <html lang="ar" dir="rtl">
         <head>
+            <meta charset="UTF-8">
             <title>فاتورة مبيعات - Bro Tech</title>
             <style>
                 body {
                     font-family: Tahoma, sans-serif;
                     margin: 0;
-                    padding: 0;
+                    padding: 20px;
                     background: #ffffff;
                     color: #000000;
                     -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
                 }
                 .no-print {
                     display: none !important;
@@ -832,16 +832,20 @@ window.printInvoice = function() {
                 }
                 @page {
                     size: A4;
-                    margin: 10mm;
+                    margin: 5mm;
                 }
             </style>
         </head>
         <body>
-            ${printContent}
+            <div style="width: 100%; max-width: 800px; margin: 0 auto;">
+                ${printContent}
+            </div>
             <script>
                 window.onload = function() {
-                    window.print();
-                    window.close();
+                    setTimeout(function() {
+                        window.print();
+                        window.close();
+                    }, 300);
                 }
             </script>
         </body>
