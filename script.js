@@ -1,4 +1,3 @@
-
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-analytics.js";
@@ -800,10 +799,36 @@ window.saveEditedProduct = function(event) {
 
 document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
 
-// دالة طباعة الفاتورة بصفحة مستقلة لملء صفحة A4 بالكامل وبدون أي مشاكل في التنسيق
+// دالة الطباعة بإنشاء كود نظيف ومستقل تماماً من بيانات الفاتورة الحالية لمنع أي تراكم قديم
 window.printInvoice = function() {
-    let printContent = document.getElementById('printableInvoiceArea').innerHTML;
-    
+    if(!currentInvoiceData) return;
+    let inv = currentInvoiceData;
+
+    let itemsHtml = '';
+    if(inv.items) {
+        inv.items.forEach(item => {
+            itemsHtml += `
+                <tr>
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">${item.name}</td>
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${item.qty}</td>
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${item.price.toLocaleString()} ج.م</td>
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: left;">${item.total.toLocaleString()} ج.م</td>
+                </tr>
+            `;
+        });
+    }
+
+    let oldBalPrintHtml = '';
+    if(inv.oldBalance && inv.oldBalance > 0) {
+        let label = inv.oldBalanceType === 'on_him' ? 'حساب سابق (عليه)' : 'حساب سابق (له)';
+        oldBalPrintHtml = `<p style="margin: 3px 0;">${label}: ${inv.oldBalance.toLocaleString()} ج.م</p>`;
+    }
+
+    let discountPrintHtml = '';
+    if(inv.discountPercent && inv.discountPercent > 0) {
+        discountPrintHtml = `<p style="margin: 3px 0; color: #10b981;">خصم (${inv.discountPercent}%): -${(inv.discountAmount || 0).toLocaleString()} ج.م</p>`;
+    }
+
     let printWindow = window.open('', '_blank', 'height=900,width=1000');
     
     printWindow.document.write(`
@@ -821,9 +846,6 @@ window.printInvoice = function() {
                     -webkit-print-color-adjust: exact;
                     print-color-adjust: exact;
                 }
-                .no-print {
-                    display: none !important;
-                }
                 table {
                     width: 100%;
                     border-collapse: collapse;
@@ -838,8 +860,49 @@ window.printInvoice = function() {
             </style>
         </head>
         <body>
-            <div style="width: 100%; max-width: 800px; margin: 0 auto;">
-                ${printContent}
+            <div style="width: 100%; max-width: 800px; margin: 0 auto; background: #fff; padding: 20px; box-sizing: border-box;">
+                <div style="text-align: center; margin-bottom: 10px;">
+                    <h1 style="margin: 0 0 5px 0; color: #0284c7; font-size: 24px; font-weight: bold;">Bro Tech</h1>
+                    <p style="margin: 2px 0; font-size: 13px; color: #475569;">للأجهزة وماكينات الطباعة</p>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; font-size: 13px;">
+                    <div>
+                        <p style="margin: 2px 0;"><strong>العنوان:</strong> جمال عبدالناصر - مدينة بدر</p>
+                        <p style="margin: 2px 0;"><strong>الهاتف:</strong> 01020008299</p>
+                    </div>
+                    <div style="text-align: left;">
+                        <p style="margin: 2px 0;"><strong>رقم الفاتورة:</strong> ${inv.id}</p>
+                        <p style="margin: 2px 0;"><strong>التاريخ:</strong> ${inv.date}</p>
+                    </div>
+                </div>
+
+                <hr style="border: none; border-top: 2px solid #0284c7; margin: 10px 0;">
+
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; margin-bottom: 15px; font-size: 13px; border-radius: 4px;">
+                    <strong>العميل:</strong> ${inv.customerName} &nbsp;|&nbsp; <strong>الهاتف:</strong> ${inv.customerPhone || '---'} &nbsp;|&nbsp; <strong>العنوان:</strong> ${inv.customerAddress || '---'}
+                </div>
+
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 13px;">
+                    <thead>
+                        <tr style="background: #f1f5f9; color: #1e293b;">
+                            <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">الصنف</th>
+                            <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">الكمية</th>
+                            <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">السعر</th>
+                            <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: left;">الإجمالي</th>
+                        </tr>
+                    </thead>
+                    <tbody>${itemsHtml}</tbody>
+                </table>
+
+                <div style="font-size: 13px; border-top: 2px solid #cbd5e1; padding-top: 10px; text-align: left; width: 300px; margin-right: auto;">
+                    <p style="margin: 4px 0;">الإجمالي الفرعي: ${(inv.subtotal || inv.total).toLocaleString()} ج.م</p>
+                    ${discountPrintHtml}
+                    ${oldBalPrintHtml}
+                    <p style="margin: 6px 0; font-size: 15px; font-weight: bold; color: #0284c7;">الإجمالي النهائي: ${inv.total.toLocaleString()} ج.م</p>
+                    <p style="margin: 4px 0;">المدفوع: ${(inv.paid || 0).toLocaleString()} ج.م</p>
+                    <p style="margin: 4px 0; color: #e11d48; font-weight: bold;">المتبقي: ${(inv.remaining || 0).toLocaleString()} ج.م</p>
+                </div>
             </div>
             <script>
                 window.onload = function() {
