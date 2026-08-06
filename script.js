@@ -796,41 +796,52 @@ document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
 // دالة طباعة الفاتورة مباشرة
 window.printInvoice = function() {
     let printContent = document.getElementById('printableInvoiceArea').innerHTML;
-    let originalContent = document.body.innerHTML;
     
-    document.body.innerHTML = printContent;
-    window.print();
-    document.body.innerHTML = originalContent;
-    location.reload(); // لإعادة تحميل الصفحة واستعادة الحالة الطبيعية بعد الطباعة
+    // إنشاء نافذة طباعة مؤقتة تضمن ملء الورقة بالكامل بدون هوامش الموقع أو لقطات الشاشة
+    let printWindow = window.open('', '_blank', 'height=900,width=1000');
+    
+    printWindow.document.write(`
+        <html lang="ar" dir="rtl">
+        <head>
+            <title>فاتورة مبيعات - برو تيك</title>
+            <style>
+                body {
+                    font-family: Tahoma, sans-serif;
+                    margin: 0;
+                    padding: 0;
+                    background: #ffffff;
+                    color: #000000;
+                    -webkit-print-color-adjust: exact;
+                }
+                /* إخفاء أزرار الموقع تماماً من الورقة المطبوعة */
+                .no-print {
+                    display: none !important;
+                }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                }
+                th, td {
+                    border: 1px solid #cbd5e1 !important;
+                }
+                @page {
+                    size: A4;
+                    margin: 10mm;
+                }
+            </style>
+        </head>
+        <body>
+            ${printContent}
+            <script>
+                window.onload = function() {
+                    window.print();
+                    window.close();
+                }
+            </script>
+        </body>
+        </html>
+    `);
+    
+    printWindow.document.close();
 };
-// دالة تحميل الفاتورة (أو حفظها كملف PDF / طباعة وهمية)
-window.downloadInvoicePDF = function() {
-    window.print();
-};
-// === ربط دوال الفاتورة والتحكم بالكائن العام لضمان عمل الأزرار بدون تغيير الشكل ===
-
-window.closeInvoiceModal = function() {
-    let modal = document.getElementById('invoiceModal');
-    if(modal) modal.style.display = 'none';
-};
-
-window.downloadPDF = function() {
-    // الاعتماد على طباعة المتصفح أو نافذة المعاينة المتاحة لديك
-    window.print();
-};
-
-window.sendToWhatsApp = function() {
-    if (typeof currentInvoiceData !== 'undefined' && currentInvoiceData) {
-        let msg = `*${settings.companyName}*\n` +
-                  `📄 *فاتورة رقم:* ${currentInvoiceData.id}\n` +
-                  `👤 *العميل:* ${currentInvoiceData.customerName}\n` +
-                  `💰 *الإجمالي النهائي:* ${currentInvoiceData.total.toLocaleString()} ج.م\n` +
-                  `📌 *المتبقي:* ${(currentInvoiceData.remaining || 0).toLocaleString()} ج.م`;
-        let phone = (settings.whatsapp || '01020008299').replace(/[^0-9]/g, '');
-        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
-    } else {
-        alert('لا توجد بيانات فاتورة حالية للإرسال!');
-    }
-};
-
 
