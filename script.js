@@ -39,7 +39,7 @@ let settings = {
     owner: 'وائل غنيم',
     whatsapp: '01020008299',
     whatsappNabawy: '01092201111',
-    address: 'جمهورية مصر العربية - مدينة بدر'
+    address: '195 شارع جسر السويس'
 };
 
 let currentInvoiceData = null;
@@ -682,8 +682,8 @@ window.showInvoiceModal = function(inv) {
 
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; font-size: 13px;">
                 <div>
-                    <p style="margin: 2px 0;"><strong>العنوان:</strong> جمال عبدالناصر - مدينة بدر</p>
-                    <p style="margin: 2px 0;"><strong>الهاتف:</strong> 01020008299</p>
+                    <p style="margin: 2px 0;"><strong>العنوان:</strong> ${settings.address}</p>
+                    <p style="margin: 2px 0;"><strong>الهاتف:</strong> ${settings.whatsapp}</p>
                 </div>
                 <div style="text-align: left;">
                     <p style="margin: 2px 0;"><strong>رقم الفاتورة:</strong> ${inv.id}</p>
@@ -869,8 +869,8 @@ window.printInvoice = function() {
 
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; font-size: 13px;">
                     <div>
-                        <p style="margin: 2px 0;"><strong>العنوان:</strong> جمال عبدالناصر - مدينة بدر</p>
-                        <p style="margin: 2px 0;"><strong>الهاتف:</strong> 01020008299</p>
+                        <p style="margin: 2px 0;"><strong>العنوان:</strong> ${settings.address}</p>
+                        <p style="margin: 2px 0;"><strong>الهاتف:</strong> ${settings.whatsapp}</p>
                     </div>
                     <div style="text-align: left;">
                         <p style="margin: 2px 0;"><strong>رقم الفاتورة:</strong> ${inv.id}</p>
