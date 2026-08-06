@@ -642,6 +642,8 @@ window.showInvoiceModalEncoded = function(encodedInv) {
 
 window.showInvoiceModal = function(inv) {
     currentInvoiceData = inv;
+    window.activePrintingInvoice = inv;
+    
     let area = document.getElementById('printableInvoiceArea');
     if(!area) return;
     
@@ -673,7 +675,6 @@ window.showInvoiceModal = function(inv) {
     area.innerHTML = `
         <div style="background: #fff; color: #000; padding: 20px; font-family: Tahoma, sans-serif; direction: rtl; text-align: right; width: 100%; box-sizing: border-box;">
             
-            <!-- رأس الفاتورة -->
             <div style="text-align: center; margin-bottom: 10px;">
                 <h1 style="margin: 0 0 5px 0; color: #0284c7; font-size: 24px; font-weight: bold;">Bro Tech</h1>
                 <p style="margin: 2px 0; font-size: 13px; color: #475569;">للأجهزة وماكينات الطباعة</p>
@@ -692,12 +693,10 @@ window.showInvoiceModal = function(inv) {
 
             <hr style="border: none; border-top: 2px solid #0284c7; margin: 10px 0;">
 
-            <!-- بيانات العميل -->
             <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; margin-bottom: 15px; font-size: 13px; border-radius: 4px;">
                 <strong>العميل:</strong> ${inv.customerName} &nbsp;|&nbsp; <strong>الهاتف:</strong> ${inv.customerPhone || '---'} &nbsp;|&nbsp; <strong>العنوان:</strong> ${inv.customerAddress || '---'}
             </div>
 
-            <!-- جدول الأصناف المنظم -->
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 13px;">
                 <thead>
                     <tr style="background: #f1f5f9; color: #1e293b;">
@@ -710,7 +709,6 @@ window.showInvoiceModal = function(inv) {
                 <tbody>${itemsHtml}</tbody>
             </table>
 
-            <!-- الحسابات النهائية -->
             <div style="font-size: 13px; border-top: 2px solid #cbd5e1; padding-top: 10px; text-align: left; width: 300px; margin-right: auto;">
                 <p style="margin: 4px 0;">الإجمالي الفرعي: ${(inv.subtotal || inv.total).toLocaleString()} ج.م</p>
                 ${discountPrintHtml}
@@ -721,7 +719,6 @@ window.showInvoiceModal = function(inv) {
             </div>
         </div>
 
-        <!-- الأزرار لا تظهر في الطباعة -->
         <div class="no-print" style="text-align: center; margin-top: 15px; padding: 10px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: center; gap: 10px;">
             <button onclick="printInvoice()" style="background: #0284c7; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fas fa-print"></i> طباعة الفاتورة</button>
             <button onclick="sendToWhatsAppNabawy()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fab fa-whatsapp"></i> إرسال لمحمد النبوي</button>
@@ -734,12 +731,13 @@ window.showInvoiceModal = function(inv) {
 window.closeInvoiceModal = function() { document.getElementById('invoiceModal').style.display = 'none'; };
 
 window.sendToWhatsAppNabawy = function() {
-    if(!currentInvoiceData) return;
+    let targetInv = window.activePrintingInvoice || currentInvoiceData;
+    if(!targetInv) return;
     let msg = `*${settings.companyName}*\n` +
-              `📄 *فاتورة رقم:* ${currentInvoiceData.id}\n` +
-              `👤 *العميل:* ${currentInvoiceData.customerName}\n` +
-              `💰 *الإجمالي النهائي:* ${currentInvoiceData.total.toLocaleString()} ج.م\n` +
-              `📌 *المتبقي:* ${(currentInvoiceData.remaining || 0).toLocaleString()} ج.م`;
+              `📄 *فاتورة رقم:* ${targetInv.id}\n` +
+              `👤 *العميل:* ${targetInv.customerName}\n` +
+              `💰 *الإجمالي النهائي:* ${targetInv.total.toLocaleString()} ج.م\n` +
+              `📌 *المتبقي:* ${(targetInv.remaining || 0).toLocaleString()} ج.م`;
     let phone = (settings.whatsappNabawy || '01092201111').replace(/[^0-9]/g, '');
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
 };
@@ -799,10 +797,12 @@ window.saveEditedProduct = function(event) {
 
 document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
 
-// دالة الطباعة بإنشاء كود نظيف ومستقل تماماً من بيانات الفاتورة الحالية لمنع أي تراكم قديم
 window.printInvoice = function() {
-    if(!currentInvoiceData) return;
-    let inv = currentInvoiceData;
+    let inv = window.activePrintingInvoice || currentInvoiceData;
+    if(!inv) {
+        alert('لا توجد فاتورة محددة للطباعة!');
+        return;
+    }
 
     let itemsHtml = '';
     if(inv.items) {
@@ -855,12 +855,13 @@ window.printInvoice = function() {
                 }
                 @page {
                     size: A4;
-                    margin: 5mm;
+                    margin: 10mm;
                 }
             </style>
         </head>
         <body>
             <div style="width: 100%; max-width: 800px; margin: 0 auto; background: #fff; padding: 20px; box-sizing: border-box;">
+                
                 <div style="text-align: center; margin-bottom: 10px;">
                     <h1 style="margin: 0 0 5px 0; color: #0284c7; font-size: 24px; font-weight: bold;">Bro Tech</h1>
                     <p style="margin: 2px 0; font-size: 13px; color: #475569;">للأجهزة وماكينات الطباعة</p>
