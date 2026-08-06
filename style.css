@@ -787,3 +787,53 @@ html, body {
 #mobileMenuToggleBtn {
     display: none;
 }
+/* إعدادات الطباعة الرسمية للفاتورة لتملأ الصفحة وتخفي أزرار الموقع */
+@media print {
+    /* إخفاء عناصر الموقع الأساسية والقوائم والترويسة والجانبية بالكامل */
+    body * {
+        visibility: hidden;
+    }
+
+    /* إظهار نافذة الفاتورة ومنطقة الطباعة فقط */
+    #invoiceModal, #invoiceModal *, #printableInvoiceArea, #printableInvoiceArea * {
+        visibility: visible;
+    }
+
+    /* ضبط مكان الفاتورة لتبدأ من أعلى الصفحة وتملأ الورقة بالكامل */
+    #invoiceModal {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        background: white !important;
+        display: block !important;
+        z-index: 999999;
+    }
+
+    .modal-content.invoice-modal-width, 
+    #invoiceModal .modal-content {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white !important;
+        box-shadow: none !important;
+        border: none !important;
+    }
+
+    /* إخفاء ترويسة النافذة (مثل عنوان معاينة الفاتورة وعلامة الإغلاق X) */
+    .modal-header {
+        display: none !important;
+    }
+
+    /* إخفاء أزرار التحكم تماماً من الطباعة (تحميل PDF، إرسال للواتساب، إغلاق) */
+    .modal-footer {
+        display: none !important;
+    }
+
+    /* إزالة أي خلفيات داكنة أو هوامش لتبدو الفاتورة كأنها مستند مطبوع رسمياً */
+    body {
+        background: white !important;
+    }
+}
