@@ -1,3 +1,4 @@
+
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-analytics.js";
@@ -650,10 +651,10 @@ window.showInvoiceModal = function(inv) {
         inv.items.forEach(item => {
             itemsHtml += `
                 <tr>
-                    <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: right;">${item.name}</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: center;">${item.qty}</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: center;">${item.price.toLocaleString()} ج.م</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: left;">${item.total.toLocaleString()} ج.م</td>
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">${item.name}</td>
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${item.qty}</td>
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${item.price.toLocaleString()} ج.م</td>
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: left;">${item.total.toLocaleString()} ج.م</td>
                 </tr>
             `;
         });
@@ -662,7 +663,7 @@ window.showInvoiceModal = function(inv) {
     let oldBalPrintHtml = '';
     if(inv.oldBalance && inv.oldBalance > 0) {
         let label = inv.oldBalanceType === 'on_him' ? 'حساب سابق (عليه)' : 'حساب سابق (له)';
-        oldBalPrintHtml = `<p style="margin: 3px 0;">${label} بتاريخ (${inv.oldBalanceDate || 'غير محدد'}): ${inv.oldBalance.toLocaleString()} ج.م</p>`;
+        oldBalPrintHtml = `<p style="margin: 3px 0;">${label}: ${inv.oldBalance.toLocaleString()} ج.م</p>`;
     }
 
     let discountPrintHtml = '';
@@ -671,58 +672,58 @@ window.showInvoiceModal = function(inv) {
     }
 
     area.innerHTML = `
-        <div style="background: #fff; color: #000; padding: 30px; font-family: Tahoma, sans-serif; direction: rtl; text-align: right; width: 100%; box-sizing: border-box;">
+        <div style="background: #fff; color: #000; padding: 20px; font-family: Tahoma, sans-serif; direction: rtl; text-align: right; width: 100%; box-sizing: border-box;">
             
-            <!-- رأس الفاتورة: اسم الشركة في النص ومن تحتها بيانات التواصل يمين -->
-            <div style="text-align: center; margin-bottom: 15px;">
-                <h1 style="margin: 0 0 10px 0; color: #0284c7; font-size: 26px; font-weight: bold;">Bro Tech</h1>
+            <!-- رأس الفاتورة -->
+            <div style="text-align: center; margin-bottom: 10px;">
+                <h1 style="margin: 0 0 5px 0; color: #0284c7; font-size: 24px; font-weight: bold;">Bro Tech</h1>
+                <p style="margin: 2px 0; font-size: 13px; color: #475569;">للأجهزة وماكينات الطباعة</p>
             </div>
 
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
-                <div style="text-align: right;">
-                    <p style="margin: 3px 0; font-size: 14px; color: #334155;"><strong>العنوان:</strong> جمال عبدالناصر - مدينة بدر</p>
-                    <p style="margin: 3px 0; font-size: 14px; color: #334155;"><strong>الهاتف:</strong> 01020008299</p>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; font-size: 13px;">
+                <div>
+                    <p style="margin: 2px 0;"><strong>العنوان:</strong> جمال عبدالناصر - مدينة بدر</p>
+                    <p style="margin: 2px 0;"><strong>الهاتف:</strong> 01020008299</p>
                 </div>
                 <div style="text-align: left;">
-                    <p style="margin: 3px 0; font-size: 14px;"><strong>رقم الفاتورة:</strong> ${inv.id}</p>
-                    <p style="margin: 3px 0; font-size: 14px;"><strong>التاريخ:</strong> ${inv.date}</p>
+                    <p style="margin: 2px 0;"><strong>رقم الفاتورة:</strong> ${inv.id}</p>
+                    <p style="margin: 2px 0;"><strong>التاريخ:</strong> ${inv.date}</p>
                 </div>
             </div>
 
-            <!-- خط فاصل -->
-            <hr style="border: none; border-top: 2px solid #0284c7; margin: 15px 0;">
+            <hr style="border: none; border-top: 2px solid #0284c7; margin: 10px 0;">
 
             <!-- بيانات العميل -->
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; margin-bottom: 20px; font-size: 14px; border-radius: 6px;">
-                <strong>اسم العميل:</strong> ${inv.customerName} &nbsp;|&nbsp; <strong>رقم الهاتف:</strong> ${inv.customerPhone || 'غير موجود'} &nbsp;|&nbsp; <strong>العنوان:</strong> ${inv.customerAddress || 'غير محدد'}
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; margin-bottom: 15px; font-size: 13px; border-radius: 4px;">
+                <strong>العميل:</strong> ${inv.customerName} &nbsp;|&nbsp; <strong>الهاتف:</strong> ${inv.customerPhone || '---'} &nbsp;|&nbsp; <strong>العنوان:</strong> ${inv.customerAddress || '---'}
             </div>
 
-            <!-- جدول الأصناف -->
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
+            <!-- جدول الأصناف المنظم -->
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 13px;">
                 <thead>
                     <tr style="background: #f1f5f9; color: #1e293b;">
-                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: right;">الصنف</th>
-                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">الكمية</th>
-                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">السعر</th>
-                        <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: left;">الإجمالي</th>
+                        <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">الصنف</th>
+                        <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">الكمية</th>
+                        <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">السعر</th>
+                        <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: left;">الإجمالي</th>
                     </tr>
                 </thead>
                 <tbody>${itemsHtml}</tbody>
             </table>
 
             <!-- الحسابات النهائية -->
-            <div style="font-size: 14px; border-top: 2px solid #cbd5e1; padding-top: 15px; text-align: left; width: 350px; margin-right: auto;">
-                <p style="margin: 5px 0;">إجمالي الأصناف: ${(inv.subtotal || inv.total).toLocaleString()} ج.م</p>
+            <div style="font-size: 13px; border-top: 2px solid #cbd5e1; padding-top: 10px; text-align: left; width: 300px; margin-right: auto;">
+                <p style="margin: 4px 0;">الإجمالي الفرعي: ${(inv.subtotal || inv.total).toLocaleString()} ج.م</p>
                 ${discountPrintHtml}
                 ${oldBalPrintHtml}
-                <p style="margin: 8px 0; font-size: 16px; font-weight: bold; color: #0284c7;">الإجمالي النهائي: ${inv.total.toLocaleString()} ج.م</p>
-                <p style="margin: 5px 0;">المدفوع: ${(inv.paid || 0).toLocaleString()} ج.م</p>
-                <p style="margin: 5px 0; color: #e11d48; font-weight: bold;">المتبقي: ${(inv.remaining || 0).toLocaleString()} ج.م</p>
+                <p style="margin: 6px 0; font-size: 15px; font-weight: bold; color: #0284c7;">الإجمالي النهائي: ${inv.total.toLocaleString()} ج.م</p>
+                <p style="margin: 4px 0;">المدفوع: ${(inv.paid || 0).toLocaleString()} ج.م</p>
+                <p style="margin: 4px 0; color: #e11d48; font-weight: bold;">المتبقي: ${(inv.remaining || 0).toLocaleString()} ج.م</p>
             </div>
         </div>
 
-        <!-- أزرار التحكم (تظهر في الموقع وتختفي عند الطباعة) -->
-        <div class="no-print" style="text-align: center; margin-top: 20px; padding: 10px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
+        <!-- الأزرار لا تظهر في الطباعة -->
+        <div class="no-print" style="text-align: center; margin-top: 15px; padding: 10px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: center; gap: 10px;">
             <button onclick="printInvoice()" style="background: #0284c7; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fas fa-print"></i> طباعة الفاتورة</button>
             <button onclick="sendToWhatsAppNabawy()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fab fa-whatsapp"></i> إرسال لمحمد النبوي</button>
             <button onclick="closeInvoiceModal()" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fas fa-times"></i> إغلاق</button>
