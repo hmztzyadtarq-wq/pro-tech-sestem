@@ -85,7 +85,7 @@
             <div class="brand-header">
                 <div class="logo-circle">PT</div>
                 <h1>Bro Tech</h1>
-                <span>لصيانة وبيع ماكينات الطباعة</span>
+                <span>ProTech ERP v2.0</span>
             </div>
             <ul class="nav-links">
                 <li class="active" onclick="switchTab('dashboard')"><i class="fas fa-chart-pie"></i> لوحة المؤشرات</li>
@@ -777,8 +777,7 @@
         function printInvoice(invId) {
             let inv = invoices.find(i => i.id === invId);
             let html = `<div style="text-align:center; margin-bottom:15px;">
-                <h2 style="color:#0284c7;">شركة برو تيك لصيانة وبيع ماكينات الطباعة</h2>
-                <p style="font-size:13px; color:#555; margin: 3px 0;">195 شارع جسر السويس</p>
+                <h2 style="color:#0284c7;">شركة برو تيك للأحبار وماكينات الطباعة</h2>
                 <p>رقم الفاتورة: ${inv.id} | التاريخ: ${inv.date}</p>
                 <p>العميل: ${inv.customer}</p>
             </div>
