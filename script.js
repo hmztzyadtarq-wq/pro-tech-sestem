@@ -1,4 +1,265 @@
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-analytics.js";
+import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js";
 
+// Your web app's Firebase configuration
+const firebaseConfig = {
+    apiKey: "AIzaSyDLD-Y6d7LcyqB0rf3YYbJLTFHDXUsWQNM",
+    authDomain: "protech-system.firebaseapp.com",
+    projectId: "protech-system",
+    storageBucket: "protech-system.firebasestorage.app",
+    messagingSenderId: "184422532312",
+    appId: "1:184422532312:web:76df7769c281c66fca43ad",
+    measurementId: "G-1RRP97BPJC"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+const db = getFirestore(app);
+
+// Data State (Initial Defaults)
+let inventory = [
+    { code: 'PR-001', name: 'حبر طابعة ياباني أسود ليزر', qty: 45, unit: 'لتر', price: 1200 },
+    { code: 'PR-002', name: 'ماكينة طباعة رقمية موديل X', qty: 5, unit: 'قطعة', price: 25000 },
+    { code: 'PR-003', name: 'رول استيكر حراري عالي الجودة', qty: 120, unit: 'لفة', price: 150 }
+];
+
+let customers = [
+    { name: 'شركة النور للاستيراد', phone: '01012345678', address: 'القاهرة', oldBalance: 0, oldBalanceDate: '', balanceType: 'none' },
+    { name: 'مؤسسة الهلال التجارية', phone: '01098765432', address: 'الجيزة', oldBalance: 0, oldBalanceDate: '', balanceType: 'none' }
+];
+
+let invoices = [];
+let purchases = [];
+
+let settings = {
+    companyName: 'Bro Tech',
+    owner: 'وائل غنيم',
+    whatsapp: '01020008299',
+    whatsappNabawy: '01092201111',
+    address: '195 شارع جسر السويس'
+};
+
+let currentInvoiceData = null;
+let mainChartInstance = null;
+
+// Load data from Firebase on startup
+window.onload = async function() {
+    await loadDataFromFirebase();
+    refreshAllData();
+    initChart();
+};
+
+async function loadDataFromFirebase() {
+    try {
+        const docRef = doc(db, "protech_data", "main_store");
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            if(data.inventory && data.inventory.length > 0) inventory = data.inventory;
+            if(data.customers && data.customers.length > 0) customers = data.customers;
+            if(data.invoices) invoices = data.invoices;
+            if(data.purchases) purchases = data.purchases;
+            if(data.settings) settings = data.settings;
+        } else {
+            await saveDataToFirebase();
+        }
+    } catch (error) {
+        console.error("Error loading from Firebase, falling back to localStorage:", error);
+        inventory = JSON.parse(localStorage.getItem('protech_inventory')) || inventory;
+        customers = JSON.parse(localStorage.getItem('protech_customers')) || customers;
+        invoices = JSON.parse(localStorage.getItem('protech_invoices')) || invoices;
+        purchases = JSON.parse(localStorage.getItem('protech_purchases')) || purchases;
+        settings = JSON.parse(localStorage.getItem('protech_settings')) || settings;
+    }
+}
+
+async function saveDataToFirebase() {
+    try {
+        await setDoc(doc(db, "protech_data", "main_store"), {
+            inventory,
+            customers,
+            invoices,
+            purchases,
+            settings,
+            updatedAt: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error("Error saving to Firebase:", error);
+    }
+}
+
+function saveData() {
+    localStorage.setItem('protech_inventory', JSON.stringify(inventory));
+    localStorage.setItem('protech_customers', JSON.stringify(customers));
+    localStorage.setItem('protech_invoices', JSON.stringify(invoices));
+    localStorage.setItem('protech_purchases', JSON.stringify(purchases));
+    localStorage.setItem('protech_settings', JSON.stringify(settings));
+    saveDataToFirebase();
+}
+
+function refreshAllData() {
+    renderDashboard();
+    renderInventory();
+    renderInvoices();
+    renderPurchases();
+    renderCustomers();
+    populateSelects();
+}
+
+window.switchTab = function(tabId) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.sidebar .nav-links li').forEach(el => el.classList.remove('active'));
+    
+    let targetTab = document.getElementById('tab-' + tabId);
+    if(targetTab) targetTab.classList.add('active');
+    if(event && event.currentTarget) event.currentTarget.classList.add('active');
+};
+
+function renderDashboard() {
+    let totalStock = inventory.reduce((sum, item) => sum + Number(item.qty), 0);
+    let totalSales = invoices.reduce((sum, inv) => sum + Number(inv.total), 0);
+    let totalPurchases = purchases.reduce((sum, p) => sum + Number(p.cost), 0);
+    let totalProfit = totalSales - totalPurchases;
+
+    let elStock = document.getElementById('statTotalStock');
+    let elSales = document.getElementById('statTotalSales');
+    let elPurchases = document.getElementById('statTotalPurchases');
+    let elCust = document.getElementById('statTotalCustomers');
+
+    if(elStock) elStock.innerText = totalStock;
+    if(elSales) elSales.innerText = totalSales.toLocaleString();
+    if(elPurchases) elPurchases.innerText = totalPurchases.toLocaleString();
+    if(elCust) elCust.innerText = customers.length;
+
+    let statsGrid = document.querySelector('.stats-grid');
+    if(statsGrid && !document.getElementById('statTotalProfit')) {
+        let profitCard = document.createElement('div');
+        profitCard.className = 'stat-card';
+        profitCard.innerHTML = `
+            <div class="stat-info">
+                <h3>إجمالي الربح</h3>
+                <p id="statTotalProfit" style="font-size: 20px; font-weight: bold; color: #10b981; margin: 5px 0 0 0;">0 ج.م</p>
+            </div>
+            <div class="stat-icon" style="background: #10b981; color: #fff; padding: 15px; border-radius: 8px;"><i class="fas fa-chart-line"></i></div>
+        `;
+        statsGrid.appendChild(profitCard);
+    }
+    let profitElem = document.getElementById('statTotalProfit');
+    if(profitElem) profitElem.innerText = totalProfit.toLocaleString() + ' ج.م';
+
+    let recentTbody = document.querySelector('#recentInvoicesTable tbody');
+    if(recentTbody) {
+        recentTbody.innerHTML = '';
+        invoices.slice(-5).reverse().forEach(inv => {
+            recentTbody.innerHTML += `
+                <tr>
+                    <td>${inv.id}</td>
+                    <td>${inv.customerName}</td>
+                    <td>${inv.total.toLocaleString()} ج.م</td>
+                    <td>${inv.date}</td>
+                </tr>
+            `;
+        });
+    }
+
+    let alertsList = document.getElementById('lowStockAlertsList');
+    if(alertsList) {
+        alertsList.innerHTML = '';
+        let lowItems = inventory.filter(i => i.qty < 10);
+        if(lowItems.length === 0) {
+            alertsList.innerHTML = '<p style="color:#10b981; font-size:14px;"><i class="fas fa-check-circle"></i> جميع الأصناف في المخزون متوفرة.</p>';
+        } else {
+            lowItems.forEach(i => {
+                alertsList.innerHTML += `<div class="alert-item"><span>${i.name}</span> <span class="badge-danger">متبقي: ${i.qty} ${i.unit}</span></div>`;
+            });
+        }
+    }
+}
+
+function renderInventory() {
+    let tbody = document.getElementById('inventoryTableBody');
+    if(!tbody) return;
+    tbody.innerHTML = '';
+    inventory.forEach((item, index) => {
+        tbody.innerHTML += `
+            <tr>
+                <td>${item.code}</td>
+                <td>${item.name}</td>
+                <td><strong>${item.qty}</strong></td>
+                <td>${item.unit}</td>
+                <td>${item.price.toLocaleString()} ج.م</td>
+                <td>
+                    <button onclick="openEditProductModal(${index})" style="background: #0284c7; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;"><i class="fas fa-edit"></i> تعديل</button>
+                    <button onclick="deleteProduct(${index})" style="background: #f43f5e; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;"><i class="fas fa-trash"></i> حذف</button>
+                </td>
+            </tr>
+        `;
+    });
+}
+
+window.filterInventory = function() {
+    let searchInput = document.getElementById('searchInventory');
+    if(!searchInput) return;
+    let query = searchInput.value.toLowerCase();
+    document.querySelectorAll('#inventoryTableBody tr').forEach(row => {
+        row.style.display = row.innerText.toLowerCase().includes(query) ? '' : 'none';
+    });
+};
+
+window.openAddProductModal = function() { document.getElementById('addProductModal').style.display = 'flex'; };
+window.closeAddProductModal = function() { document.getElementById('addProductModal').style.display = 'none'; };
+
+window.addNewProduct = function(e) {
+    if(e) e.preventDefault();
+    let code = document.getElementById('prodCode')?.value;
+    let name = document.getElementById('prodName')?.value;
+    let qty = Number(document.getElementById('prodQty')?.value);
+    let unit = document.getElementById('prodUnit')?.value;
+    let price = Number(document.getElementById('prodPrice')?.value);
+
+    if(!code || !name) return;
+    inventory.push({ code, name, qty, unit, price });
+    saveData();
+    refreshAllData();
+    window.closeAddProductModal();
+    if(e && e.target) e.target.reset();
+};
+
+window.deleteProduct = function(index) {
+    if(confirm('هل أنت متأكد من حذف هذا الصنف؟')) {
+        inventory.splice(index, 1);
+        saveData();
+        refreshAllData();
+    }
+};
+
+function renderPurchases() {
+    let tbody = document.getElementById('purchasesTableBody');
+    if(!tbody) return;
+    tbody.innerHTML = '';
+    purchases.forEach((p, index) => {
+        tbody.innerHTML += `
+            <tr>
+                <td>PO-${1000 + index}</td>
+                <td>${p.supplier}</td>
+                <td>${p.productName}</td>
+                <td><span style="color: #10b981; font-weight: bold;">+${p.qty}</span></td>
+                <td>${(p.unitCost || 0).toLocaleString()} ج.م</td>
+                <td>${p.cost.toLocaleString()} ج.م</td>
+                <td>${p.date}</td>
+                <td><button class="btn-danger-sm" onclick="deletePurchase(${index})"><i class="fas fa-trash"></i> حذف</button></td>
+            </tr>
+        `;
+    });
+}
+
+window.openNewPurchaseModal = function() { document.getElementById('newPurchaseModal').style.display = 'flex'; };
+window.closeNewPurchaseModal = function() { document.getElementById('newPurchaseModal').style.display = 'none'; };
+
+window.createNewPurchase = function(e) {
     if(e) e.preventDefault();
     let supplier = document.getElementById('purchaseSupplier')?.value;
     let prodCode = document.getElementById('purchaseProductSelect')?.value;
@@ -416,7 +677,7 @@ window.showInvoiceModal = function(inv) {
             
             <div style="text-align: center; margin-bottom: 10px;">
                 <h1 style="margin: 0 0 5px 0; color: #0284c7; font-size: 24px; font-weight: bold;">Bro Tech</h1>
-                <p style="margin: 2px 0; font-size: 13px; color: #475569;"></p>
+                <p style="margin: 2px 0; font-size: 13px; color: #475569;">للأجهزة وماكينات الطباعة</p>
             </div>
 
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; font-size: 13px;">
@@ -425,7 +686,7 @@ window.showInvoiceModal = function(inv) {
                     <p style="margin: 2px 0;"><strong>الهاتف:</strong> ${settings.whatsapp}</p>
                 </div>
                 <div style="text-align: left;">
-                  
+                    <p style="margin: 2px 0;"><strong>رقم الفاتورة:</strong> ${inv.id}</p>
                     <p style="margin: 2px 0;"><strong>التاريخ:</strong> ${inv.date}</p>
                 </div>
             </div>
