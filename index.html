@@ -320,6 +320,60 @@
             </div>
             <div class="modal-body" id="printableInvoiceArea">
                 <!-- Exact Arabic Professional Invoice Template -->
+                <div class="invoice-box" style="background: #fff; color: #000; padding: 20px; font-family: 'Cairo', sans-serif; direction: rtl; text-align: right; border-radius: 8px;">
+                    <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #0284c7; padding-bottom: 15px; margin-bottom: 15px;">
+                        <div>
+                            <h2 style="margin: 0; color: #0284c7;">شركة برو تيك للأحبار وماكينات الطباعة</h2>
+                            <p style="margin: 5px 0 0 0; font-size: 13px; color: #555;">جمهورية مصر العربية - مدينة بدر</p>
+                            <p style="margin: 3px 0 0 0; font-size: 13px; color: #555;">هواتف: 01020008299</p>
+                        </div>
+                        <div style="text-align: left;">
+                            <h3 style="margin: 0; color: #333;" id="invModalNumber">فاتورة مبيعات</h3>
+                            <p style="margin: 5px 0 0 0; font-size: 13px; color: #555;" id="invModalDate">التاريخ: --/--/----</p>
+                        </div>
+                    </div>
+                    <div style="background: #f8fafc; padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 14px;">
+                        <p style="margin: 0 0 5px 0;"><strong>اسم العميل:</strong> <span id="invModalCustomerName">--</span></p>
+                        <p style="margin: 0 0 5px 0;"><strong>رقم الهاتف:</strong> <span id="invModalCustomerPhone">--</span></p>
+                        <p style="margin: 0;"><strong>العنوان:</strong> <span id="invModalCustomerAddress">--</span></p>
+                    </div>
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 13px;">
+                        <thead>
+                            <tr style="background: #0284c7; color: white;">
+                                <th style="padding: 8px; text-align: right;">الصنف</th>
+                                <th style="padding: 8px; text-align: center;">الكمية</th>
+                                <th style="padding: 8px; text-align: center;">السعر</th>
+                                <th style="padding: 8px; text-align: center;">الإجمالي</th>
+                            </tr>
+                        </thead>
+                        <tbody id="invModalItemsList">
+                            <!-- سيتم تعبئتها ديناميكياً من السكربت -->
+                        </tbody>
+                    </table>
+                    <div style="display: flex; justify-content: flex-end; margin-bottom: 15px;">
+                        <div style="width: 250px; font-size: 14px;">
+                            <div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #eee;">
+                                <span>الإجمالي الفرعي:</span>
+                                <strong id="invModalSubtotal">0 ج.م</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #eee;">
+                                <span>الخصم:</span>
+                                <strong id="invModalDiscount">0 ج.م</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #eee; color: #d97706;" id="invModalOldBalanceRow">
+                                <span>حساب سابق:</span>
+                                <strong id="invModalOldBalance">0 ج.م</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: 8px 0; font-size: 16px; color: #0284c7; border-top: 2px solid #0284c7; margin-top: 5px;">
+                                <span>الإجمالي النهائي:</span>
+                                <strong id="invModalFinalTotal">0 ج.م</strong>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="text-align: center; font-size: 12px; color: #666; border-top: 1px dashed #ccc; padding-top: 10px;">
+                        <p style="margin: 0;">شكراً لتعاملكم مع شركة برو تيك - نسعد دائماً بخدمتكم</p>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="btn-secondary" onclick="closeInvoiceModal()">إغلاق</button>
