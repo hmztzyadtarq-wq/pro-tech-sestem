@@ -39,7 +39,7 @@ let settings = {
     owner: 'وائل غنيم',
     whatsapp: '01020008299',
     whatsappNabawy: '01092201111',
-    address: 'جمهورية مصر العربية - مدينة بدر'
+    address: '195 شارع جسر السويس'
 };
 
 let currentInvoiceData = null;
@@ -650,10 +650,10 @@ window.showInvoiceModal = function(inv) {
         inv.items.forEach(item => {
             itemsHtml += `
                 <tr>
-                    <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: right;">${item.name}</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: center;">${item.qty}</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: center;">${item.price.toLocaleString()} ج.م</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: left;">${item.total.toLocaleString()} ج.م</td>
+                    <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: right;">${item.name}</td>
+                    <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">${item.qty}</td>
+                    <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">${item.price.toLocaleString()} ج.م</td>
+                    <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: left;">${item.total.toLocaleString()} ج.م</td>
                 </tr>
             `;
         });
@@ -671,13 +671,13 @@ window.showInvoiceModal = function(inv) {
     }
 
     area.innerHTML = `
-        <div style="background: #fff; color: #000; padding: 40px; font-family: Tahoma, sans-serif; direction: rtl; text-align: right; width: 100%; box-sizing: border-box;">
+        <div style="background: #fff; color: #000; padding: 30px; font-family: Tahoma, sans-serif; direction: rtl; text-align: right; width: 100%; box-sizing: border-box;">
             <!-- ترويسة الفاتورة الرسمية -->
             <div style="border-bottom: 3px solid #0284c7; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-start;">
                 <div>
                     <h2 style="margin: 0 0 5px 0; color: #0284c7; font-size: 22px;">شركة برو تيك للأحبار وماكينات الطباعة</h2>
-                    <p style="margin: 3px 0; font-size: 14px; color: #334155;"><strong>العنوان:</strong> 195 شارع جسر السويس</p>
-                    <p style="margin: 3px 0; font-size: 14px; color: #334155;"><strong>الهاتف:</strong> 01020008299</p>
+                    <p style="margin: 3px 0; font-size: 14px; color: #334155;"><strong>العنوان:</strong> ${settings.address}</p>
+                    <p style="margin: 3px 0; font-size: 14px; color: #334155;"><strong>الهاتف:</strong> ${settings.whatsapp}</p>
                 </div>
                 <div style="text-align: left;">
                     <h3 style="margin: 0 0 5px 0; font-size: 18px; color: #1e293b;">فاتورة مبيعات</h3>
@@ -688,10 +688,10 @@ window.showInvoiceModal = function(inv) {
 
             <!-- بيانات العميل -->
             <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; margin-bottom: 20px; font-size: 14px; border-radius: 6px;">
-                <strong>بيانات العميل:</strong> ${inv.customerName} &nbsp;|&nbsp; <strong>الهاتف:</strong> ${inv.customerPhone || 'غيرموجود'} &nbsp;|&nbsp; <strong>العنوان:</strong> ${inv.customerAddress || 'غير محدد'}
+                <strong>بيانات العميل:</strong> ${inv.customerName} &nbsp;|&nbsp; <strong>الهاتف:</strong> ${inv.customerPhone || 'غير موجود'} &nbsp;|&nbsp; <strong>العنوان:</strong> ${inv.customerAddress || 'غير محدد'}
             </div>
 
-            <!-- جدول الأصناف -->
+            <!-- جدول الأصناف (مخطط بجدول واضحة وكاملة العرض) -->
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
                 <thead>
                     <tr style="background: #f1f5f9; color: #1e293b;">
@@ -715,7 +715,7 @@ window.showInvoiceModal = function(inv) {
             </div>
         </div>
 
-        <!-- أزرار التحكم (ستظهر في الموقع فقط وتختفي تلقائياً عند الطباعة) -->
+        <!-- أزرار التحكم (تظهر في الموقع فقط وتختفي تماماً عند الطباعة) -->
         <div class="no-print" style="text-align: center; margin-top: 20px; padding: 10px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
             <button onclick="printInvoice()" style="background: #0284c7; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fas fa-print"></i> طباعة الفاتورة</button>
             <button onclick="sendToWhatsAppNabawy()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fab fa-whatsapp"></i> إرسال لمحمد النبوي</button>
@@ -724,6 +724,7 @@ window.showInvoiceModal = function(inv) {
     `;
     document.getElementById('invoiceModal').style.display = 'flex';
 };
+
 window.closeInvoiceModal = function() { document.getElementById('invoiceModal').style.display = 'none'; };
 
 window.sendToWhatsAppNabawy = function() {
@@ -793,11 +794,11 @@ window.saveEditedProduct = function(event) {
 };
 
 document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
-// دالة طباعة الفاتورة مباشرة
+
+// دالة طباعة الفاتورة بملء الصفحة وتجاهل أزرار الموقع
 window.printInvoice = function() {
     let printContent = document.getElementById('printableInvoiceArea').innerHTML;
     
-    // إنشاء نافذة طباعة مؤقتة تضمن ملء الورقة بالكامل بدون هوامش الموقع أو لقطات الشاشة
     let printWindow = window.open('', '_blank', 'height=900,width=1000');
     
     printWindow.document.write(`
@@ -808,12 +809,11 @@ window.printInvoice = function() {
                 body {
                     font-family: Tahoma, sans-serif;
                     margin: 0;
-                    padding: 0;
+                    padding: 10px;
                     background: #ffffff;
                     color: #000000;
                     -webkit-print-color-adjust: exact;
                 }
-                /* إخفاء أزرار الموقع تماماً من الورقة المطبوعة */
                 .no-print {
                     display: none !important;
                 }
@@ -843,5 +843,10 @@ window.printInvoice = function() {
     `);
     
     printWindow.document.close();
+};
+
+// دالة تحميل PDF (تعتمد على نافذة الطباعة المجهزة)
+window.downloadPDF = function() {
+    window.printInvoice();
 };
 
