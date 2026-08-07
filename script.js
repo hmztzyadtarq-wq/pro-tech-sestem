@@ -686,7 +686,7 @@ window.showInvoiceModal = function(inv) {
                     <p style="margin: 2px 0;"><strong>الهاتف:</strong> 01020008299</p>
                 </div>
                 <div style="text-align: left;">
-                    <p style="margin: 2px 0;"><strong>رقم الفاتورة:</strong> ${inv.id}</p>
+                 
                     <p style="margin: 2px 0;"><strong>التاريخ:</strong> ${inv.date}</p>
                 </div>
             </div>
