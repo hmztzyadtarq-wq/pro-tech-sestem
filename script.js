@@ -451,28 +451,41 @@ window.createNewInvoice = function(e) {
             alert('يرجى اختيار صنف صحيح في كل السطور!');
             return;
         }
+        
         let prodCode = selectEl.value;
         let opt = selectEl.selectedOptions[0];
-        let productName = opt ? opt.text.split(' (')[0] : '';
-        let qty = Number(tr.querySelector('.inv-item-qty').value);
-        let price = Number(tr.querySelector('.inv-item-price').value);
         
-        // البحث الفعلي السليم عن الصنف في المخزون بالكود أو بالاسم لضمان التطابق
+        // استخراج اسم المنتج الحقيقي المختار من المخزون بدون أي تداخل
+        let fullOptionText = opt ? opt.text : '';
+        let productName = fullOptionText.split(' (')[0].trim();
+        
+        let qty = Number(tr.querySelector('.inv-item-qty').value) || 0;
+        let price = Number(tr.querySelector('.inv-item-price').value) || 0;
+
+        // البحث الدقيق عن المنتج في المخزون بالكود أو بالاسم المطابق
         let prodObj = inventory.find(i => i.code === prodCode || i.name === productName);
         
         if(!prodObj) {
-            alert(`الصنف (${productName}) غير موجود في المخزون!`);
+            alert(`الصنف غير موجود في المخزون!`);
             return;
         }
 
-        if(qty > prodObj.qty) {
-            alert(`الكمية المطلوبة للصنف (${productName}) أكبر من المتاح في المخزون (${prodObj.qty})!`);
+        if(qty > Number(prodObj.qty)) {
+            alert(`الكمية المطلوبة للصنف (${prodObj.name}) أكبر من المتاح في المخزون (${prodObj.qty})!`);
             return;
         }
 
         let itemTotal = qty * price;
         subtotal += itemTotal;
-        items.push({ code: prodObj.code, name: prodObj.name, qty, price, total: itemTotal });
+        
+        // تسجيل الصنف الحقيقي اللي اختاره المستخدم بالظبط
+        items.push({ 
+            code: prodObj.code, 
+            name: prodObj.name, 
+            qty: qty, 
+            price: price, 
+            total: itemTotal 
+        });
     }
 
     let discountPercent = Number(document.getElementById('invoiceDiscountPercent')?.value) || 0;
@@ -497,7 +510,7 @@ window.createNewInvoice = function(e) {
         if(paidAmount < 0) paidAmount = 0;
     }
 
-    // خصم الكميات من المخزون بشكل مؤكد وصحيح
+    // خصم الكميات من المخزون لكل صنف تم بيعه في الفاتورة بدقة
     items.forEach(item => {
         let prodObj = inventory.find(i => i.code === item.code);
         if(prodObj) {
@@ -510,10 +523,20 @@ window.createNewInvoice = function(e) {
     let currentDate = new Date().toLocaleDateString('ar-EG');
 
     let newInv = {
-        id: invoiceId, customerName, customerPhone, customerAddress,
-        items, subtotal, discountPercent, discountAmount,
-        oldBalance, oldBalanceType, oldBalanceDate,
-        total: finalTotal, paid: paidAmount, remaining: remainingAmount,
+        id: invoiceId, 
+        customerName, 
+        customerPhone, 
+        customerAddress,
+        items, 
+        subtotal, 
+        discountPercent, 
+        discountAmount,
+        oldBalance, 
+        oldBalanceType, 
+        oldBalanceDate,
+        total: finalTotal, 
+        paid: paidAmount, 
+        remaining: remainingAmount,
         status: paymentStatus === 'لم يدفع' && remainingAmount > 0 ? `متبقي: ${remainingAmount} ج.م` : paymentStatus,
         date: currentDate
     };
@@ -524,6 +547,7 @@ window.createNewInvoice = function(e) {
     window.closeNewInvoiceModal();
     window.showInvoiceModal(newInv);
 };
+
 function renderInvoices() {
     let tbody = document.getElementById('invoicesTableBody');
     if(!tbody) return;
@@ -928,4 +952,3 @@ window.printInvoice = function() {
     
     printWindow.document.close();
 };
-6
