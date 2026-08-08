@@ -23,7 +23,9 @@ const db = getFirestore(app);
 let inventory = [
     { code: 'PR-001', name: 'حبر طابعة ياباني أسود ليزر', qty: 45, unit: 'لتر', price: 1200 },
     { code: 'PR-002', name: 'ماكينة طباعة رقمية موديل X', qty: 5, unit: 'قطعة', price: 25000 },
-    { code: 'PR-003', name: 'رول استيكر حراري عالي الجودة', qty: 120, unit: 'لفة', price: 150 }
+    { code: 'PR-003', name: 'رول استيكر حراري عالي الجودة', qty: 120, unit: 'لفة', price: 150 },
+    { code: 'PR-ECO-IN', name: 'ايكو سولفينت إن دور', qty: 50, unit: 'لتر', price: 450 },
+    { code: 'PR-OUT', name: 'أوت دور', qty: 50, unit: 'لتر', price: 500 }
 ];
 
 let customers = [
@@ -173,7 +175,7 @@ function renderDashboard() {
             alertsList.innerHTML = '<p style="color:#10b981; font-size:14px;"><i class="fas fa-check-circle"></i> جميع الأصناف في المخزون متوفرة.</p>';
         } else {
             lowItems.forEach(i => {
-                alertsList.innerHTML += `<div class="alert-item"><span>${i.name}</span> <span class="badge-danger">متبقي: ${i.qty} ${i.unit}</span></div>`;
+                alertsList.innerHTML += `<div class="alert-item"><span><bdi style="unicode-bidi: isolate; direction: auto;">${i.name}</bdi></span> <span class="badge-danger">متبقي: ${i.qty} ${i.unit}</span></div>`;
             });
         }
     }
@@ -187,7 +189,7 @@ function renderInventory() {
         tbody.innerHTML += `
             <tr>
                 <td>${item.code}</td>
-                <td dir="auto">${item.name}</td>
+                <td><bdi style="unicode-bidi: isolate; direction: auto;">${item.name}</bdi></td>
                 <td><strong>${item.qty}</strong></td>
                 <td>${item.unit}</td>
                 <td>${item.price.toLocaleString()} ج.م</td>
@@ -214,13 +216,20 @@ window.closeAddProductModal = function() { document.getElementById('addProductMo
 
 window.addNewProduct = function(e) {
     if(e) e.preventDefault();
-    let code = document.getElementById('prodCode')?.value;
-    let name = document.getElementById('prodName')?.value;
+    let code = document.getElementById('prodCode')?.value.trim();
+    let name = document.getElementById('prodName')?.value.trim();
     let qty = Number(document.getElementById('prodQty')?.value);
     let unit = document.getElementById('prodUnit')?.value;
     let price = Number(document.getElementById('prodPrice')?.value);
 
     if(!code || !name) return;
+    
+    // التأكد من عدم تكرار الكود
+    if(inventory.some(i => i.code === code)) {
+        alert('كود الصنف مستخدم مسبقاً، يجدر استخدام كود فريد لكل منتج!');
+        return;
+    }
+
     inventory.push({ code, name, qty, unit, price });
     saveData();
     refreshAllData();
@@ -245,7 +254,7 @@ function renderPurchases() {
             <tr>
                 <td>PO-${1000 + index}</td>
                 <td>${p.supplier}</td>
-                <td dir="auto">${p.productName}</td>
+                <td><bdi style="unicode-bidi: isolate; direction: auto;">${p.productName}</bdi></td>
                 <td><span style="color: #10b981; font-weight: bold;">+${p.qty}</span></td>
                 <td>${(p.unitCost || 0).toLocaleString()} ج.م</td>
                 <td>${p.cost.toLocaleString()} ج.م</td>
@@ -339,7 +348,7 @@ window.addInvoiceItemRow = function() {
 
     let optionsHtml = '<option value="">-- اختر الصنف من المخزون --</option>';
     inventory.forEach(i => {
-        // إعطاء اتجاه LTR/RTL تلقائي لقائمة الاختيارات لحماية الكلمات الإنجليزية
+        // الربط حصرياً بكود المنتج (i.code) لضمان عدم حدوث تداخل أو اختيار صنف خطأ
         optionsHtml += `<option value="${i.code}" data-price="${i.price}" data-qty="${i.qty}">${i.name} (المتاح: ${i.qty} ${i.unit} - ${i.price} ج.م)</option>`;
     });
 
@@ -658,10 +667,9 @@ window.showInvoiceModal = function(inv) {
     let itemsHtml = '';
     if(inv.items) {
         inv.items.forEach(item => {
-            // إضافة خاصية unicode-bidi و direction مع dir="auto" لمنع انعكاس الكلمات الإنجليزية والعربية معاً
             itemsHtml += `
                 <tr>
-                    <td dir="ltr" style="unicode-bidi: plaintext; padding: 8px; border: 1px solid #cbd5e1; text-align: right;">${item.name}</td>
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;"><bdi style="unicode-bidi: isolate; direction: auto;">${item.name}</bdi></td>
                     <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${item.qty}</td>
                     <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${item.price.toLocaleString()} ج.م</td>
                     <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: left;">${item.total.toLocaleString()} ج.م</td>
@@ -771,9 +779,9 @@ window.openEditProductModal = function(index) {
     if (!product) return;
 
     document.getElementById('editProdIndex').value = index;
-    document.getElementById('editProdCode').value = product.code || product.id || '';
+    document.getElementById('editProdCode').value = product.code || '';
     document.getElementById('editProdName').value = product.name || '';
-    document.getElementById('editProdQty').value = product.qty || product.quantity || 0;
+    document.getElementById('editProdQty').value = product.qty || 0;
     document.getElementById('editProdUnit').value = product.unit || '';
     document.getElementById('editProdPrice').value = product.price || 0;
 
@@ -790,8 +798,8 @@ window.saveEditedProduct = function(event) {
     const index = document.getElementById('editProdIndex').value;
     if (index === "" || !inventory[index]) return;
 
-    inventory[index].code = document.getElementById('editProdCode').value;
-    inventory[index].name = document.getElementById('editProdName').value;
+    inventory[index].code = document.getElementById('editProdCode').value.trim();
+    inventory[index].name = document.getElementById('editProdName').value.trim();
     inventory[index].qty = Number(document.getElementById('editProdQty').value);
     inventory[index].unit = document.getElementById('editProdUnit').value;
     inventory[index].price = Number(document.getElementById('editProdPrice').value);
@@ -817,7 +825,7 @@ window.printInvoice = function() {
         inv.items.forEach(item => {
             itemsHtml += `
                 <tr>
-                    <td dir="ltr" style="unicode-bidi: plaintext; padding: 8px; border: 1px solid #cbd5e1; text-align: right;">${item.name}</td>
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;"><bdi style="unicode-bidi: isolate; direction: auto;">${item.name}</bdi></td>
                     <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${item.qty}</td>
                     <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${item.price.toLocaleString()} ج.م</td>
                     <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: left;">${item.total.toLocaleString()} ج.م</td>
