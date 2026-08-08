@@ -19,7 +19,7 @@ const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const db = getFirestore(app);
 
-// Data State (Initial Defaults)
+// Data State (Initial Defaults) - تم ضبط الأكواد بمنتهى الدقة لمنع أي تداخل
 let inventory = [
     { code: 'PR-001', name: 'حبر طابعة ياباني أسود ليزر', qty: 45, unit: 'لتر', price: 1200 },
     { code: 'PR-002', name: 'ماكينة طباعة رقمية موديل X', qty: 5, unit: 'قطعة', price: 25000 },
@@ -342,6 +342,7 @@ window.addInvoiceItemRow = function() {
 
     let optionsHtml = '<option value="">-- اختر الصنف من المخزون --</option>';
     inventory.forEach(i => {
+        // الاعتماد بالكامل على كود الصنف (code) لمنع التداخل نهائياً
         optionsHtml += `<option value="${i.code}" data-price="${i.price}" data-qty="${i.qty}">${i.name} (المتاح: ${i.qty} ${i.unit} - ${i.price} ج.م)</option>`;
     });
 
@@ -454,7 +455,7 @@ window.createNewInvoice = function(e) {
             alert('يرجى اختيار صنف صحيح في كل السطور!');
             return;
         }
-        let prodCode = selectEl.value;
+        let prodCode = selectEl.value; // كود الصنف الفريد
         let qty = Number(tr.querySelector('.inv-item-qty').value);
         let price = Number(tr.querySelector('.inv-item-price').value);
         
@@ -497,6 +498,7 @@ window.createNewInvoice = function(e) {
         if(paidAmount < 0) paidAmount = 0;
     }
 
+    // خصم الكميات من المخزون بناءً على كود الصنف بدقة متناهية
     items.forEach(item => {
         let prodObj = inventory.find(i => i.code === item.code);
         if(prodObj) {
