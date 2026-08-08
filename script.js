@@ -187,7 +187,7 @@ function renderInventory() {
         tbody.innerHTML += `
             <tr>
                 <td>${item.code}</td>
-                <td>${item.name}</td>
+                <td dir="auto">${item.name}</td>
                 <td><strong>${item.qty}</strong></td>
                 <td>${item.unit}</td>
                 <td>${item.price.toLocaleString()} ج.م</td>
@@ -245,7 +245,7 @@ function renderPurchases() {
             <tr>
                 <td>PO-${1000 + index}</td>
                 <td>${p.supplier}</td>
-                <td>${p.productName}</td>
+                <td dir="auto">${p.productName}</td>
                 <td><span style="color: #10b981; font-weight: bold;">+${p.qty}</span></td>
                 <td>${(p.unitCost || 0).toLocaleString()} ج.م</td>
                 <td>${p.cost.toLocaleString()} ج.م</td>
@@ -339,12 +339,13 @@ window.addInvoiceItemRow = function() {
 
     let optionsHtml = '<option value="">-- اختر الصنف من المخزون --</option>';
     inventory.forEach(i => {
+        // إعطاء اتجاه LTR/RTL تلقائي لقائمة الاختيارات لحماية الكلمات الإنجليزية
         optionsHtml += `<option value="${i.code}" data-price="${i.price}" data-qty="${i.qty}">${i.name} (المتاح: ${i.qty} ${i.unit} - ${i.price} ج.م)</option>`;
     });
 
     let tr = document.createElement('tr');
     tr.innerHTML = `
-        <td style="padding: 5px;"><select class="inv-item-code" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px;" onchange="updateRowPrice(this)">${optionsHtml}</select></td>
+        <td style="padding: 5px;"><select class="inv-item-code" dir="auto" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px;" onchange="updateRowPrice(this)">${optionsHtml}</select></td>
         <td style="padding: 5px;"><input type="number" class="inv-item-qty" value="1" min="1" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px; text-align:center;" oninput="calculateInvoiceTotal()"></td>
         <td style="padding: 5px;"><input type="number" class="inv-item-price" value="0" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px; text-align:center;" oninput="calculateInvoiceTotal()"></td>
         <td style="padding: 5px; text-align: center;"><button type="button" onclick="this.closest('tr').remove(); calculateInvoiceTotal();" style="background:#f43f5e; color:#fff; border:none; padding:5px 8px; border-radius:4px; cursor:pointer;"><i class="fas fa-trash"></i></button></td>
@@ -469,7 +470,6 @@ window.createNewInvoice = function(e) {
 
         let itemTotal = qty * price;
         subtotal += itemTotal;
-        // حفظ اسم المنتج بشكل صافي وصحيح تماماً لتجنب أي تداخل في النصوص الإنجليزية والعربية
         items.push({ code: prodObj.code, name: prodObj.name, qty, price, total: itemTotal });
     }
 
@@ -658,10 +658,10 @@ window.showInvoiceModal = function(inv) {
     let itemsHtml = '';
     if(inv.items) {
         inv.items.forEach(item => {
-            // استخدام dir="auto" وحصر اسم الصنف بدقة لمنع تداخل الحروف الإنجليزية مع العربية
+            // إضافة خاصية unicode-bidi و direction مع dir="auto" لمنع انعكاس الكلمات الإنجليزية والعربية معاً
             itemsHtml += `
                 <tr>
-                    <td dir="auto" style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">${item.name}</td>
+                    <td dir="ltr" style="unicode-bidi: plaintext; padding: 8px; border: 1px solid #cbd5e1; text-align: right;">${item.name}</td>
                     <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${item.qty}</td>
                     <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${item.price.toLocaleString()} ج.م</td>
                     <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: left;">${item.total.toLocaleString()} ج.م</td>
@@ -817,7 +817,7 @@ window.printInvoice = function() {
         inv.items.forEach(item => {
             itemsHtml += `
                 <tr>
-                    <td dir="auto" style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">${item.name}</td>
+                    <td dir="ltr" style="unicode-bidi: plaintext; padding: 8px; border: 1px solid #cbd5e1; text-align: right;">${item.name}</td>
                     <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${item.qty}</td>
                     <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${item.price.toLocaleString()} ج.م</td>
                     <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: left;">${item.total.toLocaleString()} ج.م</td>
