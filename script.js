@@ -452,23 +452,18 @@ window.createNewInvoice = function(e) {
             return;
         }
         
-        let prodCode = selectEl.value;
-        let opt = selectEl.selectedOptions[0];
+        let prodCode = selectEl.value; // الكود الحقيقي المختار من السيلكت
         
-        // استخراج اسم المنتج الحقيقي المختار من المخزون بدون أي تداخل
-        let fullOptionText = opt ? opt.text : '';
-        let productName = fullOptionText.split(' (')[0].trim();
+        // البحث المباشر والدقيق جداً عن المنتج في المخزون باستخدام الكود المختار فقط لضمان عدم حدوث أي تداخل بالأسماء
+        let prodObj = inventory.find(i => i.code === prodCode);
+        
+        if(!prodObj) {
+            alert(`الصنف المحدد غير موجود في المخزون!`);
+            return;
+        }
         
         let qty = Number(tr.querySelector('.inv-item-qty').value) || 0;
         let price = Number(tr.querySelector('.inv-item-price').value) || 0;
-
-        // البحث الدقيق عن المنتج في المخزون بالكود أو بالاسم المطابق
-        let prodObj = inventory.find(i => i.code === prodCode || i.name === productName);
-        
-        if(!prodObj) {
-            alert(`الصنف غير موجود في المخزون!`);
-            return;
-        }
 
         if(qty > Number(prodObj.qty)) {
             alert(`الكمية المطلوبة للصنف (${prodObj.name}) أكبر من المتاح في المخزون (${prodObj.qty})!`);
@@ -478,7 +473,7 @@ window.createNewInvoice = function(e) {
         let itemTotal = qty * price;
         subtotal += itemTotal;
         
-        // تسجيل الصنف الحقيقي اللي اختاره المستخدم بالظبط
+        // إدخال بيانات الصنف الحقيقي بدقة تامة وبدون أي قيم افتراضية
         items.push({ 
             code: prodObj.code, 
             name: prodObj.name, 
@@ -510,7 +505,7 @@ window.createNewInvoice = function(e) {
         if(paidAmount < 0) paidAmount = 0;
     }
 
-    // خصم الكميات من المخزون لكل صنف تم بيعه في الفاتورة بدقة
+    // خصم الكميات من المخزون لكل صنف تم بيعه في الفاتورة بدقة تامة
     items.forEach(item => {
         let prodObj = inventory.find(i => i.code === item.code);
         if(prodObj) {
