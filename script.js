@@ -41,7 +41,7 @@ let settings = {
     owner: 'وائل غنيم',
     whatsapp: '01020008299',
     whatsappNabawy: '01092201111',
-    address: 'جمهورية مصر العربية - 195 شارع جسر السويس'
+    address: '195 شارع جسر السويس'
 };
 
 let currentInvoiceData = null;
@@ -342,7 +342,6 @@ window.addInvoiceItemRow = function() {
 
     let optionsHtml = '<option value="">-- اختر الصنف من المخزون --</option>';
     inventory.forEach(i => {
-        // الاعتماد 100% على كود الصنف (code) كقيمة فريدة لا تتشابه أبداً
         optionsHtml += `<option value="${i.code}" data-price="${i.price}" data-qty="${i.qty}">${i.name} (المتاح: ${i.qty} ${i.unit} - ${i.price} ج.م)</option>`;
     });
 
