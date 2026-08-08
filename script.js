@@ -455,7 +455,6 @@ window.createNewInvoice = function(e) {
         let qty = Number(tr.querySelector('.inv-item-qty').value);
         let price = Number(tr.querySelector('.inv-item-price').value);
         
-        // البحث المباشر والصحيح عن المنتج باستخدام الكود حصراً لتفادي خلط المنتجات
         let prodObj = inventory.find(i => i.code === prodCode);
         
         if(!prodObj) {
@@ -470,6 +469,7 @@ window.createNewInvoice = function(e) {
 
         let itemTotal = qty * price;
         subtotal += itemTotal;
+        // حفظ اسم المنتج بشكل صافي وصحيح تماماً لتجنب أي تداخل في النصوص الإنجليزية والعربية
         items.push({ code: prodObj.code, name: prodObj.name, qty, price, total: itemTotal });
     }
 
@@ -495,7 +495,6 @@ window.createNewInvoice = function(e) {
         if(paidAmount < 0) paidAmount = 0;
     }
 
-    // خصم الكميات من المخزون بشكل دقيق وصحيح
     items.forEach(item => {
         let prodObj = inventory.find(i => i.code === item.code);
         if(prodObj) {
@@ -659,9 +658,10 @@ window.showInvoiceModal = function(inv) {
     let itemsHtml = '';
     if(inv.items) {
         inv.items.forEach(item => {
+            // استخدام dir="auto" وحصر اسم الصنف بدقة لمنع تداخل الحروف الإنجليزية مع العربية
             itemsHtml += `
                 <tr>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">${item.name}</td>
+                    <td dir="auto" style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">${item.name}</td>
                     <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${item.qty}</td>
                     <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${item.price.toLocaleString()} ج.م</td>
                     <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: left;">${item.total.toLocaleString()} ج.م</td>
@@ -817,7 +817,7 @@ window.printInvoice = function() {
         inv.items.forEach(item => {
             itemsHtml += `
                 <tr>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">${item.name}</td>
+                    <td dir="auto" style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">${item.name}</td>
                     <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${item.qty}</td>
                     <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${item.price.toLocaleString()} ج.م</td>
                     <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: left;">${item.total.toLocaleString()} ج.م</td>
