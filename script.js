@@ -224,12 +224,6 @@ window.addNewProduct = function(e) {
 
     if(!code || !name) return;
     
-    // التأكد من عدم تكرار الكود
-    if(inventory.some(i => i.code === code)) {
-        alert('كود الصنف مستخدم مسبقاً، يجدر استخدام كود فريد لكل منتج!');
-        return;
-    }
-
     inventory.push({ code, name, qty, unit, price });
     saveData();
     refreshAllData();
@@ -271,16 +265,16 @@ window.closeNewPurchaseModal = function() { document.getElementById('newPurchase
 window.createNewPurchase = function(e) {
     if(e) e.preventDefault();
     let supplier = document.getElementById('purchaseSupplier')?.value;
-    let prodCode = document.getElementById('purchaseProductSelect')?.value;
+    let prodName = document.getElementById('purchaseProductSelect')?.value;
     let qty = Number(document.getElementById('purchaseQty')?.value);
     let unitCost = Number(document.getElementById('purchaseUnitCost')?.value || document.getElementById('purchaseCost')?.value);
     let totalCost = unitCost * qty;
 
-    let product = inventory.find(i => i.code === prodCode);
+    let product = inventory.find(i => i.name === prodName);
     if(product) {
         product.qty += qty;
         purchases.push({
-            supplier, productCode: prodCode, productName: product.name,
+            supplier, productCode: product.code, productName: product.name,
             qty, unitCost, cost: totalCost, date: new Date().toLocaleDateString('ar-EG')
         });
         saveData();
@@ -319,7 +313,7 @@ function populateSelects() {
     if(purProdSelect) {
         purProdSelect.innerHTML = '';
         inventory.forEach(i => {
-            purProdSelect.innerHTML += `<option value="${i.code}">${i.name}</option>`;
+            purProdSelect.innerHTML += `<option value="${i.name}">${i.name}</option>`;
         });
     }
 }
@@ -348,13 +342,13 @@ window.addInvoiceItemRow = function() {
 
     let optionsHtml = '<option value="">-- اختر الصنف من المخزون --</option>';
     inventory.forEach(i => {
-        // الربط حصرياً بكود المنتج (i.code) لضمان عدم حدوث تداخل أو اختيار صنف خطأ
-        optionsHtml += `<option value="${i.code}" data-price="${i.price}" data-qty="${i.qty}">${i.name} (المتاح: ${i.qty} ${i.unit} - ${i.price} ج.م)</option>`;
+        // الربط المباشر باسم الصنف لضمان التطابق التام وعدم حدوث أي خطأ في الاختيار
+        optionsHtml += `<option value="${i.name}" data-price="${i.price}" data-qty="${i.qty}">${i.name} (المتاح: ${i.qty} ${i.unit} - ${i.price} ج.م)</option>`;
     });
 
     let tr = document.createElement('tr');
     tr.innerHTML = `
-        <td style="padding: 5px;"><select class="inv-item-code" dir="auto" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px;" onchange="updateRowPrice(this)">${optionsHtml}</select></td>
+        <td style="padding: 5px;"><select class="inv-item-name" dir="auto" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px;" onchange="updateRowPrice(this)">${optionsHtml}</select></td>
         <td style="padding: 5px;"><input type="number" class="inv-item-qty" value="1" min="1" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px; text-align:center;" oninput="calculateInvoiceTotal()"></td>
         <td style="padding: 5px;"><input type="number" class="inv-item-price" value="0" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px; text-align:center;" oninput="calculateInvoiceTotal()"></td>
         <td style="padding: 5px; text-align: center;"><button type="button" onclick="this.closest('tr').remove(); calculateInvoiceTotal();" style="background:#f43f5e; color:#fff; border:none; padding:5px 8px; border-radius:4px; cursor:pointer;"><i class="fas fa-trash"></i></button></td>
@@ -456,16 +450,16 @@ window.createNewInvoice = function(e) {
     }
 
     for(let tr of rows) {
-        let selectEl = tr.querySelector('.inv-item-code');
+        let selectEl = tr.querySelector('.inv-item-name');
         if(!selectEl || !selectEl.value) {
             alert('يرجى اختيار صنف صحيح في كل السطور!');
             return;
         }
-        let prodCode = selectEl.value;
+        let prodName = selectEl.value;
         let qty = Number(tr.querySelector('.inv-item-qty').value);
         let price = Number(tr.querySelector('.inv-item-price').value);
         
-        let prodObj = inventory.find(i => i.code === prodCode);
+        let prodObj = inventory.find(i => i.name === prodName);
         
         if(!prodObj) {
             alert(`الصنف المحدد غير موجود في المخزون!`);
