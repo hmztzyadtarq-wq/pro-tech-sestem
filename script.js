@@ -864,16 +864,15 @@ window.printInvoice = function() {
                 
                 <div style="text-align: center; margin-bottom: 10px;">
                     <h1 style="margin: 0 0 5px 0; color: #0284c7; font-size: 24px; font-weight: bold;">Bro Tech</h1>
-                    <p style="margin: 2px 0; font-size: 13px; color: #475569;">للأجهزة وماكينات الطباعة</p>
+                    <p style="margin: 2px 0; font-size: 13px; color: #475569;"لصيانه و بيع جميع انواع مكن الطباعه></p>
                 </div>
 
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; font-size: 13px;">
                     <div>
-                        <p style="margin: 2px 0;"><strong>العنوان:</strong> جمال عبدالناصر - مدينة بدر</p>
+                        <p style="margin: 2px 0;"><strong>العنوان:</strong> 195 شارع جسر السويس</p>
                         <p style="margin: 2px 0;"><strong>الهاتف:</strong> 01020008299</p>
                     </div>
                     <div style="text-align: left;">
-                        <p style="margin: 2px 0;"><strong>رقم الفاتورة:</strong> ${inv.id}</p>
                         <p style="margin: 2px 0;"><strong>التاريخ:</strong> ${inv.date}</p>
                     </div>
                 </div>
