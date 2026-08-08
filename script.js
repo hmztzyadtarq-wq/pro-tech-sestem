@@ -39,7 +39,7 @@ let settings = {
     owner: 'وائل غنيم',
     whatsapp: '01020008299',
     whatsappNabawy: '01092201111',
-    address: 'جمهورية مصر العربية - مدينة بدر'
+    address: 'جمهورية مصر العربية - 195 شارع جسر السويس'
 };
 
 let currentInvoiceData = null;
@@ -451,36 +451,26 @@ window.createNewInvoice = function(e) {
             alert('يرجى اختيار صنف صحيح في كل السطور!');
             return;
         }
+        let prodCode = selectEl.value;
+        let qty = Number(tr.querySelector('.inv-item-qty').value);
+        let price = Number(tr.querySelector('.inv-item-price').value);
         
-        let prodCode = selectEl.value; // الكود الحقيقي المختار من السيلكت
-        
-        // البحث المباشر والدقيق جداً عن المنتج في المخزون باستخدام الكود المختار فقط لضمان عدم حدوث أي تداخل بالأسماء
+        // البحث المباشر والصحيح عن المنتج باستخدام الكود حصراً لتفادي خلط المنتجات
         let prodObj = inventory.find(i => i.code === prodCode);
         
         if(!prodObj) {
             alert(`الصنف المحدد غير موجود في المخزون!`);
             return;
         }
-        
-        let qty = Number(tr.querySelector('.inv-item-qty').value) || 0;
-        let price = Number(tr.querySelector('.inv-item-price').value) || 0;
 
-        if(qty > Number(prodObj.qty)) {
+        if(qty > prodObj.qty) {
             alert(`الكمية المطلوبة للصنف (${prodObj.name}) أكبر من المتاح في المخزون (${prodObj.qty})!`);
             return;
         }
 
         let itemTotal = qty * price;
         subtotal += itemTotal;
-        
-        // إدخال بيانات الصنف الحقيقي بدقة تامة وبدون أي قيم افتراضية
-        items.push({ 
-            code: prodObj.code, 
-            name: prodObj.name, 
-            qty: qty, 
-            price: price, 
-            total: itemTotal 
-        });
+        items.push({ code: prodObj.code, name: prodObj.name, qty, price, total: itemTotal });
     }
 
     let discountPercent = Number(document.getElementById('invoiceDiscountPercent')?.value) || 0;
@@ -505,7 +495,7 @@ window.createNewInvoice = function(e) {
         if(paidAmount < 0) paidAmount = 0;
     }
 
-    // خصم الكميات من المخزون لكل صنف تم بيعه في الفاتورة بدقة تامة
+    // خصم الكميات من المخزون بشكل دقيق وصحيح
     items.forEach(item => {
         let prodObj = inventory.find(i => i.code === item.code);
         if(prodObj) {
@@ -518,20 +508,10 @@ window.createNewInvoice = function(e) {
     let currentDate = new Date().toLocaleDateString('ar-EG');
 
     let newInv = {
-        id: invoiceId, 
-        customerName, 
-        customerPhone, 
-        customerAddress,
-        items, 
-        subtotal, 
-        discountPercent, 
-        discountAmount,
-        oldBalance, 
-        oldBalanceType, 
-        oldBalanceDate,
-        total: finalTotal, 
-        paid: paidAmount, 
-        remaining: remainingAmount,
+        id: invoiceId, customerName, customerPhone, customerAddress,
+        items, subtotal, discountPercent, discountAmount,
+        oldBalance, oldBalanceType, oldBalanceDate,
+        total: finalTotal, paid: paidAmount, remaining: remainingAmount,
         status: paymentStatus === 'لم يدفع' && remainingAmount > 0 ? `متبقي: ${remainingAmount} ج.م` : paymentStatus,
         date: currentDate
     };
@@ -706,16 +686,15 @@ window.showInvoiceModal = function(inv) {
             
             <div style="text-align: center; margin-bottom: 10px;">
                 <h1 style="margin: 0 0 5px 0; color: #0284c7; font-size: 24px; font-weight: bold;">Bro Tech</h1>
-                <p style="margin: 2px 0; font-size: 13px; color: #475569;">لصيانه و بيع جميع انواع مكن الطباعه </p>
+                <p style="margin: 2px 0; font-size: 13px; color: #475569;">لصيانه و بيع جميع انواع مكن الطباعه</p>
             </div>
 
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; font-size: 13px;">
                 <div>
-                    <p style="margin: 2px 0;"><strong>العنوان:</strong>195-شارع جسر السويس </p>
+                    <p style="margin: 2px 0;"><strong>العنوان:</strong> 195 شارع جسر السويس</p>
                     <p style="margin: 2px 0;"><strong>الهاتف:</strong> 01020008299</p>
                 </div>
                 <div style="text-align: left;">
-                 
                     <p style="margin: 2px 0;"><strong>التاريخ:</strong> ${inv.date}</p>
                 </div>
             </div>
@@ -893,7 +872,7 @@ window.printInvoice = function() {
                 
                 <div style="text-align: center; margin-bottom: 10px;">
                     <h1 style="margin: 0 0 5px 0; color: #0284c7; font-size: 24px; font-weight: bold;">Bro Tech</h1>
-                    <p style="margin: 2px 0; font-size: 13px; color: #475569;"لصيانه و بيع جميع انواع مكن الطباعه></p>
+                    <p style="margin: 2px 0; font-size: 13px; color: #475569;">لصيانه و بيع جميع انواع مكن الطباعه</p>
                 </div>
 
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; font-size: 13px;">
