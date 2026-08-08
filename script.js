@@ -456,16 +456,23 @@ window.createNewInvoice = function(e) {
         let productName = opt ? opt.text.split(' (')[0] : '';
         let qty = Number(tr.querySelector('.inv-item-qty').value);
         let price = Number(tr.querySelector('.inv-item-price').value);
-        let availableQty = Number(opt ? opt.getAttribute('data-qty') : 0);
+        
+        // البحث الفعلي السليم عن الصنف في المخزون بالكود أو بالاسم لضمان التطابق
+        let prodObj = inventory.find(i => i.code === prodCode || i.name === productName);
+        
+        if(!prodObj) {
+            alert(`الصنف (${productName}) غير موجود في المخزون!`);
+            return;
+        }
 
-        if(qty > availableQty) {
-            alert(`الكمية المطلوبة للصنف (${productName}) أكبر من المتاح في المخزون!`);
+        if(qty > prodObj.qty) {
+            alert(`الكمية المطلوبة للصنف (${productName}) أكبر من المتاح في المخزون (${prodObj.qty})!`);
             return;
         }
 
         let itemTotal = qty * price;
         subtotal += itemTotal;
-        items.push({ code: prodCode, name: productName, qty, price, total: itemTotal });
+        items.push({ code: prodObj.code, name: prodObj.name, qty, price, total: itemTotal });
     }
 
     let discountPercent = Number(document.getElementById('invoiceDiscountPercent')?.value) || 0;
@@ -490,9 +497,13 @@ window.createNewInvoice = function(e) {
         if(paidAmount < 0) paidAmount = 0;
     }
 
+    // خصم الكميات من المخزون بشكل مؤكد وصحيح
     items.forEach(item => {
         let prodObj = inventory.find(i => i.code === item.code);
-        if(prodObj) prodObj.qty -= item.qty;
+        if(prodObj) {
+            prodObj.qty = Number(prodObj.qty) - Number(item.qty);
+            if(prodObj.qty < 0) prodObj.qty = 0;
+        }
     });
 
     let invoiceId = 'INV-' + Math.floor(1000 + Math.random() * 9000);
@@ -513,7 +524,6 @@ window.createNewInvoice = function(e) {
     window.closeNewInvoiceModal();
     window.showInvoiceModal(newInv);
 };
-
 function renderInvoices() {
     let tbody = document.getElementById('invoicesTableBody');
     if(!tbody) return;
