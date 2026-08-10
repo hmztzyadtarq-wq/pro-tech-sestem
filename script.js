@@ -387,73 +387,73 @@ window.updateRowPrice = function(selectElem) {[cite: 3]
     }[cite: 3]
     calculateInvoiceTotal();[cite: 3]
 };[cite: 3]
-
-window.handleBarcodeScan = function(event) {[cite: 3]
-    if(event.key === 'Enter') {[cite: 3]
-        let scannerInput = document.getElementById('barcodeScannerInput');[cite: 3]
-        if(!scannerInput) return;[cite: 3]
+window.handleBarcodeScan = function(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault(); // منع أي سلوك افتراضي للنموذج
+        let scannerInput = document.getElementById('barcodeScannerInput');
+        if (!scannerInput) return;
         
-        let scannedCode = scannerInput.value.trim();[cite: 3]
-        scannerInput.value = '';[cite: 3]
+        let scannedCode = scannerInput.value.trim();
+        scannerInput.value = ''; // تفريغ الحقل لاستقبال الباركود التالي
 
-        if(!scannedCode) return;[cite: 3]
+        if (!scannedCode) return;
 
-        let product = inventory.find(i => i.code === scannedCode);[cite: 3]
+        let product = inventory.find(i => i.code === scannedCode);
         
-        if(!product) {[cite: 3]
-            alert(`❌ عذراً، المنتج غير متوفر (الكود: ${scannedCode} غير مسجل في المخزون)!`);[cite: 3]
-            return;[cite: 3]
-        }[cite: 3]
+        if (!product) {
+            alert(`❌ عذراً، المنتج غير متوفر (الكود: ${scannedCode} غير مسجل في المخزون)![cite: 3]`);
+            return;
+        }
 
-        let rows = document.querySelectorAll('#invoiceItemsBody tr');[cite: 3]
-        let foundRow = null;[cite: 3]
-        let emptyRow = null;[cite: 3]
+        let rows = document.querySelectorAll('#invoiceItemsBody tr');
+        let foundRow = null;
+        let emptyRow = null;
 
-        for(let tr of rows) {[cite: 3]
-            let selectEl = tr.querySelector('.inv-item-code');[cite: 3]
-            if(selectEl) {[cite: 3]
-                if(selectEl.value === product.code) {[cite: 3]
-                    foundRow = tr;[cite: 3]
-                    break;[cite: 3]
-                } else if(!selectEl.value && !emptyRow) {[cite: 3]
-                    emptyRow = tr;[cite: 3]
-                }[cite: 3]
-            }[cite: 3]
-        }[cite: 3]
+        for (let tr of rows) {
+            let selectEl = tr.querySelector('.inv-item-code');
+            if (selectEl) {
+                if (selectEl.value === product.code) {
+                    foundRow = tr;
+                    break;
+                } else if (!selectEl.value && !emptyRow) {
+                    emptyRow = tr;
+                }
+            }
+        }
 
-        let newQty = 1;[cite: 3]
+        let newQty = 1;
 
-        if(foundRow) {[cite: 3]
-            let qtyEl = foundRow.querySelector('.inv-item-qty');[cite: 3]
-            if(qtyEl) {[cite: 3]
-                newQty = Number(qtyEl.value) + 1;[cite: 3]
-                qtyEl.value = newQty;[cite: 3]
-            }[cite: 3]
-        } else if(emptyRow) {[cite: 3]
-            let selectEl = emptyRow.querySelector('.inv-item-code');[cite: 3]
-            let qtyEl = emptyRow.querySelector('.inv-item-qty');[cite: 3]
-            let priceEl = emptyRow.querySelector('.inv-item-price');[cite: 3]
+        if (foundRow) {
+            let qtyEl = foundRow.querySelector('.inv-item-qty');
+            if (qtyEl) {
+                newQty = Number(qtyEl.value) + 1;
+                qtyEl.value = newQty;
+            }
+        } else if (emptyRow) {
+            let selectEl = emptyRow.querySelector('.inv-item-code');
+            let qtyEl = emptyRow.querySelector('.inv-item-qty');
+            let priceEl = emptyRow.querySelector('.inv-item-price');
             
-            if(selectEl) selectEl.value = product.code;[cite: 3]
-            if(qtyEl) qtyEl.value = 1;[cite: 3]
-            if(priceEl) priceEl.value = product.price;[cite: 3]
-            newQty = 1;[cite: 3]
-            updateRowPrice(selectEl);[cite: 3]
-        } else {[cite: 3]
-            window.addInvoiceItemRow(product.code, 1);[cite: 3]
-            newQty = 1;[cite: 3]
-        }[cite: 3]
+            if (selectEl) selectEl.value = product.code;
+            if (qtyEl) qtyEl.value = 1;
+            if (priceEl) priceEl.value = product.price;
+            newQty = 1;
+            window.updateRowPrice(selectEl);
+        } else {
+            window.addInvoiceItemRow(product.code, 1);
+            newQty = 1;
+        }
 
-        if(product.qty !== undefined) {[cite: 3]
-            let remainingStock = product.qty - newQty;[cite: 3]
-            if(remainingStock <= 5) {[cite: 3]
-                alert(`⚠️ تنبيه: المنتج (${product.name}) باقي منه ${remainingStock < 0 ? 0 : remainingStock} فقط في المخزون!`);[cite: 3]
-            }[cite: 3]
-        }[cite: 3]
+        if (product.qty !== undefined) {
+            let remainingStock = product.qty - newQty;
+            if (remainingStock <= 5) {
+                alert(`⚠️ تنبيه: المنتج (${product.name}) باقي منه ${remainingStock < 0 ? 0 : remainingStock} فقط في المخزون![cite: 3]`);
+            }
+        }
 
-        calculateInvoiceTotal();[cite: 3]
-    }[cite: 3]
-};[cite: 3]
+        window.calculateInvoiceTotal();
+    }
+};
 // ==========================================
 
 window.calculateInvoiceTotal = function() {[cite: 3]
