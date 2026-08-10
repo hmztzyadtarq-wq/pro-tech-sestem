@@ -336,34 +336,24 @@ window.handleCustomerSelectChange = function() {
     }
 };
 
-// ==========================================
-// التعديل المضاف خصيصاً للباركود والإصناف
-// ==========================================
-window.addInvoiceItemRow = function(productCode = '', qty = 1) {
+window.addInvoiceItemRow = function() {
     let tbody = document.getElementById('invoiceItemsBody');
     if(!tbody) return;
 
     let optionsHtml = '<option value="">-- اختر الصنف من المخزون --</option>';
     inventory.forEach(i => {
-        let selected = (i.code === productCode) ? 'selected' : '';
-        optionsHtml += `<option value="${i.code}" data-price="${i.price}" data-qty="${i.qty}" ${selected}>${i.name} (المتاح: ${i.qty} ${i.unit} - ${i.price} ج.م)</option>`;
+        // الاعتماد بالكامل على كود الصنف (code) لمنع التداخل نهائياً
+        optionsHtml += `<option value="${i.code}" data-price="${i.price}" data-qty="${i.qty}">${i.name} (المتاح: ${i.qty} ${i.unit} - ${i.price} ج.م)</option>`;
     });
 
     let tr = document.createElement('tr');
     tr.innerHTML = `
         <td style="padding: 5px;"><select class="inv-item-code" dir="auto" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px;" onchange="updateRowPrice(this)">${optionsHtml}</select></td>
-        <td style="padding: 5px;"><input type="number" class="inv-item-qty" value="${qty}" min="1" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px; text-align:center;" oninput="calculateInvoiceTotal()"></td>
+        <td style="padding: 5px;"><input type="number" class="inv-item-qty" value="1" min="1" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px; text-align:center;" oninput="calculateInvoiceTotal()"></td>
         <td style="padding: 5px;"><input type="number" class="inv-item-price" value="0" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px; text-align:center;" oninput="calculateInvoiceTotal()"></td>
         <td style="padding: 5px; text-align: center;"><button type="button" onclick="this.closest('tr').remove(); calculateInvoiceTotal();" style="background:#f43f5e; color:#fff; border:none; padding:5px 8px; border-radius:4px; cursor:pointer;"><i class="fas fa-trash"></i></button></td>
     `;
     tbody.appendChild(tr);
-
-    if(productCode) {
-        let selectEl = tr.querySelector('.inv-item-code');
-        if(selectEl) {
-            updateRowPrice(selectEl);
-        }
-    }
 };
 
 window.updateRowPrice = function(selectElem) {
@@ -372,88 +362,10 @@ window.updateRowPrice = function(selectElem) {
     let tr = selectElem.closest('tr');
     if(tr) {
         let priceInput = tr.querySelector('.inv-item-price');
-        let qtyInput = tr.querySelector('.inv-item-qty');
         if(priceInput) priceInput.value = price;
-        
-        let code = selectElem.value;
-        let product = inventory.find(i => i.code === code);
-        if(product && product.qty !== undefined) {
-            let currentQty = Number(qtyInput ? qtyInput.value : 1);
-            if((product.qty - currentQty) <= 5) {
-                alert(`⚠️ تنبيه: المنتج "${product.name}" باقي منه ${product.qty - currentQty} أو أقل في المخزون!`);
-            }
-        }
     }
     calculateInvoiceTotal();
 };
-
-window.handleBarcodeScan = function(event) {
-    if(event.key === 'Enter') {
-        let scannerInput = document.getElementById('barcodeScannerInput');
-        if(!scannerInput) return;
-        
-        let scannedCode = scannerInput.value.trim();
-        scannerInput.value = '';
-
-        if(!scannedCode) return;
-
-        let product = inventory.find(i => i.code === scannedCode);
-        
-        if(!product) {
-            alert(`❌ عذراً، المنتج غير متوفر (الكود: ${scannedCode} غير مسجل في المخزون)!`);
-            return;
-        }
-
-        let rows = document.querySelectorAll('#invoiceItemsBody tr');
-        let foundRow = null;
-        let emptyRow = null;
-
-        for(let tr of rows) {
-            let selectEl = tr.querySelector('.inv-item-code');
-            if(selectEl) {
-                if(selectEl.value === product.code) {
-                    foundRow = tr;
-                    break;
-                } else if(!selectEl.value && !emptyRow) {
-                    emptyRow = tr;
-                }
-            }
-        }
-
-        let newQty = 1;
-
-        if(foundRow) {
-            let qtyEl = foundRow.querySelector('.inv-item-qty');
-            if(qtyEl) {
-                newQty = Number(qtyEl.value) + 1;
-                qtyEl.value = newQty;
-            }
-        } else if(emptyRow) {
-            let selectEl = emptyRow.querySelector('.inv-item-code');
-            let qtyEl = emptyRow.querySelector('.inv-item-qty');
-            let priceEl = emptyRow.querySelector('.inv-item-price');
-            
-            if(selectEl) selectEl.value = product.code;
-            if(qtyEl) qtyEl.value = 1;
-            if(priceEl) priceEl.value = product.price;
-            newQty = 1;
-            updateRowPrice(selectEl);
-        } else {
-            window.addInvoiceItemRow(product.code, 1);
-            newQty = 1;
-        }
-
-        if(product.qty !== undefined) {
-            let remainingStock = product.qty - newQty;
-            if(remainingStock <= 5) {
-                alert(`⚠️ تنبيه: المنتج (${product.name}) باقي منه ${remainingStock < 0 ? 0 : remainingStock} فقط في المخزون!`);
-            }
-        }
-
-        calculateInvoiceTotal();
-    }
-};
-// ==========================================
 
 window.calculateInvoiceTotal = function() {
     let rows = document.querySelectorAll('#invoiceItemsBody tr');
