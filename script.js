@@ -19,8 +19,9 @@ const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const db = getFirestore(app);
 
-// Data State (Initial Defaults) - تم ضبط الأكواد بمنتهى الدقة لمنع أي تداخل
+// Data State (Initial Defaults) - تم إضافة زجاجة المية بالكود المطلوب هنا
 let inventory = [
+    { code: '6223001360056', name: 'زجاجة مية', qty: 50, unit: 'زجاجة', price: 5 },
     { code: 'PR-001', name: 'حبر طابعة ياباني أسود ليزر', qty: 45, unit: 'لتر', price: 1200 },
     { code: 'PR-002', name: 'ماكينة طباعة رقمية موديل X', qty: 5, unit: 'قطعة', price: 25000 },
     { code: 'PR-003', name: 'رول استيكر حراري عالي الجودة', qty: 120, unit: 'لفة', price: 150 },
@@ -432,7 +433,7 @@ window.handleBarcodeScan = function(event) {
 
         if (!scannedCode) return;
 
-        // البحث عن المنتج داخل المخزون بكود الـ QR
+        // البحث عن المنتج داخل المخزون بكود الـ QR أو الباركود
         let product = inventory.find(i => i.code === scannedCode);
         
         if (!product) {
@@ -440,7 +441,6 @@ window.handleBarcodeScan = function(event) {
             return;
         }
 
-        // التحقق هل يوجد سطر فارغ حالياً في الفاتورة لإضافته فيه مباشرة، أم نضيف سطر جديد
         let rows = document.querySelectorAll('#invoiceItemsBody tr');
         let added = false;
 
@@ -449,13 +449,11 @@ window.handleBarcodeScan = function(event) {
             let qtyEl = tr.querySelector('.inv-item-qty');
             
             if (selectEl && !selectEl.value) {
-                // إذا وجدنا خانة فارغة نضع فيها المنتج مباشرة
                 selectEl.value = product.code;
                 window.updateRowPrice(selectEl);
                 added = true;
                 break;
             } else if (selectEl && selectEl.value === product.code) {
-                // إذا كان المنتج موجود مسبقاً في الفاتورة، نقوم بزيادة الكمية تلقائياً 1+
                 if (qtyEl) {
                     qtyEl.value = Number(qtyEl.value) + 1;
                     window.calculateInvoiceTotal();
@@ -465,7 +463,6 @@ window.handleBarcodeScan = function(event) {
             }
         }
 
-        // إذا لم يتم العثور على سطر فارغ أو منتج مطابق، يتم إنشاء سطر جديد بالمنتج مباشرة
         if (!added) {
             window.addInvoiceItemRow(product.code, 1);
         } else {
