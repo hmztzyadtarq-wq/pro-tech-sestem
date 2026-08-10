@@ -1,1019 +1,1006 @@
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
-import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-analytics.js";
-import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js";
+// Import the functions you need from the SDKs you need[cite: 3]
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";[cite: 3]
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-analytics.js";[cite: 3]
+import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js";[cite: 3]
 
-// Your web app's Firebase configuration
-const firebaseConfig = {
-    apiKey: "AIzaSyDLD-Y6d7LcyqB0rf3YYbJLTFHDXUsWQNM",
-    authDomain: "protech-system.firebaseapp.com",
-    projectId: "protech-system",
-    storageBucket: "protech-system.firebasestorage.app",
-    messagingSenderId: "184422532312",
-    appId: "1:184422532312:web:76df7769c281c66fca43ad",
-    measurementId: "G-1RRP97BPJC"
-};
+// Your web app's Firebase configuration[cite: 3]
+const firebaseConfig = {[cite: 3]
+    apiKey: "AIzaSyDLD-Y6d7LcyqB0rf3YYbJLTFHDXUsWQNM",[cite: 3]
+    authDomain: "protech-system.firebaseapp.com",[cite: 3]
+    projectId: "protech-system",[cite: 3]
+    storageBucket: "protech-system.firebasestorage.app",[cite: 3]
+    messagingSenderId: "184422532312",[cite: 3]
+    appId: "1:184422532312:web:76df7769c281c66fca43ad",[cite: 3]
+    measurementId: "G-1RRP97BPJC"[cite: 3]
+};[cite: 3]
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-const db = getFirestore(app);
+// Initialize Firebase[cite: 3]
+const app = initializeApp(firebaseConfig);[cite: 3]
+const analytics = getAnalytics(app);[cite: 3]
+const db = getFirestore(app);[cite: 3]
 
-// Data State (Initial Defaults) - تم ضبط الأكواد بمنتهى الدقة لمنع أي تداخل
-let inventory = [
-    { code: 'PR-001', name: 'حبر طابعة ياباني أسود ليزر', qty: 45, unit: 'لتر', price: 1200 },
-    { code: 'PR-002', name: 'ماكينة طباعة رقمية موديل X', qty: 5, unit: 'قطعة', price: 25000 },
-    { code: 'PR-003', name: 'رول استيكر حراري عالي الجودة', qty: 120, unit: 'لفة', price: 150 },
-    { code: 'PR-ECO-IN', name: 'ايكو سولفينت إن دور', qty: 50, unit: 'لتر', price: 450 },
-    { code: 'PR-OUT', name: 'أوت دور', qty: 50, unit: 'لتر', price: 500 }
-];
+// Data State (Initial Defaults) - تم ضبط الأكواد بمنتهى الدقة لمنع أي تداخل[cite: 3]
+let inventory = [[cite: 3]
+    { code: 'PR-001', name: 'حبر طابعة ياباني أسود ليزر', qty: 45, unit: 'لتر', price: 1200 },[cite: 3]
+    { code: 'PR-002', name: 'ماكينة طباعة رقمية موديل X', qty: 5, unit: 'قطعة', price: 25000 },[cite: 3]
+    { code: 'PR-003', name: 'رول استيكر حراري عالي الجودة', qty: 120, unit: 'لفة', price: 150 },[cite: 3]
+    { code: 'PR-ECO-IN', name: 'ايكو سولفينت إن دور', qty: 50, unit: 'لتر', price: 450 },[cite: 3]
+    { code: 'PR-OUT', name: 'أوت دور', qty: 50, unit: 'لتر', price: 500 }[cite: 3]
+];[cite: 3]
 
-let customers = [
-    { name: 'شركة النور للاستيراد', phone: '01012345678', address: 'القاهرة', oldBalance: 0, oldBalanceDate: '', balanceType: 'none' },
-    { name: 'مؤسسة الهلال التجارية', phone: '01098765432', address: 'الجيزة', oldBalance: 0, oldBalanceDate: '', balanceType: 'none' }
-];
+let customers = [[cite: 3]
+    { name: 'شركة النور للاستيراد', phone: '01012345678', address: 'القاهرة', oldBalance: 0, oldBalanceDate: '', balanceType: 'none' },[cite: 3]
+    { name: 'مؤسسة الهلال التجارية', phone: '01098765432', address: 'الجيزة', oldBalance: 0, oldBalanceDate: '', balanceType: 'none' }[cite: 3]
+];[cite: 3]
 
-let invoices = [];
-let purchases = [];
+let invoices = [];[cite: 3]
+let purchases = [];[cite: 3]
 
-let settings = {
-    companyName: 'Bro Tech',
-    owner: 'وائل غنيم',
-    whatsapp: '01020008299',
-    whatsappNabawy: '01092201111',
-    address: '195 شارع جسر السويس'
-};
+let settings = {[cite: 3]
+    companyName: 'Bro Tech',[cite: 3]
+    owner: 'وائل غنيم',[cite: 3]
+    whatsapp: '01020008299',[cite: 3]
+    whatsappNabawy: '01092201111',[cite: 3]
+    address: '195 شارع جسر السويس'[cite: 3]
+};[cite: 3]
 
-let currentInvoiceData = null;
-let mainChartInstance = null;
+let currentInvoiceData = null;[cite: 3]
+let mainChartInstance = null;[cite: 3]
 
-// Load data from Firebase on startup
-window.onload = async function() {
-    await loadDataFromFirebase();
-    refreshAllData();
-    initChart();
-};
+// Load data from Firebase on startup[cite: 3]
+window.onload = async function() {[cite: 3]
+    await loadDataFromFirebase();[cite: 3]
+    refreshAllData();[cite: 3]
+    initChart();[cite: 3]
+};[cite: 3]
 
-async function loadDataFromFirebase() {
-    try {
-        const docRef = doc(db, "protech_data", "main_store");
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-            const data = docSnap.data();
-            if(data.inventory && data.inventory.length > 0) inventory = data.inventory;
-            if(data.customers && data.customers.length > 0) customers = data.customers;
-            if(data.invoices) invoices = data.invoices;
-            if(data.purchases) purchases = data.purchases;
-            if(data.settings) settings = data.settings;
-        } else {
-            await saveDataToFirebase();
-        }
-    } catch (error) {
-        console.error("Error loading from Firebase, falling back to localStorage:", error);
-        inventory = JSON.parse(localStorage.getItem('protech_inventory')) || inventory;
-        customers = JSON.parse(localStorage.getItem('protech_customers')) || customers;
-        invoices = JSON.parse(localStorage.getItem('protech_invoices')) || invoices;
-        purchases = JSON.parse(localStorage.getItem('protech_purchases')) || purchases;
-        settings = JSON.parse(localStorage.getItem('protech_settings')) || settings;
-    }
-}
+async function loadDataFromFirebase() {[cite: 3]
+    try {[cite: 3]
+        const docRef = doc(db, "protech_data", "main_store");[cite: 3]
+        const docSnap = await getDoc(docRef);[cite: 3]
+        if (docSnap.exists()) {[cite: 3]
+            const data = docSnap.data();[cite: 3]
+            if(data.inventory && data.inventory.length > 0) inventory = data.inventory;[cite: 3]
+            if(data.customers && data.customers.length > 0) customers = data.customers;[cite: 3]
+            if(data.invoices) invoices = data.invoices;[cite: 3]
+            if(data.purchases) purchases = data.purchases;[cite: 3]
+            if(data.settings) settings = data.settings;[cite: 3]
+        } else {[cite: 3]
+            await saveDataToFirebase();[cite: 3]
+        }[cite: 3]
+    } catch (error) {[cite: 3]
+        console.error("Error loading from Firebase, falling back to localStorage:", error);[cite: 3]
+        inventory = JSON.parse(localStorage.getItem('protech_inventory')) || inventory;[cite: 3]
+        customers = JSON.parse(localStorage.getItem('protech_customers')) || customers;[cite: 3]
+        invoices = JSON.parse(localStorage.getItem('protech_invoices')) || invoices;[cite: 3]
+        purchases = JSON.parse(localStorage.getItem('protech_purchases')) || purchases;[cite: 3]
+        settings = JSON.parse(localStorage.getItem('protech_settings')) || settings;[cite: 3]
+    }[cite: 3]
+}[cite: 3]
 
-async function saveDataToFirebase() {
-    try {
-        await setDoc(doc(db, "protech_data", "main_store"), {
-            inventory,
-            customers,
-            invoices,
-            purchases,
-            settings,
-            updatedAt: new Date().toISOString()
-        });
-    } catch (error) {
-        console.error("Error saving to Firebase:", error);
-    }
-}
+async function saveDataToFirebase() {[cite: 3]
+    try {[cite: 3]
+        await setDoc(doc(db, "protech_data", "main_store"), {[cite: 3]
+            inventory,[cite: 3]
+            customers,[cite: 3]
+            invoices,[cite: 3]
+            purchases,[cite: 3]
+            settings,[cite: 3]
+            updatedAt: new Date().toISOString()[cite: 3]
+        });[cite: 3]
+    } catch (error) {[cite: 3]
+        console.error("Error saving to Firebase:", error);[cite: 3]
+    }[cite: 3]
+}[cite: 3]
 
-function saveData() {
-    localStorage.setItem('protech_inventory', JSON.stringify(inventory));
-    localStorage.setItem('protech_customers', JSON.stringify(customers));
-    localStorage.setItem('protech_invoices', JSON.stringify(invoices));
-    localStorage.setItem('protech_purchases', JSON.stringify(purchases));
-    localStorage.setItem('protech_settings', JSON.stringify(settings));
-    saveDataToFirebase();
-}
+function saveData() {[cite: 3]
+    localStorage.setItem('protech_inventory', JSON.stringify(inventory));[cite: 3]
+    localStorage.setItem('protech_customers', JSON.stringify(customers));[cite: 3]
+    localStorage.setItem('protech_invoices', JSON.stringify(invoices));[cite: 3]
+    localStorage.setItem('protech_purchases', JSON.stringify(purchases));[cite: 3]
+    localStorage.setItem('protech_settings', JSON.stringify(settings));[cite: 3]
+    saveDataToFirebase();[cite: 3]
+}[cite: 3]
 
-function refreshAllData() {
-    renderDashboard();
-    renderInventory();
-    renderInvoices();
-    renderPurchases();
-    renderCustomers();
-    populateSelects();
-}
+function refreshAllData() {[cite: 3]
+    renderDashboard();[cite: 3]
+    renderInventory();[cite: 3]
+    renderInvoices();[cite: 3]
+    renderPurchases();[cite: 3]
+    renderCustomers();[cite: 3]
+    populateSelects();[cite: 3]
+}[cite: 3]
 
-window.switchTab = function(tabId) {
-    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('.sidebar .nav-links li').forEach(el => el.classList.remove('active'));
+window.switchTab = function(tabId) {[cite: 3]
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));[cite: 3]
+    document.querySelectorAll('.sidebar .nav-links li').forEach(el => el.classList.remove('active'));[cite: 3]
     
-    let targetTab = document.getElementById('tab-' + tabId);
-    if(targetTab) targetTab.classList.add('active');
-    if(event && event.currentTarget) event.currentTarget.classList.add('active');
-};
+    let targetTab = document.getElementById('tab-' + tabId);[cite: 3]
+    if(targetTab) targetTab.classList.add('active');[cite: 3]
+    if(event && event.currentTarget) event.currentTarget.classList.add('active');[cite: 3]
+};[cite: 3]
 
-function renderDashboard() {
-    let totalStock = inventory.reduce((sum, item) => sum + Number(item.qty), 0);
-    let totalSales = invoices.reduce((sum, inv) => sum + Number(inv.total), 0);
-    let totalPurchases = purchases.reduce((sum, p) => sum + Number(p.cost), 0);
-    let totalProfit = totalSales - totalPurchases;
+function renderDashboard() {[cite: 3]
+    let totalStock = inventory.reduce((sum, item) => sum + Number(item.qty), 0);[cite: 3]
+    let totalSales = invoices.reduce((sum, inv) => sum + Number(inv.total), 0);[cite: 3]
+    let totalPurchases = purchases.reduce((sum, p) => sum + Number(p.cost), 0);[cite: 3]
+    let totalProfit = totalSales - totalPurchases;[cite: 3]
 
-    let elStock = document.getElementById('statTotalStock');
-    let elSales = document.getElementById('statTotalSales');
-    let elPurchases = document.getElementById('statTotalPurchases');
-    let elCust = document.getElementById('statTotalCustomers');
+    let elStock = document.getElementById('statTotalStock');[cite: 3]
+    let elSales = document.getElementById('statTotalSales');[cite: 3]
+    let elPurchases = document.getElementById('statTotalPurchases');[cite: 3]
+    let elCust = document.getElementById('statTotalCustomers');[cite: 3]
 
-    if(elStock) elStock.innerText = totalStock;
-    if(elSales) elSales.innerText = totalSales.toLocaleString();
-    if(elPurchases) elPurchases.innerText = totalPurchases.toLocaleString();
-    if(elCust) elCust.innerText = customers.length;
+    if(elStock) elStock.innerText = totalStock;[cite: 3]
+    if(elSales) elSales.innerText = totalSales.toLocaleString();[cite: 3]
+    if(elPurchases) elPurchases.innerText = totalPurchases.toLocaleString();[cite: 3]
+    if(elCust) elCust.innerText = customers.length;[cite: 3]
 
-    let statsGrid = document.querySelector('.stats-grid');
-    if(statsGrid && !document.getElementById('statTotalProfit')) {
-        let profitCard = document.createElement('div');
-        profitCard.className = 'stat-card';
-        profitCard.innerHTML = `
-            <div class="stat-info">
-                <h3>إجمالي الربح</h3>
-                <p id="statTotalProfit" style="font-size: 20px; font-weight: bold; color: #10b981; margin: 5px 0 0 0;">0 ج.م</p>
-            </div>
-            <div class="stat-icon" style="background: #10b981; color: #fff; padding: 15px; border-radius: 8px;"><i class="fas fa-chart-line"></i></div>
-        `;
-        statsGrid.appendChild(profitCard);
-    }
-    let profitElem = document.getElementById('statTotalProfit');
-    if(profitElem) profitElem.innerText = totalProfit.toLocaleString() + ' ج.م';
+    let statsGrid = document.querySelector('.stats-grid');[cite: 3]
+    if(statsGrid && !document.getElementById('statTotalProfit')) {[cite: 3]
+        let profitCard = document.createElement('div');[cite: 3]
+        profitCard.className = 'stat-card';[cite: 3]
+        profitCard.innerHTML = `[cite: 3]
+            <div class="stat-info">[cite: 3]
+                <h3>إجمالي الربح</h3>[cite: 3]
+                <p id="statTotalProfit" style="font-size: 20px; font-weight: bold; color: #10b981; margin: 5px 0 0 0;">0 ج.م</p>[cite: 3]
+            </div>[cite: 3]
+            <div class="stat-icon" style="background: #10b981; color: #fff; padding: 15px; border-radius: 8px;"><i class="fas fa-chart-line"></i></div>[cite: 3]
+        `;[cite: 3]
+        statsGrid.appendChild(profitCard);[cite: 3]
+    }[cite: 3]
+    let profitElem = document.getElementById('statTotalProfit');[cite: 3]
+    if(profitElem) profitElem.innerText = totalProfit.toLocaleString() + ' ج.م';[cite: 3]
 
-    let recentTbody = document.querySelector('#recentInvoicesTable tbody');
-    if(recentTbody) {
-        recentTbody.innerHTML = '';
-        invoices.slice(-5).reverse().forEach(inv => {
-            recentTbody.innerHTML += `
-                <tr>
-                    <td>${inv.id}</td>
-                    <td>${inv.customerName}</td>
-                    <td>${inv.total.toLocaleString()} ج.م</td>
-                    <td>${inv.date}</td>
-                </tr>
-            `;
-        });
-    }
+    let recentTbody = document.querySelector('#recentInvoicesTable tbody');[cite: 3]
+    if(recentTbody) {[cite: 3]
+        recentTbody.innerHTML = '';[cite: 3]
+        invoices.slice(-5).reverse().forEach(inv => {[cite: 3]
+            recentTbody.innerHTML += `[cite: 3]
+                <tr>[cite: 3]
+                    <td>${inv.id}</td>[cite: 3]
+                    <td>${inv.customerName}</td>[cite: 3]
+                    <td>${inv.total.toLocaleString()} ج.م</td>[cite: 3]
+                    <td>${inv.date}</td>[cite: 3]
+                </tr>[cite: 3]
+            `;[cite: 3]
+        });[cite: 3]
+    }[cite: 3]
 
-    let alertsList = document.getElementById('lowStockAlertsList');
-    if(alertsList) {
-        alertsList.innerHTML = '';
-        let lowItems = inventory.filter(i => i.qty < 10);
-        if(lowItems.length === 0) {
-            alertsList.innerHTML = '<p style="color:#10b981; font-size:14px;"><i class="fas fa-check-circle"></i> جميع الأصناف في المخزون متوفرة.</p>';
-        } else {
-            lowItems.forEach(i => {
-                alertsList.innerHTML += `<div class="alert-item"><span><bdi style="unicode-bidi: isolate; direction: auto;">${i.name}</bdi></span> <span class="badge-danger">متبقي: ${i.qty} ${i.unit}</span></div>`;
-            });
-        }
-    }
-}
+    let alertsList = document.getElementById('lowStockAlertsList');[cite: 3]
+    if(alertsList) {[cite: 3]
+        alertsList.innerHTML = '';[cite: 3]
+        let lowItems = inventory.filter(i => i.qty < 10);[cite: 3]
+        if(lowItems.length === 0) {[cite: 3]
+            alertsList.innerHTML = '<p style="color:#10b981; font-size:14px;"><i class="fas fa-check-circle"></i> جميع الأصناف في المخزون متوفرة.</p>';[cite: 3]
+        } else {[cite: 3]
+            lowItems.forEach(i => {[cite: 3]
+                alertsList.innerHTML += `<div class="alert-item"><span><bdi style="unicode-bidi: isolate; direction: auto;">${i.name}</bdi></span> <span class="badge-danger">متبقي: ${i.qty} ${i.unit}</span></div>`;[cite: 3]
+            });[cite: 3]
+        }[cite: 3]
+    }[cite: 3]
+}[cite: 3]
 
-function renderInventory() {
-    let tbody = document.getElementById('inventoryTableBody');
-    if(!tbody) return;
-    tbody.innerHTML = '';
-    inventory.forEach((item, index) => {
-        tbody.innerHTML += `
-            <tr>
-                <td>${item.code}</td>
-                <td><bdi style="unicode-bidi: isolate; direction: auto;">${item.name}</bdi></td>
-                <td><strong>${item.qty}</strong></td>
-                <td>${item.unit}</td>
-                <td>${item.price.toLocaleString()} ج.م</td>
-                <td>
-                    <button onclick="openEditProductModal(${index})" style="background: #0284c7; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;"><i class="fas fa-edit"></i> تعديل</button>
-                    <button onclick="deleteProduct(${index})" style="background: #f43f5e; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;"><i class="fas fa-trash"></i> حذف</button>
-                </td>
-            </tr>
-        `;
-    });
-}
+function renderInventory() {[cite: 3]
+    let tbody = document.getElementById('inventoryTableBody');[cite: 3]
+    if(!tbody) return;[cite: 3]
+    tbody.innerHTML = '';[cite: 3]
+    inventory.forEach((item, index) => {[cite: 3]
+        tbody.innerHTML += `[cite: 3]
+            <tr>[cite: 3]
+                <td>${item.code}</td>[cite: 3]
+                <td><bdi style="unicode-bidi: isolate; direction: auto;">${item.name}</bdi></td>[cite: 3]
+                <td><strong>${item.qty}</strong></td>[cite: 3]
+                <td>${item.unit}</td>[cite: 3]
+                <td>${item.price.toLocaleString()} ج.م</td>[cite: 3]
+                <td>[cite: 3]
+                    <button onclick="openEditProductModal(${index})" style="background: #0284c7; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;"><i class="fas fa-edit"></i> تعديل</button>[cite: 3]
+                    <button onclick="deleteProduct(${index})" style="background: #f43f5e; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;"><i class="fas fa-trash"></i> حذف</button>[cite: 3]
+                </td>[cite: 3]
+            </tr>[cite: 3]
+        `;[cite: 3]
+    });[cite: 3]
+}[cite: 3]
 
-window.filterInventory = function() {
-    let searchInput = document.getElementById('searchInventory');
-    if(!searchInput) return;
-    let query = searchInput.value.toLowerCase();
-    document.querySelectorAll('#inventoryTableBody tr').forEach(row => {
-        row.style.display = row.innerText.toLowerCase().includes(query) ? '' : 'none';
-    });
-};
+window.filterInventory = function() {[cite: 3]
+    let searchInput = document.getElementById('searchInventory');[cite: 3]
+    if(!searchInput) return;[cite: 3]
+    let query = searchInput.value.toLowerCase();[cite: 3]
+    document.querySelectorAll('#inventoryTableBody tr').forEach(row => {[cite: 3]
+        row.style.display = row.innerText.toLowerCase().includes(query) ? '' : 'none';[cite: 3]
+    });[cite: 3]
+};[cite: 3]
 
-window.openAddProductModal = function() { document.getElementById('addProductModal').style.display = 'flex'; };
-window.closeAddProductModal = function() { document.getElementById('addProductModal').style.display = 'none'; };
+window.openAddProductModal = function() { document.getElementById('addProductModal').style.display = 'flex'; };[cite: 3]
+window.closeAddProductModal = function() { document.getElementById('addProductModal').style.display = 'none'; };[cite: 3]
 
-window.addNewProduct = function(e) {
-    if(e) e.preventDefault();
-    let code = document.getElementById('prodCode')?.value.trim();
-    let name = document.getElementById('prodName')?.value.trim();
-    let qty = Number(document.getElementById('prodQty')?.value);
-    let unit = document.getElementById('prodUnit')?.value;
-    let price = Number(document.getElementById('prodPrice')?.value);
+window.addNewProduct = function(e) {[cite: 3]
+    if(e) e.preventDefault();[cite: 3]
+    let code = document.getElementById('prodCode')?.value.trim();[cite: 3]
+    let name = document.getElementById('prodName')?.value.trim();[cite: 3]
+    let qty = Number(document.getElementById('prodQty')?.value);[cite: 3]
+    let unit = document.getElementById('prodUnit')?.value;[cite: 3]
+    let price = Number(document.getElementById('prodPrice')?.value);[cite: 3]
 
-    if(!code || !name) return;
+    if(!code || !name) return;[cite: 3]
     
-    inventory.push({ code, name, qty, unit, price });
-    saveData();
-    refreshAllData();
-    window.closeAddProductModal();
-    if(e && e.target) e.target.reset();
-};
+    inventory.push({ code, name, qty, unit, price });[cite: 3]
+    saveData();[cite: 3]
+    refreshAllData();[cite: 3]
+    window.closeAddProductModal();[cite: 3]
+    if(e && e.target) e.target.reset();[cite: 3]
+};[cite: 3]
 
-window.deleteProduct = function(index) {
-    if(confirm('هل أنت متأكد من حذف هذا الصنف؟')) {
-        inventory.splice(index, 1);
-        saveData();
-        refreshAllData();
-    }
-};
+window.deleteProduct = function(index) {[cite: 3]
+    if(confirm('هل أنت متأكد من حذف هذا الصنف؟')) {[cite: 3]
+        inventory.splice(index, 1);[cite: 3]
+        saveData();[cite: 3]
+        refreshAllData();[cite: 3]
+    }[cite: 3]
+};[cite: 3]
 
-function renderPurchases() {
-    let tbody = document.getElementById('purchasesTableBody');
-    if(!tbody) return;
-    tbody.innerHTML = '';
-    purchases.forEach((p, index) => {
-        tbody.innerHTML += `
-            <tr>
-                <td>PO-${1000 + index}</td>
-                <td>${p.supplier}</td>
-                <td><bdi style="unicode-bidi: isolate; direction: auto;">${p.productName}</bdi></td>
-                <td><span style="color: #10b981; font-weight: bold;">+${p.qty}</span></td>
-                <td>${(p.unitCost || 0).toLocaleString()} ج.م</td>
-                <td>${p.cost.toLocaleString()} ج.م</td>
-                <td>${p.date}</td>
-                <td><button class="btn-danger-sm" onclick="deletePurchase(${index})"><i class="fas fa-trash"></i> حذف</button></td>
-            </tr>
-        `;
-    });
-}
+function renderPurchases() {[cite: 3]
+    let tbody = document.getElementById('purchasesTableBody');[cite: 3]
+    if(!tbody) return;[cite: 3]
+    tbody.innerHTML = '';[cite: 3]
+    purchases.forEach((p, index) => {[cite: 3]
+        tbody.innerHTML += `[cite: 3]
+            <tr>[cite: 3]
+                <td>PO-${1000 + index}</td>[cite: 3]
+                <td>${p.supplier}</td>[cite: 3]
+                <td><bdi style="unicode-bidi: isolate; direction: auto;">${p.productName}</bdi></td>[cite: 3]
+                <td><span style="color: #10b981; font-weight: bold;">+${p.qty}</span></td>[cite: 3]
+                <td>${(p.unitCost || 0).toLocaleString()} ج.م</td>[cite: 3]
+                <td>${p.cost.toLocaleString()} ج.م</td>[cite: 3]
+                <td>${p.date}</td>[cite: 3]
+                <td><button class="btn-danger-sm" onclick="deletePurchase(${index})"><i class="fas fa-trash"></i> حذف</button></td>[cite: 3]
+            </tr>[cite: 3]
+        `;[cite: 3]
+    });[cite: 3]
+}[cite: 3]
 
-window.openNewPurchaseModal = function() { document.getElementById('newPurchaseModal').style.display = 'flex'; };
-window.closeNewPurchaseModal = function() { document.getElementById('newPurchaseModal').style.display = 'none'; };
+window.openNewPurchaseModal = function() { document.getElementById('newPurchaseModal').style.display = 'flex'; };[cite: 3]
+window.closeNewPurchaseModal = function() { document.getElementById('newPurchaseModal').style.display = 'none'; };[cite: 3]
 
-window.createNewPurchase = function(e) {
-    if(e) e.preventDefault();
-    let supplier = document.getElementById('purchaseSupplier')?.value;
-    let prodCode = document.getElementById('purchaseProductSelect')?.value;
-    let qty = Number(document.getElementById('purchaseQty')?.value);
-    let unitCost = Number(document.getElementById('purchaseUnitCost')?.value || document.getElementById('purchaseCost')?.value);
-    let totalCost = unitCost * qty;
+window.createNewPurchase = function(e) {[cite: 3]
+    if(e) e.preventDefault();[cite: 3]
+    let supplier = document.getElementById('purchaseSupplier')?.value;[cite: 3]
+    let prodCode = document.getElementById('purchaseProductSelect')?.value;[cite: 3]
+    let qty = Number(document.getElementById('purchaseQty')?.value);[cite: 3]
+    let unitCost = Number(document.getElementById('purchaseUnitCost')?.value || document.getElementById('purchaseCost')?.value);[cite: 3]
+    let totalCost = unitCost * qty;[cite: 3]
 
-    let product = inventory.find(i => i.code === prodCode);
-    if(product) {
-        product.qty += qty;
-        purchases.push({
-            supplier, productCode: product.code, productName: product.name,
-            qty, unitCost, cost: totalCost, date: new Date().toLocaleDateString('ar-EG')
-        });
-        saveData();
-        refreshAllData();
-        window.closeNewPurchaseModal();
-        if(e && e.target) e.target.reset();
-        alert('تم تسجيل الشراء وزيادة المخزون بنجاح!');
-    }
-};
+    let product = inventory.find(i => i.code === prodCode);[cite: 3]
+    if(product) {[cite: 3]
+        product.qty += qty;[cite: 3]
+        purchases.push({[cite: 3]
+            supplier, productCode: product.code, productName: product.name,[cite: 3]
+            qty, unitCost, cost: totalCost, date: new Date().toLocaleDateString('ar-EG')[cite: 3]
+        });[cite: 3]
+        saveData();[cite: 3]
+        refreshAllData();[cite: 3]
+        window.closeNewPurchaseModal();[cite: 3]
+        if(e && e.target) e.target.reset();[cite: 3]
+        alert('تم تسجيل الشراء وزيادة المخزون بنجاح!');[cite: 3]
+    }[cite: 3]
+};[cite: 3]
 
-window.deletePurchase = function(index) {
-    if(confirm('هل تريد حذف عملية الشراء هذه؟')) {
-        let p = purchases[index];
-        let product = inventory.find(i => i.code === p.productCode);
-        if(product) {
-            product.qty -= p.qty;
-            if(product.qty < 0) product.qty = 0;
-        }
-        purchases.splice(index, 1);
-        saveData();
-        refreshAllData();
-    }
-};
+window.deletePurchase = function(index) {[cite: 3]
+    if(confirm('هل تريد حذف عملية الشراء هذه؟')) {[cite: 3]
+        let p = purchases[index];[cite: 3]
+        let product = inventory.find(i => i.code === p.productCode);[cite: 3]
+        if(product) {[cite: 3]
+            product.qty -= p.qty;[cite: 3]
+            if(product.qty < 0) product.qty = 0;[cite: 3]
+        }[cite: 3]
+        purchases.splice(index, 1);[cite: 3]
+        saveData();[cite: 3]
+        refreshAllData();[cite: 3]
+    }[cite: 3]
+};[cite: 3]
 
-function populateSelects() {
-    let custSelect = document.getElementById('invoiceCustomerSelect');
-    if(custSelect) {
-        custSelect.innerHTML = '<option value="">-- اختر عميل مسجل --</option>';
-        customers.forEach(c => {
-            custSelect.innerHTML += `<option value="${c.name}">${c.name} (${c.phone || 'بدون هاتف'})</option>`;
-        });
-        custSelect.innerHTML += `<option value="NEW_CUSTOMER" style="color: #0284c7; font-weight: bold;">+ إضافة عميل جديد...</option>`;
-    }
+function populateSelects() {[cite: 3]
+    let custSelect = document.getElementById('invoiceCustomerSelect');[cite: 3]
+    if(custSelect) {[cite: 3]
+        custSelect.innerHTML = '<option value="">-- اختر عميل مسجل --</option>';[cite: 3]
+        customers.forEach(c => {[cite: 3]
+            custSelect.innerHTML += `<option value="${c.name}">${c.name} (${c.phone || 'بدون هاتف'})</option>`;[cite: 3]
+        });[cite: 3]
+        custSelect.innerHTML += `<option value="NEW_CUSTOMER" style="color: #0284c7; font-weight: bold;">+ إضافة عميل جديد...</option>`;[cite: 3]
+    }[cite: 3]
 
-    let purProdSelect = document.getElementById('purchaseProductSelect');
-    if(purProdSelect) {
-        purProdSelect.innerHTML = '';
-        inventory.forEach(i => {
-            purProdSelect.innerHTML += `<option value="${i.code}">${i.name}</option>`;
-        });
-    }
-}
+    let purProdSelect = document.getElementById('purchaseProductSelect');[cite: 3]
+    if(purProdSelect) {[cite: 3]
+        purProdSelect.innerHTML = '';[cite: 3]
+        inventory.forEach(i => {[cite: 3]
+            purProdSelect.innerHTML += `<option value="${i.code}">${i.name}</option>`;[cite: 3]
+        });[cite: 3]
+    }[cite: 3]
+}[cite: 3]
 
-window.handleCustomerSelectChange = function() {
-    let val = document.getElementById('invoiceCustomerSelect')?.value;
-    let newDiv = document.getElementById('newCustomerDiv');
-    if(newDiv) newDiv.style.display = (val === 'NEW_CUSTOMER') ? 'block' : 'none';
+window.handleCustomerSelectChange = function() {[cite: 3]
+    let val = document.getElementById('invoiceCustomerSelect')?.value;[cite: 3]
+    let newDiv = document.getElementById('newCustomerDiv');[cite: 3]
+    if(newDiv) newDiv.style.display = (val === 'NEW_CUSTOMER') ? 'block' : 'none';[cite: 3]
 
-    let found = customers.find(c => c.name === val);
-    if(found) {
-        let oldBalInput = document.getElementById('invoiceOldBalance');
-        let oldBalType = document.getElementById('invoiceOldBalanceType');
-        let oldBalDateInput = document.getElementById('invoiceOldBalanceDate');
+    let found = customers.find(c => c.name === val);[cite: 3]
+    if(found) {[cite: 3]
+        let oldBalInput = document.getElementById('invoiceOldBalance');[cite: 3]
+        let oldBalType = document.getElementById('invoiceOldBalanceType');[cite: 3]
+        let oldBalDateInput = document.getElementById('invoiceOldBalanceDate');[cite: 3]
 
-        if(oldBalInput) oldBalInput.value = found.oldBalance || 0;
-        if(oldBalType) oldBalType.value = found.balanceType || 'none';
-        if(oldBalDateInput && found.oldBalanceDate) oldBalDateInput.value = found.oldBalanceDate;
-        calculateInvoiceTotal();
-    }
-};
+        if(oldBalInput) oldBalInput.value = found.oldBalance || 0;[cite: 3]
+        if(oldBalType) oldBalType.value = found.balanceType || 'none';[cite: 3]
+        if(oldBalDateInput && found.oldBalanceDate) oldBalDateInput.value = found.oldBalanceDate;[cite: 3]
+        calculateInvoiceTotal();[cite: 3]
+    }[cite: 3]
+};[cite: 3]
 
 // ==========================================
-// التعديل المضاف خصيصاً للباركود والإصناف
+// التعديل المضاف خصيصاً للباركود والإصناف (بدون تكرار)
 // ==========================================
-window.addInvoiceItemRow = function(productCode = '', qty = 1) {
-    let tbody = document.getElementById('invoiceItemsBody');
-    if(!tbody) return;
+window.addInvoiceItemRow = function(productCode = '', qty = 1) {[cite: 3]
+    let tbody = document.getElementById('invoiceItemsBody');[cite: 3]
+    if(!tbody) return;[cite: 3]
 
-    let optionsHtml = '<option value="">-- اختر الصنف من المخزون --</option>';
-    inventory.forEach(i => {
-        let selected = (i.code === productCode) ? 'selected' : '';
-        optionsHtml += `<option value="${i.code}" data-price="${i.price}" data-qty="${i.qty}" ${selected}>${i.name} (المتاح: ${i.qty} ${i.unit} - ${i.price} ج.م)</option>`;
-    });
+    let optionsHtml = '<option value="">-- اختر الصنف من المخزون --</option>';[cite: 3]
+    inventory.forEach(i => {[cite: 3]
+        let selected = (i.code === productCode) ? 'selected' : '';[cite: 3]
+        optionsHtml += `<option value="${i.code}" data-price="${i.price}" data-qty="${i.qty}" ${selected}>[${i.code}] ${i.name} (المتاح: ${i.qty} ${i.unit} - ${i.price} ج.م)</option>`;[cite: 3]
+    });[cite: 3]
 
-    let tr = document.createElement('tr');
-    tr.innerHTML = `
-        <td style="padding: 5px;"><select class="inv-item-code" dir="auto" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px;" onchange="updateRowPrice(this)">${optionsHtml}</select></td>
-        <td style="padding: 5px;"><input type="number" class="inv-item-qty" value="${qty}" min="1" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px; text-align:center;" oninput="calculateInvoiceTotal()"></td>
-        <td style="padding: 5px;"><input type="number" class="inv-item-price" value="0" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px; text-align:center;" oninput="calculateInvoiceTotal()"></td>
-        <td style="padding: 5px; text-align: center;"><button type="button" onclick="this.closest('tr').remove(); calculateInvoiceTotal();" style="background:#f43f5e; color:#fff; border:none; padding:5px 8px; border-radius:4px; cursor:pointer;"><i class="fas fa-trash"></i></button></td>
-    `;
-    tbody.appendChild(tr);
+    let tr = document.createElement('tr');[cite: 3]
+    tr.innerHTML = `[cite: 3]
+        <td style="padding: 5px;"><select class="inv-item-code" dir="auto" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px;" onchange="updateRowPrice(this)">${optionsHtml}</select></td>[cite: 3]
+        <td style="padding: 5px;"><input type="number" class="inv-item-qty" value="${qty}" min="1" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px; text-align:center;" oninput="calculateInvoiceTotal()"></td>[cite: 3]
+        <td style="padding: 5px;"><input type="number" class="inv-item-price" value="0" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px; text-align:center;" oninput="calculateInvoiceTotal()"></td>[cite: 3]
+        <td style="padding: 5px; text-align: center;"><button type="button" onclick="this.closest('tr').remove(); calculateInvoiceTotal();" style="background:#f43f5e; color:#fff; border:none; padding:5px 8px; border-radius:4px; cursor:pointer;"><i class="fas fa-trash"></i></button></td>[cite: 3]
+    `;[cite: 3]
+    tbody.appendChild(tr);[cite: 3]
 
-    if(productCode) {
-        let selectEl = tr.querySelector('.inv-item-code');
-        if(selectEl) {
-            updateRowPrice(selectEl);
-        }
-    }
-};
+    if(productCode) {[cite: 3]
+        let selectEl = tr.querySelector('.inv-item-code');[cite: 3]
+        if(selectEl) {[cite: 3]
+            selectEl.value = productCode;[cite: 3]
+            updateRowPrice(selectEl);[cite: 3]
+        }[cite: 3]
+    }[cite: 3]
+};[cite: 3]
 
-window.updateRowPrice = function(selectElem) {
-    let opt = selectElem.options[selectElem.selectedIndex];
-    let price = opt ? opt.getAttribute('data-price') : 0;
-    let tr = selectElem.closest('tr');
-    if(tr) {
-        let priceInput = tr.querySelector('.inv-item-price');
-        let qtyInput = tr.querySelector('.inv-item-qty');
-        if(priceInput) priceInput.value = price;
+window.updateRowPrice = function(selectElem) {[cite: 3]
+    let opt = selectElem.options[selectElem.selectedIndex];[cite: 3]
+    let price = opt ? opt.getAttribute('data-price') : 0;[cite: 3]
+    let tr = selectElem.closest('tr');[cite: 3]
+    if(tr) {[cite: 3]
+        let priceInput = tr.querySelector('.inv-item-price');[cite: 3]
+        let qtyInput = tr.querySelector('.inv-item-qty');[cite: 3]
+        if(priceInput) priceInput.value = price;[cite: 3]
         
-        let code = selectElem.value;
-        let product = inventory.find(i => i.code === code);
-        if(product && product.qty !== undefined) {
-            let currentQty = Number(qtyInput ? qtyInput.value : 1);
-            if((product.qty - currentQty) <= 5) {
-                alert(`⚠️ تنبيه: المنتج "${product.name}" باقي منه ${product.qty - currentQty} أو أقل في المخزون!`);
-            }
-        }
-    }
-    calculateInvoiceTotal();
-};
+        let code = selectElem.value;[cite: 3]
+        let product = inventory.find(i => i.code === code);[cite: 3]
+        if(product && product.qty !== undefined) {[cite: 3]
+            let currentQty = Number(qtyInput ? qtyInput.value : 1);[cite: 3]
+            if((product.qty - currentQty) <= 5) {[cite: 3]
+                alert(`⚠️ تنبيه: المنتج "${product.name}" باقي منه ${product.qty - currentQty} أو أقل في المخزون!`);[cite: 3]
+            }[cite: 3]
+        }[cite: 3]
+    }[cite: 3]
+    calculateInvoiceTotal();[cite: 3]
+};[cite: 3]
 
-window.handleBarcodeScan = function(event) {
-    if(event.key === 'Enter') {
-        let scannerInput = document.getElementById('barcodeScannerInput');
-        if(!scannerInput) return;
+window.handleBarcodeScan = function(event) {[cite: 3]
+    if(event.key === 'Enter') {[cite: 3]
+        let scannerInput = document.getElementById('barcodeScannerInput');[cite: 3]
+        if(!scannerInput) return;[cite: 3]
         
-        let scannedCode = scannerInput.value.trim();
-        scannerInput.value = '';
+        let scannedCode = scannerInput.value.trim();[cite: 3]
+        scannerInput.value = '';[cite: 3]
 
-        if(!scannedCode) return;
+        if(!scannedCode) return;[cite: 3]
 
-        let product = inventory.find(i => i.code === scannedCode);
+        let product = inventory.find(i => i.code === scannedCode);[cite: 3]
         
-        if(!product) {
-            alert(`❌ عذراً، المنتج غير متوفر (الكود: ${scannedCode} غير مسجل في المخزون)!`);
-            return;
-        }
+        if(!product) {[cite: 3]
+            alert(`❌ عذراً، المنتج غير متوفر (الكود: ${scannedCode} غير مسجل في المخزون)!`);[cite: 3]
+            return;[cite: 3]
+        }[cite: 3]
 
-        let rows = document.querySelectorAll('#invoiceItemsBody tr');
-        let foundRow = null;
-        let emptyRow = null;
+        let rows = document.querySelectorAll('#invoiceItemsBody tr');[cite: 3]
+        let foundRow = null;[cite: 3]
+        let emptyRow = null;[cite: 3]
 
-        for(let tr of rows) {
-            let selectEl = tr.querySelector('.inv-item-code');
-            if(selectEl) {
-                if(selectEl.value === product.code) {
-                    foundRow = tr;
-                    break;
-                } else if(!selectEl.value && !emptyRow) {
-                    emptyRow = tr;
-                }
-            }
-        }
+        for(let tr of rows) {[cite: 3]
+            let selectEl = tr.querySelector('.inv-item-code');[cite: 3]
+            if(selectEl) {[cite: 3]
+                if(selectEl.value === product.code) {[cite: 3]
+                    foundRow = tr;[cite: 3]
+                    break;[cite: 3]
+                } else if(!selectEl.value && !emptyRow) {[cite: 3]
+                    emptyRow = tr;[cite: 3]
+                }[cite: 3]
+            }[cite: 3]
+        }[cite: 3]
 
-        let newQty = 1;
+        let newQty = 1;[cite: 3]
 
-        if(foundRow) {
-            let qtyEl = foundRow.querySelector('.inv-item-qty');
-            if(qtyEl) {
-                newQty = Number(qtyEl.value) + 1;
-                qtyEl.value = newQty;
-            }
-        } else if(emptyRow) {
-            let selectEl = emptyRow.querySelector('.inv-item-code');
-            let qtyEl = emptyRow.querySelector('.inv-item-qty');
-            let priceEl = emptyRow.querySelector('.inv-item-price');
+        if(foundRow) {[cite: 3]
+            let qtyEl = foundRow.querySelector('.inv-item-qty');[cite: 3]
+            if(qtyEl) {[cite: 3]
+                newQty = Number(qtyEl.value) + 1;[cite: 3]
+                qtyEl.value = newQty;[cite: 3]
+            }[cite: 3]
+        } else if(emptyRow) {[cite: 3]
+            let selectEl = emptyRow.querySelector('.inv-item-code');[cite: 3]
+            let qtyEl = emptyRow.querySelector('.inv-item-qty');[cite: 3]
+            let priceEl = emptyRow.querySelector('.inv-item-price');[cite: 3]
             
-            if(selectEl) selectEl.value = product.code;
-            if(qtyEl) qtyEl.value = 1;
-            if(priceEl) priceEl.value = product.price;
-            newQty = 1;
-            updateRowPrice(selectEl);
-        } else {
-            window.addInvoiceItemRow(product.code, 1);
-            newQty = 1;
-        }
+            if(selectEl) selectEl.value = product.code;[cite: 3]
+            if(qtyEl) qtyEl.value = 1;[cite: 3]
+            if(priceEl) priceEl.value = product.price;[cite: 3]
+            newQty = 1;[cite: 3]
+            updateRowPrice(selectEl);[cite: 3]
+        } else {[cite: 3]
+            window.addInvoiceItemRow(product.code, 1);[cite: 3]
+            newQty = 1;[cite: 3]
+        }[cite: 3]
 
-        if(product.qty !== undefined) {
-            let remainingStock = product.qty - newQty;
-            if(remainingStock <= 5) {
-                alert(`⚠️ تنبيه: المنتج (${product.name}) باقي منه ${remainingStock < 0 ? 0 : remainingStock} فقط في المخزون!`);
-            }
-        }
+        if(product.qty !== undefined) {[cite: 3]
+            let remainingStock = product.qty - newQty;[cite: 3]
+            if(remainingStock <= 5) {[cite: 3]
+                alert(`⚠️ تنبيه: المنتج (${product.name}) باقي منه ${remainingStock < 0 ? 0 : remainingStock} فقط في المخزون!`);[cite: 3]
+            }[cite: 3]
+        }[cite: 3]
 
-        calculateInvoiceTotal();
-    }
-};
+        calculateInvoiceTotal();[cite: 3]
+    }[cite: 3]
+};[cite: 3]
 // ==========================================
 
-window.calculateInvoiceTotal = function() {
-    let rows = document.querySelectorAll('#invoiceItemsBody tr');
-    let subtotal = 0;
+window.calculateInvoiceTotal = function() {[cite: 3]
+    let rows = document.querySelectorAll('#invoiceItemsBody tr');[cite: 3]
+    let subtotal = 0;[cite: 3]
 
-    rows.forEach(tr => {
-        let qty = Number(tr.querySelector('.inv-item-qty')?.value) || 0;
-        let price = Number(tr.querySelector('.inv-item-price')?.value) || 0;
-        subtotal += (qty * price);
-    });
+    rows.forEach(tr => {[cite: 3]
+        let qty = Number(tr.querySelector('.inv-item-qty')?.value) || 0;[cite: 3]
+        let price = Number(tr.querySelector('.inv-item-price')?.value) || 0;[cite: 3]
+        subtotal += (qty * price);[cite: 3]
+    });[cite: 3]
 
-    let discountPercent = Number(document.getElementById('invoiceDiscountPercent')?.value) || 0;
-    let discountAmount = (subtotal * discountPercent) / 100;
-    let netAfterDiscount = subtotal - discountAmount;
+    let discountPercent = Number(document.getElementById('invoiceDiscountPercent')?.value) || 0;[cite: 3]
+    let discountAmount = (subtotal * discountPercent) / 100;[cite: 3]
+    let netAfterDiscount = subtotal - discountAmount;[cite: 3]
 
-    let oldBalance = Number(document.getElementById('invoiceOldBalance')?.value) || 0;
-    let oldBalanceType = document.getElementById('invoiceOldBalanceType')?.value;
+    let oldBalance = Number(document.getElementById('invoiceOldBalance')?.value) || 0;[cite: 3]
+    let oldBalanceType = document.getElementById('invoiceOldBalanceType')?.value;[cite: 3]
 
-    let finalTotal = netAfterDiscount;
-    if(oldBalanceType === 'on_him') {
-        finalTotal += oldBalance;
-    } else if(oldBalanceType === 'for_him') {
-        finalTotal -= oldBalance;
-    }
+    let finalTotal = netAfterDiscount;[cite: 3]
+    if(oldBalanceType === 'on_him') {[cite: 3]
+        finalTotal += oldBalance;[cite: 3]
+    } else if(oldBalanceType === 'for_him') {[cite: 3]
+        finalTotal -= oldBalance;[cite: 3]
+    }[cite: 3]
 
-    let display = document.getElementById('invoiceFinalTotalDisplay');
-    if(display) display.innerText = finalTotal.toLocaleString() + ' ج.م';
+    let display = document.getElementById('invoiceFinalTotalDisplay');[cite: 3]
+    if(display) display.innerText = finalTotal.toLocaleString() + ' ج.م';[cite: 3]
     
-    return finalTotal;
-};
+    return finalTotal;[cite: 3]
+};[cite: 3]
 
-window.openNewInvoiceModal = function() {
-    let modal = document.getElementById('newInvoiceModal');
-    if(modal) modal.style.display = 'flex';
-    populateSelects();
+window.openNewInvoiceModal = function() {[cite: 3]
+    let modal = document.getElementById('newInvoiceModal');[cite: 3]
+    if(modal) modal.style.display = 'flex';[cite: 3]
+    populateSelects();[cite: 3]
 
-    let tbody = document.getElementById('invoiceItemsBody');
-    if(tbody) {
-        tbody.innerHTML = '';
-        window.addInvoiceItemRow();
-    }
+    let tbody = document.getElementById('invoiceItemsBody');[cite: 3]
+    if(tbody) {[cite: 3]
+        tbody.innerHTML = '';[cite: 3]
+        window.addInvoiceItemRow();[cite: 3]
+    }[cite: 3]
 
-    let disc = document.getElementById('invoiceDiscountPercent');
-    if(disc) disc.value = 0;
-    let oldBal = document.getElementById('invoiceOldBalance');
-    if(oldBal) oldBal.value = 0;
-    calculateInvoiceTotal();
-};
+    let disc = document.getElementById('invoiceDiscountPercent');[cite: 3]
+    if(disc) disc.value = 0;[cite: 3]
+    let oldBal = document.getElementById('invoiceOldBalance');[cite: 3]
+    if(oldBal) oldBal.value = 0;[cite: 3]
+    calculateInvoiceTotal();[cite: 3]
+};[cite: 3]
 
-window.closeNewInvoiceModal = function() { document.getElementById('newInvoiceModal').style.display = 'none'; };
+window.closeNewInvoiceModal = function() { document.getElementById('newInvoiceModal').style.display = 'none'; };[cite: 3]
 
-window.createNewInvoice = function(e) {
-    if(e) e.preventDefault();
+window.createNewInvoice = function(e) {[cite: 3]
+    if(e) e.preventDefault();[cite: 3]
     
-    let customerSelectVal = document.getElementById('invoiceCustomerSelect')?.value;
-    let customerName = customerSelectVal;
-    let customerPhone = '';
-    let customerAddress = '';
+    let customerSelectVal = document.getElementById('invoiceCustomerSelect')?.value;[cite: 3]
+    let customerName = customerSelectVal;[cite: 3]
+    let customerPhone = '';[cite: 3]
+    let customerAddress = '';[cite: 3]
 
-    if(customerSelectVal === 'NEW_CUSTOMER') {
-        customerName = document.getElementById('newCustomerName')?.value.trim();
-        customerPhone = document.getElementById('newCustomerPhone')?.value.trim();
-        customerAddress = document.getElementById('newCustomerAddress')?.value.trim();
-        if(customerName && !customers.some(c => c.name === customerName)) {
-            customers.push({ name: customerName, phone: customerPhone, address: customerAddress, oldBalance: 0, balanceType: 'none' });
-        }
-    } else {
-        let foundCust = customers.find(c => c.name === customerSelectVal);
-        if(foundCust) {
-            customerPhone = foundCust.phone;
-            customerAddress = foundCust.address;
-        }
-    }
+    if(customerSelectVal === 'NEW_CUSTOMER') {[cite: 3]
+        customerName = document.getElementById('newCustomerName')?.value.trim();[cite: 3]
+        customerPhone = document.getElementById('newCustomerPhone')?.value.trim();[cite: 3]
+        customerAddress = document.getElementById('newCustomerAddress')?.value.trim();[cite: 3]
+        if(customerName && !customers.some(c => c.name === customerName)) {[cite: 3]
+            customers.push({ name: customerName, phone: customerPhone, address: customerAddress, oldBalance: 0, balanceType: 'none' });[cite: 3]
+        }[cite: 3]
+    } else {[cite: 3]
+        let foundCust = customers.find(c => c.name === customerSelectVal);[cite: 3]
+        if(foundCust) {[cite: 3]
+            customerPhone = foundCust.phone;[cite: 3]
+            customerAddress = foundCust.address;[cite: 3]
+        }[cite: 3]
+    }[cite: 3]
 
-    let rows = document.querySelectorAll('#invoiceItemsBody tr');
-    let items = [];
-    let subtotal = 0;
+    let rows = document.querySelectorAll('#invoiceItemsBody tr');[cite: 3]
+    let items = [];[cite: 3]
+    let subtotal = 0;[cite: 3]
 
-    if(rows.length === 0) {
-        alert('يرجى إضافة صنف واحد على الأقل للفاتورة!');
-        return;
-    }
+    if(rows.length === 0) {[cite: 3]
+        alert('يرجى إضافة صنف واحد على الأقل للفاتورة!');[cite: 3]
+        return;[cite: 3]
+    }[cite: 3]
 
-    for(let tr of rows) {
-        let selectEl = tr.querySelector('.inv-item-code');
-        if(!selectEl || !selectEl.value) {
-            alert('يرجى اختيار صنف صحيح في كل السطور!');
-            return;
-        }
-        let prodCode = selectEl.value; // كود الصنف الفريد
-        let qty = Number(tr.querySelector('.inv-item-qty').value);
-        let price = Number(tr.querySelector('.inv-item-price').value);
+    for(let tr of rows) {[cite: 3]
+        let selectEl = tr.querySelector('.inv-item-code');[cite: 3]
+        if(!selectEl || !selectEl.value) {[cite: 3]
+            alert('يرجى اختيار صنف صحيح في كل السطور!');[cite: 3]
+            return;[cite: 3]
+        }[cite: 3]
+        let prodCode = selectEl.value;[cite: 3]
+        let qty = Number(tr.querySelector('.inv-item-qty').value);[cite: 3]
+        let price = Number(tr.querySelector('.inv-item-price').value);[cite: 3]
         
-        let prodObj = inventory.find(i => i.code === prodCode);
+        let prodObj = inventory.find(i => i.code === prodCode);[cite: 3]
         
-        if(!prodObj) {
-            alert(`الصنف المحدد غير موجود في المخزون!`);
-            return;
-        }
+        if(!prodObj) {[cite: 3]
+            alert(`الصنف المحدد غير موجود في المخزون!`);[cite: 3]
+            return;[cite: 3]
+        }[cite: 3]
 
-        if(qty > prodObj.qty) {
-            alert(`الكمية المطلوبة للصنف (${prodObj.name}) أكبر من المتاح في المخزون (${prodObj.qty})!`);
-            return;
-        }
+        if(qty > prodObj.qty) {[cite: 3]
+            alert(`الكمية المطلوبة للصنف (${prodObj.name}) أكبر من المتاح في المخزون (${prodObj.qty})!`);[cite: 3]
+            return;[cite: 3]
+        }[cite: 3]
 
-        let itemTotal = qty * price;
-        subtotal += itemTotal;
-        items.push({ code: prodObj.code, name: prodObj.name, qty, price, total: itemTotal });
-    }
+        let itemTotal = qty * price;[cite: 3]
+        subtotal += itemTotal;[cite: 3]
+        items.push({ code: prodObj.code, name: prodObj.name, qty, price, total: itemTotal });[cite: 3]
+    }[cite: 3]
 
-    let discountPercent = Number(document.getElementById('invoiceDiscountPercent')?.value) || 0;
-    let discountAmount = (subtotal * discountPercent) / 100;
-    let netAfterDiscount = subtotal - discountAmount;
+    let discountPercent = Number(document.getElementById('invoiceDiscountPercent')?.value) || 0;[cite: 3]
+    let discountAmount = (subtotal * discountPercent) / 100;[cite: 3]
+    let netAfterDiscount = subtotal - discountAmount;[cite: 3]
 
-    let oldBalance = Number(document.getElementById('invoiceOldBalance')?.value) || 0;
-    let oldBalanceType = document.getElementById('invoiceOldBalanceType')?.value;
-    let oldBalanceDate = document.getElementById('invoiceOldBalanceDate')?.value || '';
+    let oldBalance = Number(document.getElementById('invoiceOldBalance')?.value) || 0;[cite: 3]
+    let oldBalanceType = document.getElementById('invoiceOldBalanceType')?.value;[cite: 3]
+    let oldBalanceDate = document.getElementById('invoiceOldBalanceDate')?.value || '';[cite: 3]
 
-    let finalTotal = netAfterDiscount;
-    if(oldBalanceType === 'on_him') finalTotal += oldBalance;
-    else if(oldBalanceType === 'for_him') finalTotal -= oldBalance;
+    let finalTotal = netAfterDiscount;[cite: 3]
+    if(oldBalanceType === 'on_him') finalTotal += oldBalance;[cite: 3]
+    else if(oldBalanceType === 'for_him') finalTotal -= oldBalance;[cite: 3]
 
-    let paymentStatus = document.getElementById('invoicePaymentStatus')?.value;
-    let paidAmount = finalTotal;
-    let remainingAmount = 0;
+    let paymentStatus = document.getElementById('invoicePaymentStatus')?.value;[cite: 3]
+    let paidAmount = finalTotal;[cite: 3]
+    let remainingAmount = 0;[cite: 3]
 
-    if(paymentStatus === 'لم يدفع') {
-        remainingAmount = Number(document.getElementById('invoiceRemainingInput')?.value) || 0;
-        paidAmount = finalTotal - remainingAmount;
-        if(paidAmount < 0) paidAmount = 0;
-    }
+    if(paymentStatus === 'لم يدفع') {[cite: 3]
+        remainingAmount = Number(document.getElementById('invoiceRemainingInput')?.value) || 0;[cite: 3]
+        paidAmount = finalTotal - remainingAmount;[cite: 3]
+        if(paidAmount < 0) paidAmount = 0;[cite: 3]
+    }[cite: 3]
 
-    // خصم الكميات من المخزون بناءً على كود الصنف بدقة متناهية
-    items.forEach(item => {
-        let prodObj = inventory.find(i => i.code === item.code);
-        if(prodObj) {
-            prodObj.qty = Number(prodObj.qty) - Number(item.qty);
-            if(prodObj.qty < 0) prodObj.qty = 0;
-        }
-    });
+    items.forEach(item => {[cite: 3]
+        let prodObj = inventory.find(i => i.code === item.code);[cite: 3]
+        if(prodObj) {[cite: 3]
+            prodObj.qty = Number(prodObj.qty) - Number(item.qty);[cite: 3]
+            if(prodObj.qty < 0) prodObj.qty = 0;[cite: 3]
+        }[cite: 3]
+    });[cite: 3]
 
-    let invoiceId = 'INV-' + Math.floor(1000 + Math.random() * 9000);
-    let currentDate = new Date().toLocaleDateString('ar-EG');
+    let invoiceId = 'INV-' + Math.floor(1000 + Math.random() * 9000);[cite: 3]
+    let currentDate = new Date().toLocaleDateString('ar-EG');[cite: 3]
 
-    let newInv = {
-        id: invoiceId, customerName, customerPhone, customerAddress,
-        items, subtotal, discountPercent, discountAmount,
-        oldBalance, oldBalanceType, oldBalanceDate,
-        total: finalTotal, paid: paidAmount, remaining: remainingAmount,
-        status: paymentStatus === 'لم يدفع' && remainingAmount > 0 ? `متبقي: ${remainingAmount} ج.م` : paymentStatus,
-        date: currentDate
-    };
+    let newInv = {[cite: 3]
+        id: invoiceId, customerName, customerPhone, customerAddress,[cite: 3]
+        items, subtotal, discountPercent, discountAmount,[cite: 3]
+        oldBalance, oldBalanceType, oldBalanceDate,[cite: 3]
+        total: finalTotal, paid: paidAmount, remaining: remainingAmount,[cite: 3]
+        status: paymentStatus === 'لم يدفع' && remainingAmount > 0 ? `متبقي: ${remainingAmount} ج.م` : paymentStatus,[cite: 3]
+        date: currentDate[cite: 3]
+    };[cite: 3]
 
-    invoices.push(newInv);
-    saveData();
-    refreshAllData();
-    window.closeNewInvoiceModal();
-    window.showInvoiceModal(newInv);
-};
+    invoices.push(newInv);[cite: 3]
+    saveData();[cite: 3]
+    refreshAllData();[cite: 3]
+    window.closeNewInvoiceModal();[cite: 3]
+    window.showInvoiceModal(newInv);[cite: 3]
+};[cite: 3]
 
-function renderInvoices() {
-    let tbody = document.getElementById('invoicesTableBody');
-    if(!tbody) return;
-    tbody.innerHTML = '';
-    invoices.slice().reverse().forEach(inv => {
-        let statusBadge = (inv.remaining > 0) ? `<span class="badge-danger">متبقي: ${inv.remaining} ج.م</span>` : '<span class="badge-success">تم الدفع بالكامل</span>';
-        let invString = encodeURIComponent(JSON.stringify(inv));
-        tbody.innerHTML += `
-            <tr>
-                <td><strong>${inv.id}</strong></td>
-                <td>${inv.customerName}</td>
-                <td>${inv.date}</td>
-                <td>${inv.total.toLocaleString()} ج.م</td>
-                <td>${statusBadge}</td>
-                <td>
-                    <button onclick='showInvoiceModalEncoded("${invString}")' style="background: #0284c7; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left:5px;"><i class="fas fa-eye"></i> معاينة</button>
-                    <button onclick="deleteInvoice('${inv.id}')" style="background: #f43f5e; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;"><i class="fas fa-trash"></i></button>
-                </td>
-            </tr>
-        `;
-    });
-}
+function renderInvoices() {[cite: 3]
+    let tbody = document.getElementById('invoicesTableBody');[cite: 3]
+    if(!tbody) return;[cite: 3]
+    tbody.innerHTML = '';[cite: 3]
+    invoices.slice().reverse().forEach(inv => {[cite: 3]
+        let statusBadge = (inv.remaining > 0) ? `<span class="badge-danger">متبقي: ${inv.remaining} ج.م</span>` : '<span class="badge-success">تم الدفع بالكامل</span>';[cite: 3]
+        let invString = encodeURIComponent(JSON.stringify(inv));[cite: 3]
+        tbody.innerHTML += `[cite: 3]
+            <tr>[cite: 3]
+                <td><strong>${inv.id}</strong></td>[cite: 3]
+                <td>${inv.customerName}</td>[cite: 3]
+                <td>${inv.date}</td>[cite: 3]
+                <td>${inv.total.toLocaleString()} ج.م</td>[cite: 3]
+                <td>${statusBadge}</td>[cite: 3]
+                <td>[cite: 3]
+                    <button onclick='showInvoiceModalEncoded("${invString}")' style="background: #0284c7; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left:5px;"><i class="fas fa-eye"></i> معاينة</button>[cite: 3]
+                    <button onclick="deleteInvoice('${inv.id}')" style="background: #f43f5e; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;"><i class="fas fa-trash"></i></button>[cite: 3]
+                </td>[cite: 3]
+            </tr>[cite: 3]
+        `;[cite: 3]
+    });[cite: 3]
+}[cite: 3]
 
-window.filterInvoices = function() {
-    let query = document.getElementById('searchInvoices')?.value.toLowerCase() || '';
-    document.querySelectorAll('#invoicesTableBody tr').forEach(row => {
-        row.style.display = row.innerText.toLowerCase().includes(query) ? '' : 'none';
-    });
-};
+window.filterInvoices = function() {[cite: 3]
+    let query = document.getElementById('searchInvoices')?.value.toLowerCase() || '';[cite: 3]
+    document.querySelectorAll('#invoicesTableBody tr').forEach(row => {[cite: 3]
+        row.style.display = row.innerText.toLowerCase().includes(query) ? '' : 'none';[cite: 3]
+    });[cite: 3]
+};[cite: 3]
 
-window.deleteInvoice = function(id) {
-    if(confirm('هل تريد حذف هذه الفاتورة؟')) {
-        invoices = invoices.filter(i => i.id !== id);
-        saveData();
-        refreshAllData();
-    }
-};
+window.deleteInvoice = function(id) {[cite: 3]
+    if(confirm('هل تريد حذف هذه الفاتورة؟')) {[cite: 3]
+        invoices = invoices.filter(i => i.id !== id);[cite: 3]
+        saveData();[cite: 3]
+        refreshAllData();[cite: 3]
+    }[cite: 3]
+};[cite: 3]
 
-function renderCustomers() {
-    let tbody = document.getElementById('customersTableBody');
-    if(!tbody) return;
-    tbody.innerHTML = '';
+function renderCustomers() {[cite: 3]
+    let tbody = document.getElementById('customersTableBody');[cite: 3]
+    if(!tbody) return;[cite: 3]
+    tbody.innerHTML = '';[cite: 3]
     
-    customers.forEach((c, index) => {
-        let custInvoices = invoices.filter(i => i.customerName === c.name);
-        let totalSales = custInvoices.reduce((sum, i) => sum + Number(i.total), 0);
-        let totalRemaining = custInvoices.reduce((sum, i) => sum + Number(i.remaining || 0), 0);
+    customers.forEach((c, index) => {[cite: 3]
+        let custInvoices = invoices.filter(i => i.customerName === c.name);[cite: 3]
+        let totalSales = custInvoices.reduce((sum, i) => sum + Number(i.total), 0);[cite: 3]
+        let totalRemaining = custInvoices.reduce((sum, i) => sum + Number(i.remaining || 0), 0);[cite: 3]
 
-        let oldBalText = 'لا يوجد';
-        if(c.oldBalance && c.oldBalance > 0) {
-            let typeLabel = c.balanceType === 'on_him' ? 'عليه (مدين)' : 'له (دائن)';
-            oldBalText = `${c.oldBalance.toLocaleString()} ج.م (${typeLabel}) بتاريخ: ${c.oldBalanceDate || 'غير محدد'}`;
-        }
+        let oldBalText = 'لا يوجد';[cite: 3]
+        if(c.oldBalance && c.oldBalance > 0) {[cite: 3]
+            let typeLabel = c.balanceType === 'on_him' ? 'عليه (مدين)' : 'له (دائن)';[cite: 3]
+            oldBalText = `${c.oldBalance.toLocaleString()} ج.م (${typeLabel}) بتاريخ: ${c.oldBalanceDate || 'غير محدد'}`;[cite: 3]
+        }[cite: 3]
 
-        tbody.innerHTML += `
-            <tr>
-                <td><strong>${c.name}</strong></td>
-                <td>${c.phone || 'غير مسجل'}</td>
-                <td>${c.address || 'غير مسجل'}</td>
-                <td style="font-size: 12px; color: #cbd5e1;">${oldBalText}</td>
-                <td><strong style="color: #f43f5e;">${totalRemaining.toLocaleString()} ج.م</strong></td>
-                <td><strong style="color: #0284c7;">${totalSales.toLocaleString()} ج.م</strong></td>
-                <td>
-                    <button onclick="openEditCustomerBalance(${index})" style="background: #0284c7; color: white; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer; margin-left: 4px;"><i class="fas fa-history"></i> تعديل الحساب</button>
-                    <button onclick="deleteCustomer(${index})" style="background: #f43f5e; color: white; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer;"><i class="fas fa-trash"></i></button>
-                </td>
-            </tr>
-        `;
-    });
-}
+        tbody.innerHTML += `[cite: 3]
+            <tr>[cite: 3]
+                <td><strong>${c.name}</strong></td>[cite: 3]
+                <td>${c.phone || 'غير مسجل'}</td>[cite: 3]
+                <td>${c.address || 'غير مسجل'}</td>[cite: 3]
+                <td style="font-size: 12px; color: #cbd5e1;">${oldBalText}</td>[cite: 3]
+                <td><strong style="color: #f43f5e;">${totalRemaining.toLocaleString()} ج.م</strong></td>[cite: 3]
+                <td><strong style="color: #0284c7;">${totalSales.toLocaleString()} ج.م</strong></td>[cite: 3]
+                <td>[cite: 3]
+                    <button onclick="openEditCustomerBalance(${index})" style="background: #0284c7; color: white; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer; margin-left: 4px;"><i class="fas fa-history"></i> تعديل الحساب</button>[cite: 3]
+                    <button onclick="deleteCustomer(${index})" style="background: #f43f5e; color: white; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer;"><i class="fas fa-trash"></i></button>[cite: 3]
+                </td>[cite: 3]
+            </tr>[cite: 3]
+        `;[cite: 3]
+    });[cite: 3]
+}[cite: 3]
 
-window.openAddCustomerModal = function() { document.getElementById('addCustomerModal').style.display = 'flex'; };
-window.closeAddCustomerModal = function() { document.getElementById('addCustomerModal').style.display = 'none'; };
+window.openAddCustomerModal = function() { document.getElementById('addCustomerModal').style.display = 'flex'; };[cite: 3]
+window.closeAddCustomerModal = function() { document.getElementById('addCustomerModal').style.display = 'none'; };[cite: 3]
 
-window.addNewCustomerDirect = function(e) {
-    if(e) e.preventDefault();
-    let name = document.getElementById('custName')?.value.trim();
-    let phone = document.getElementById('custPhone')?.value.trim();
-    let address = document.getElementById('custAddress')?.value.trim();
-    let oldBalance = Number(document.getElementById('custOldBalance')?.value) || 0;
-    let balanceType = document.getElementById('custBalanceType')?.value || 'none';
-    let oldBalanceDate = document.getElementById('custOldBalanceDate')?.value || '';
+window.addNewCustomerDirect = function(e) {[cite: 3]
+    if(e) e.preventDefault();[cite: 3]
+    let name = document.getElementById('custName')?.value.trim();[cite: 3]
+    let phone = document.getElementById('custPhone')?.value.trim();[cite: 3]
+    let address = document.getElementById('custAddress')?.value.trim();[cite: 3]
+    let oldBalance = Number(document.getElementById('custOldBalance')?.value) || 0;[cite: 3]
+    let balanceType = document.getElementById('custBalanceType')?.value || 'none';[cite: 3]
+    let oldBalanceDate = document.getElementById('custOldBalanceDate')?.value || '';[cite: 3]
 
-    if(!name) return;
-    if(customers.some(c => c.name === name)) {
-        alert('هذا العميل مسجل مسبقاً!');
-        return;
-    }
+    if(!name) return;[cite: 3]
+    if(customers.some(c => c.name === name)) {[cite: 3]
+        alert('هذا العميل مسجل مسبقاً!');[cite: 3]
+        return;[cite: 3]
+    }[cite: 3]
 
-    customers.push({ name, phone, address, oldBalance, balanceType, oldBalanceDate });
-    saveData();
-    refreshAllData();
-    window.closeAddCustomerModal();
-    if(e && e.target) e.target.reset();
-    alert('تم حفظ العميل بنجاح!');
-};
+    customers.push({ name, phone, address, oldBalance, balanceType, oldBalanceDate });[cite: 3]
+    saveData();[cite: 3]
+    refreshAllData();[cite: 3]
+    window.closeAddCustomerModal();[cite: 3]
+    if(e && e.target) e.target.reset();[cite: 3]
+    alert('تم حفظ العميل بنجاح!');[cite: 3]
+};[cite: 3]
 
-window.openEditCustomerBalance = function(index) {
-    let c = customers[index];
-    let newBal = prompt(`تعديل الحساب القديم للعميل (${c.name}):\nأدخل قيمة الحساب (بالجنيه):`, c.oldBalance || 0);
-    if(newBal === null) return;
+window.openEditCustomerBalance = function(index) {[cite: 3]
+    let c = customers[index];[cite: 3]
+    let newBal = prompt(`تعديل الحساب القديم للعميل (${c.name}):\nأدخل قيمة الحساب (بالجنيه):`, c.oldBalance || 0);[cite: 3]
+    if(newBal === null) return;[cite: 3]
     
-    let type = prompt(`نوع الحساب:\nاكتب (on_him) لو عليه متبقي\nاكتب (for_him) لو له رصيد متبقي`, c.balanceType || 'on_him');
-    let dateStr = prompt(`أدخل تاريخ الحساب القديم (مثال: 2026/01/15):`, c.oldBalanceDate || new Date().toLocaleDateString());
+    let type = prompt(`نوع الحساب:\nاكتب (on_him) لو عليه متبقي\nاكتب (for_him) لو له رصيد متبقي`, c.balanceType || 'on_him');[cite: 3]
+    let dateStr = prompt(`أدخل تاريخ الحساب القديم (مثال: 2026/01/15):`, c.oldBalanceDate || new Date().toLocaleDateString());[cite: 3]
 
-    c.oldBalance = Number(newBal) || 0;
-    c.balanceType = type === 'for_him' ? 'for_him' : 'on_him';
-    c.oldBalanceDate = dateStr || '';
+    c.oldBalance = Number(newBal) || 0;[cite: 3]
+    c.balanceType = type === 'for_him' ? 'for_him' : 'on_him';[cite: 3]
+    c.oldBalanceDate = dateStr || '';[cite: 3]
 
-    saveData();
-    refreshAllData();
-    alert('تم تحديث الحساب القديم للعميل بنجاح!');
-};
+    saveData();[cite: 3]
+    refreshAllData();[cite: 3]
+    alert('تم تحديث الحساب القديم للعميل بنجاح!');[cite: 3]
+};[cite: 3]
 
-window.deleteCustomer = function(index) {
-    if(confirm('هل أنت متأكد من حذف هذا العميل من الدليل؟')) {
-        customers.splice(index, 1);
-        saveData();
-        refreshAllData();
-    }
-};
+window.deleteCustomer = function(index) {[cite: 3]
+    if(confirm('هل أنت متأكد من حذف هذا العميل من الدليل؟')) {[cite: 3]
+        customers.splice(index, 1);[cite: 3]
+        saveData();[cite: 3]
+        refreshAllData();[cite: 3]
+    }[cite: 3]
+};[cite: 3]
 
-window.showInvoiceModalEncoded = function(encodedInv) {
-    window.showInvoiceModal(JSON.parse(decodeURIComponent(encodedInv)));
-};
+window.showInvoiceModalEncoded = function(encodedInv) {[cite: 3]
+    window.showInvoiceModal(JSON.parse(decodeURIComponent(encodedInv)));[cite: 3]
+};[cite: 3]
 
-window.showInvoiceModal = function(inv) {
-    currentInvoiceData = inv;
-    window.activePrintingInvoice = inv;
+window.showInvoiceModal = function(inv) {[cite: 3]
+    currentInvoiceData = inv;[cite: 3]
+    window.activePrintingInvoice = inv;[cite: 3]
     
-    let area = document.getElementById('printableInvoiceArea');
-    if(!area) return;
+    let area = document.getElementById('printableInvoiceArea');[cite: 3]
+    if(!area) return;[cite: 3]
     
-    let itemsHtml = '';
-    if(inv.items) {
-        inv.items.forEach(item => {
-            itemsHtml += `
-                <tr>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;"><bdi style="unicode-bidi: isolate; direction: auto;">${item.name}</bdi></td>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${item.qty}</td>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${item.price.toLocaleString()} ج.م</td>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: left;">${item.total.toLocaleString()} ج.م</td>
-                </tr>
-            `;
-        });
-    }
+    let itemsHtml = '';[cite: 3]
+    if(inv.items) {[cite: 3]
+        inv.items.forEach(item => {[cite: 3]
+            itemsHtml += `[cite: 3]
+                <tr>[cite: 3]
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;"><bdi style="unicode-bidi: isolate; direction: auto;">${item.name}</bdi></td>[cite: 3]
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${item.qty}</td>[cite: 3]
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${item.price.toLocaleString()} ج.م</td>[cite: 3]
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: left;">${item.total.toLocaleString()} ج.م</td>[cite: 3]
+                </tr>[cite: 3]
+            `;[cite: 3]
+        });[cite: 3]
+    }[cite: 3]
 
-    let oldBalPrintHtml = '';
-    if(inv.oldBalance && inv.oldBalance > 0) {
-        let label = inv.oldBalanceType === 'on_him' ? 'حساب سابق (عليه)' : 'حساب سابق (له)';
-        oldBalPrintHtml = `<p style="margin: 3px 0;">${label}: ${inv.oldBalance.toLocaleString()} ج.م</p>`;
-    }
+    let oldBalPrintHtml = '';[cite: 3]
+    if(inv.oldBalance && inv.oldBalance > 0) {[cite: 3]
+        let label = inv.oldBalanceType === 'on_him' ? 'حساب سابق (عليه)' : 'حساب سابق (له)';[cite: 3]
+        oldBalPrintHtml = `<p style="margin: 3px 0;">${label}: ${inv.oldBalance.toLocaleString()} ج.م</p>`;[cite: 3]
+    }[cite: 3]
 
-    let discountPrintHtml = '';
-    if(inv.discountPercent && inv.discountPercent > 0) {
-        discountPrintHtml = `<p style="margin: 3px 0; color: #10b981;">خصم (${inv.discountPercent}%): -${(inv.discountAmount || 0).toLocaleString()} ج.م</p>`;
-    }
+    let discountPrintHtml = '';[cite: 3]
+    if(inv.discountPercent && inv.discountPercent > 0) {[cite: 3]
+        discountPrintHtml = `<p style="margin: 3px 0; color: #10b981;">خصم (${inv.discountPercent}%): -${(inv.discountAmount || 0).toLocaleString()} ج.م</p>`;[cite: 3]
+    }[cite: 3]
 
-    area.innerHTML = `
-        <div style="background: #fff; color: #000; padding: 20px; font-family: Tahoma, sans-serif; direction: rtl; text-align: right; width: 100%; box-sizing: border-box;">
-            
-            <div style="text-align: center; margin-bottom: 10px;">
-                <h1 style="margin: 0 0 5px 0; color: #0284c7; font-size: 24px; font-weight: bold;">Bro Tech</h1>
-                <p style="margin: 2px 0; font-size: 13px; color: #475569;">لصيانه و بيع جميع انواع مكن الطباعه</p>
-            </div>
+    area.innerHTML = `[cite: 3]
+        <div style="background: #fff; color: #000; padding: 20px; font-family: Tahoma, sans-serif; direction: rtl; text-align: right; width: 100%; box-sizing: border-box;">[cite: 3]
+            <div style="text-align: center; margin-bottom: 10px;">[cite: 3]
+                <h1 style="margin: 0 0 5px 0; color: #0284c7; font-size: 24px; font-weight: bold;">Bro Tech</h1>[cite: 3]
+                <p style="margin: 2px 0; font-size: 13px; color: #475569;">لصيانه و بيع جميع انواع مكن الطباعه</p>[cite: 3]
+            </div>[cite: 3]
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; font-size: 13px;">[cite: 3]
+                <div>[cite: 3]
+                    <p style="margin: 2px 0;"><strong>العنوان:</strong> 195 شارع جسر السويس</p>[cite: 3]
+                    <p style="margin: 2px 0;"><strong>الهاتف:</strong> 01020008299</p>[cite: 3]
+                </div>[cite: 3]
+                <div style="text-align: left;">[cite: 3]
+                    <p style="margin: 2px 0;"><strong>التاريخ:</strong> ${inv.date}</p>[cite: 3]
+                </div>[cite: 3]
+            </div>[cite: 3]
+            <hr style="border: none; border-top: 2px solid #0284c7; margin: 10px 0;">[cite: 3]
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; margin-bottom: 15px; font-size: 13px; border-radius: 4px;">[cite: 3]
+                <strong>العميل:</strong> ${inv.customerName} &nbsp;|&nbsp; <strong>الهاتف:</strong> ${inv.customerPhone || '---'} &nbsp;|&nbsp; <strong>العنوان:</strong> ${inv.customerAddress || '---'}[cite: 3]
+            </div>[cite: 3]
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 13px;">[cite: 3]
+                <thead>[cite: 3]
+                    <tr style="background: #f1f5f9; color: #1e293b;">[cite: 3]
+                        <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">الصنف</th>[cite: 3]
+                        <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">الكمية</th>[cite: 3]
+                        <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">السعر</th>[cite: 3]
+                        <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: left;">الإجمالي</th>[cite: 3]
+                    </tr>[cite: 3]
+                </thead>[cite: 3]
+                <tbody>${itemsHtml}</tbody>[cite: 3]
+            </table>[cite: 3]
+            <div style="font-size: 13px; border-top: 2px solid #cbd5e1; padding-top: 10px; text-align: left; width: 300px; margin-right: auto;">[cite: 3]
+                <p style="margin: 4px 0;">الإجمالي الفرعي: ${(inv.subtotal || inv.total).toLocaleString()} ج.م</p>[cite: 3]
+                ${discountPrintHtml}[cite: 3]
+                ${oldBalPrintHtml}[cite: 3]
+                <p style="margin: 6px 0; font-size: 15px; font-weight: bold; color: #0284c7;">الإجمالي النهائي: ${inv.total.toLocaleString()} ج.م</p>[cite: 3]
+                <p style="margin: 4px 0;">المدفوع: ${(inv.paid || 0).toLocaleString()} ج.م</p>[cite: 3]
+                <p style="margin: 4px 0; color: #e11d48; font-weight: bold;">المتبقي: ${(inv.remaining || 0).toLocaleString()} ج.م</p>[cite: 3]
+            </div>[cite: 3]
+        </div>[cite: 3]
+        <div class="no-print" style="text-align: center; margin-top: 15px; padding: 10px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: center; gap: 10px;">[cite: 3]
+            <button onclick="printInvoice()" style="background: #0284c7; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fas fa-print"></i> طباعة الفاتورة</button>[cite: 3]
+            <button onclick="sendToWhatsAppNabawy()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fab fa-whatsapp"></i> إرسال لمحمد النبوي</button>[cite: 3]
+            <button onclick="closeInvoiceModal()" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fas fa-times"></i> إغلاق</button>[cite: 3]
+        </div>[cite: 3]
+    `;[cite: 3]
+    document.getElementById('invoiceModal').style.display = 'flex';[cite: 3]
+};[cite: 3]
 
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; font-size: 13px;">
-                <div>
-                    <p style="margin: 2px 0;"><strong>العنوان:</strong> 195 شارع جسر السويس</p>
-                    <p style="margin: 2px 0;"><strong>الهاتف:</strong> 01020008299</p>
-                </div>
-                <div style="text-align: left;">
-                    <p style="margin: 2px 0;"><strong>التاريخ:</strong> ${inv.date}</p>
-                </div>
-            </div>
+window.closeInvoiceModal = function() { document.getElementById('invoiceModal').style.display = 'none'; };[cite: 3]
 
-            <hr style="border: none; border-top: 2px solid #0284c7; margin: 10px 0;">
+window.sendToWhatsAppNabawy = function() {[cite: 3]
+    let targetInv = window.activePrintingInvoice || currentInvoiceData;[cite: 3]
+    if(!targetInv) return;[cite: 3]
+    let msg = `*${settings.companyName}*\n` +[cite: 3]
+              `📄 *فاتورة رقم:* ${targetInv.id}\n` +[cite: 3]
+              `👤 *العميل:* ${targetInv.customerName}\n` +[cite: 3]
+              `💰 *الإجمالي النهائي:* ${targetInv.total.toLocaleString()} ج.م\n` +[cite: 3]
+              `📌 *المتبقي:* ${(targetInv.remaining || 0).toLocaleString()} ج.م`;[cite: 3]
+    let phone = (settings.whatsappNabawy || '01092201111').replace(/[^0-9]/g, '');[cite: 3]
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');[cite: 3]
+};[cite: 3]
 
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; margin-bottom: 15px; font-size: 13px; border-radius: 4px;">
-                <strong>العميل:</strong> ${inv.customerName} &nbsp;|&nbsp; <strong>الهاتف:</strong> ${inv.customerPhone || '---'} &nbsp;|&nbsp; <strong>العنوان:</strong> ${inv.customerAddress || '---'}
-            </div>
+function initChart() {[cite: 3]
+    const ctx = document.getElementById('salesPurchasesChart');[cite: 3]
+    if(!ctx || typeof Chart === 'undefined') return;[cite: 3]
+    mainChartInstance = new Chart(ctx, {[cite: 3]
+        type: 'line',[cite: 3]
+        data: {[cite: 3]
+            labels: ['يناير', 'فبراير', 'مارس', 'إبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'],[cite: 3]
+            datasets: [[cite: 3]
+                { label: 'المبيعات', data: [12000, 19000, 15000, 25000, 32000, 41000, 48000, 0, 0, 0, 0, 0], borderColor: '#10b981', tension: 0.3 },[cite: 3]
+                { label: 'المشتريات', data: [10000, 15000, 12000, 20000, 28000, 35000, 40000, 0, 0, 0, 0, 0], borderColor: '#f97316', tension: 0.3 }[cite: 3]
+            ][cite: 3]
+        },[cite: 3]
+        options: { responsive: true, maintainAspectRatio: false }[cite: 3]
+    });[cite: 3]
+}[cite: 3]
 
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 13px;">
-                <thead>
-                    <tr style="background: #f1f5f9; color: #1e293b;">
-                        <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">الصنف</th>
-                        <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">الكمية</th>
-                        <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">السعر</th>
-                        <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: left;">الإجمالي</th>
-                    </tr>
-                </thead>
-                <tbody>${itemsHtml}</tbody>
-            </table>
+window.openEditProductModal = function(index) {[cite: 3]
+    const product = inventory[index];[cite: 3]
+    if (!product) return;[cite: 3]
 
-            <div style="font-size: 13px; border-top: 2px solid #cbd5e1; padding-top: 10px; text-align: left; width: 300px; margin-right: auto;">
-                <p style="margin: 4px 0;">الإجمالي الفرعي: ${(inv.subtotal || inv.total).toLocaleString()} ج.م</p>
-                ${discountPrintHtml}
-                ${oldBalPrintHtml}
-                <p style="margin: 6px 0; font-size: 15px; font-weight: bold; color: #0284c7;">الإجمالي النهائي: ${inv.total.toLocaleString()} ج.م</p>
-                <p style="margin: 4px 0;">المدفوع: ${(inv.paid || 0).toLocaleString()} ج.م</p>
-                <p style="margin: 4px 0; color: #e11d48; font-weight: bold;">المتبقي: ${(inv.remaining || 0).toLocaleString()} ج.م</p>
-            </div>
-        </div>
+    document.getElementById('editProdIndex').value = index;[cite: 3]
+    document.getElementById('editProdCode').value = product.code || '';[cite: 3]
+    document.getElementById('editProdName').value = product.name || '';[cite: 3]
+    document.getElementById('editProdQty').value = product.qty || 0;[cite: 3]
+    document.getElementById('editProdUnit').value = product.unit || '';[cite: 3]
+    document.getElementById('editProdPrice').value = product.price || 0;[cite: 3]
 
-        <div class="no-print" style="text-align: center; margin-top: 15px; padding: 10px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: center; gap: 10px;">
-            <button onclick="printInvoice()" style="background: #0284c7; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fas fa-print"></i> طباعة الفاتورة</button>
-            <button onclick="sendToWhatsAppNabawy()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fab fa-whatsapp"></i> إرسال لمحمد النبوي</button>
-            <button onclick="closeInvoiceModal()" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fas fa-times"></i> إغلاق</button>
-        </div>
-    `;
-    document.getElementById('invoiceModal').style.display = 'flex';
-};
+    document.getElementById('editProductModal').style.display = 'flex';[cite: 3]
+};[cite: 3]
 
-window.closeInvoiceModal = function() { document.getElementById('invoiceModal').style.display = 'none'; };
+window.closeEditProductModal = function() {[cite: 3]
+    document.getElementById('editProductModal').style.display = 'none';[cite: 3]
+};[cite: 3]
 
-window.sendToWhatsAppNabawy = function() {
-    let targetInv = window.activePrintingInvoice || currentInvoiceData;
-    if(!targetInv) return;
-    let msg = `*${settings.companyName}*\n` +
-              `📄 *فاتورة رقم:* ${targetInv.id}\n` +
-              `👤 *العميل:* ${targetInv.customerName}\n` +
-              `💰 *الإجمالي النهائي:* ${targetInv.total.toLocaleString()} ج.م\n` +
-              `📌 *المتبقي:* ${(targetInv.remaining || 0).toLocaleString()} ج.م`;
-    let phone = (settings.whatsappNabawy || '01092201111').replace(/[^0-9]/g, '');
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
-};
-
-function initChart() {
-    const ctx = document.getElementById('salesPurchasesChart');
-    if(!ctx || typeof Chart === 'undefined') return;
-    mainChartInstance = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: ['يناير', 'فبراير', 'مارس', 'إبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'],
-            datasets: [
-                { label: 'المبيعات', data: [12000, 19000, 15000, 25000, 32000, 41000, 48000, 0, 0, 0, 0, 0], borderColor: '#10b981', tension: 0.3 },
-                { label: 'المشتريات', data: [10000, 15000, 12000, 20000, 28000, 35000, 40000, 0, 0, 0, 0, 0], borderColor: '#f97316', tension: 0.3 }
-            ]
-        },
-        options: { responsive: true, maintainAspectRatio: false }
-    });
-}
-
-window.openEditProductModal = function(index) {
-    const product = inventory[index];
-    if (!product) return;
-
-    document.getElementById('editProdIndex').value = index;
-    document.getElementById('editProdCode').value = product.code || '';
-    document.getElementById('editProdName').value = product.name || '';
-    document.getElementById('editProdQty').value = product.qty || 0;
-    document.getElementById('editProdUnit').value = product.unit || '';
-    document.getElementById('editProdPrice').value = product.price || 0;
-
-    document.getElementById('editProductModal').style.display = 'flex';
-};
-
-window.closeEditProductModal = function() {
-    document.getElementById('editProductModal').style.display = 'none';
-};
-
-window.saveEditedProduct = function(event) {
-    event.preventDefault();
+window.saveEditedProduct = function(event) {[cite: 3]
+    event.preventDefault();[cite: 3]
     
-    const index = document.getElementById('editProdIndex').value;
-    if (index === "" || !inventory[index]) return;
+    const index = document.getElementById('editProdIndex').value;[cite: 3]
+    if (index === "" || !inventory[index]) return;[cite: 3]
 
-    inventory[index].code = document.getElementById('editProdCode').value.trim();
-    inventory[index].name = document.getElementById('editProdName').value.trim();
-    inventory[index].qty = Number(document.getElementById('editProdQty').value);
-    inventory[index].unit = document.getElementById('editProdUnit').value;
-    inventory[index].price = Number(document.getElementById('editProdPrice').value);
+    inventory[index].code = document.getElementById('editProdCode').value.trim();[cite: 3]
+    inventory[index].name = document.getElementById('editProdName').value.trim();[cite: 3]
+    inventory[index].qty = Number(document.getElementById('editProdQty').value);[cite: 3]
+    inventory[index].unit = document.getElementById('editProdUnit').value;[cite: 3]
+    inventory[index].price = Number(document.getElementById('editProdPrice').value);[cite: 3]
 
-    saveData();
-    refreshAllData();
+    saveData();[cite: 3]
+    refreshAllData();[cite: 3]
 
-    closeEditProductModal();
-    alert('تم تعديل بيانات الصنف بنجاح!');
-};
+    closeEditProductModal();[cite: 3]
+    alert('تم تعديل بيانات الصنف بنجاح!');[cite: 3]
+};[cite: 3]
 
-document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
+document.addEventListener('gesturestart', function(e) { e.preventDefault(); });[cite: 3]
 
-window.printInvoice = function() {
-    let inv = window.activePrintingInvoice || currentInvoiceData;
-    if(!inv) {
-        alert('لا توجد فاتورة محددة للطباعة!');
-        return;
-    }
+window.printInvoice = function() {[cite: 3]
+    let inv = window.activePrintingInvoice || currentInvoiceData;[cite: 3]
+    if(!inv) {[cite: 3]
+        alert('لا توجد فاتورة محددة للطباعة!');[cite: 3]
+        return;[cite: 3]
+    }[cite: 3]
 
-    let itemsHtml = '';
-    if(inv.items) {
-        inv.items.forEach(item => {
-            itemsHtml += `
-                <tr>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;"><bdi style="unicode-bidi: isolate; direction: auto;">${item.name}</bdi></td>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${item.qty}</td>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${item.price.toLocaleString()} ج.م</td>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: left;">${item.total.toLocaleString()} ج.م</td>
-                </tr>
-            `;
-        });
-    }
+    let itemsHtml = '';[cite: 3]
+    if(inv.items) {[cite: 3]
+        inv.items.forEach(item => {[cite: 3]
+            itemsHtml += `[cite: 3]
+                <tr>[cite: 3]
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;"><bdi style="unicode-bidi: isolate; direction: auto;">${item.name}</bdi></td>[cite: 3]
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${item.qty}</td>[cite: 3]
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${item.price.toLocaleString()} ج.م</td>[cite: 3]
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: left;">${item.total.toLocaleString()} ج.م</td>[cite: 3]
+                </tr>[cite: 3]
+            `;[cite: 3]
+        });[cite: 3]
+    }[cite: 3]
 
-    let oldBalPrintHtml = '';
-    if(inv.oldBalance && inv.oldBalance > 0) {
-        let label = inv.oldBalanceType === 'on_him' ? 'حساب سابق (عليه)' : 'حساب سابق (له)';
-        oldBalPrintHtml = `<p style="margin: 3px 0;">${label}: ${inv.oldBalance.toLocaleString()} ج.م</p>`;
-    }
+    let oldBalPrintHtml = '';[cite: 3]
+    if(inv.oldBalance && inv.oldBalance > 0) {[cite: 3]
+        let label = inv.oldBalanceType === 'on_him' ? 'حساب سابق (عليه)' : 'حساب سابق (له)';[cite: 3]
+        oldBalPrintHtml = `<p style="margin: 3px 0;">${label}: ${inv.oldBalance.toLocaleString()} ج.م</p>`;[cite: 3]
+    }[cite: 3]
 
-    let discountPrintHtml = '';
-    if(inv.discountPercent && inv.discountPercent > 0) {
-        discountPrintHtml = `<p style="margin: 3px 0; color: #10b981;">خصم (${inv.discountPercent}%): -${(inv.discountAmount || 0).toLocaleString()} ج.م</p>`;
-    }
+    let discountPrintHtml = '';[cite: 3]
+    if(inv.discountPercent && inv.discountPercent > 0) {[cite: 3]
+        discountPrintHtml = `<p style="margin: 3px 0; color: #10b981;">خصم (${inv.discountPercent}%): -${(inv.discountAmount || 0).toLocaleString()} ج.م</p>`;[cite: 3]
+    }[cite: 3]
 
-    let printWindow = window.open('', '_blank', 'height=900,width=1000');
+    let printWindow = window.open('', '_blank', 'height=900,width=1000');[cite: 3]
     
-    printWindow.document.write(`
-        <html lang="ar" dir="rtl">
-        <head>
-            <meta charset="UTF-8">
-            <title>فاتورة مبيعات - Bro Tech</title>
-            <style>
-                body {
-                    font-family: Tahoma, sans-serif;
-                    margin: 0;
-                    padding: 20px;
-                    background: #ffffff;
-                    color: #000000;
-                    -webkit-print-color-adjust: exact;
-                    print-color-adjust: exact;
-                }
-                table {
-                    width: 100%;
-                    border-collapse: collapse;
-                }
-                th, td {
-                    border: 1px solid #cbd5e1 !important;
-                }
-                @page {
-                    size: A4;
-                    margin: 10mm;
-                }
-            </style>
-        </head>
-        <body>
-            <div style="width: 100%; max-width: 800px; margin: 0 auto; background: #fff; padding: 20px; box-sizing: border-box;">
-                
-                <div style="text-align: center; margin-bottom: 10px;">
-                    <h1 style="margin: 0 0 5px 0; color: #0284c7; font-size: 24px; font-weight: bold;">Bro Tech</h1>
-                    <p style="margin: 2px 0; font-size: 13px; color: #475569;">لصيانه و بيع جميع انواع مكن الطباعه</p>
-                </div>
-
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; font-size: 13px;">
-                    <div>
-                        <p style="margin: 2px 0;"><strong>العنوان:</strong> 195 شارع جسر السويس</p>
-                        <p style="margin: 2px 0;"><strong>الهاتف:</strong> 01020008299</p>
-                    </div>
-                    <div style="text-align: left;">
-                        <p style="margin: 2px 0;"><strong>التاريخ:</strong> ${inv.date}</p>
-                    </div>
-                </div>
-
-                <hr style="border: none; border-top: 2px solid #0284c7; margin: 10px 0;">
-
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; margin-bottom: 15px; font-size: 13px; border-radius: 4px;">
-                    <strong>العميل:</strong> ${inv.customerName} &nbsp;|&nbsp; <strong>الهاتف:</strong> ${inv.customerPhone || '---'} &nbsp;|&nbsp; <strong>العنوان:</strong> ${inv.customerAddress || '---'}
-                </div>
-
-                <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 13px;">
-                    <thead>
-                        <tr style="background: #f1f5f9; color: #1e293b;">
-                            <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">الصنف</th>
-                            <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">الكمية</th>
-                            <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">السعر</th>
-                            <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: left;">الإجمالي</th>
-                        </tr>
-                    </thead>
-                    <tbody>${itemsHtml}</tbody>
-                </table>
-
-                <div style="font-size: 13px; border-top: 2px solid #cbd5e1; padding-top: 10px; text-align: left; width: 300px; margin-right: auto;">
-                    <p style="margin: 4px 0;">الإجمالي الفرعي: ${(inv.subtotal || inv.total).toLocaleString()} ج.م</p>
-                    ${discountPrintHtml}
-                    ${oldBalPrintHtml}
-                    <p style="margin: 6px 0; font-size: 15px; font-weight: bold; color: #0284c7;">الإجمالي النهائي: ${inv.total.toLocaleString()} ج.م</p>
-                    <p style="margin: 4px 0;">المدفوع: ${(inv.paid || 0).toLocaleString()} ج.م</p>
-                    <p style="margin: 4px 0; color: #e11d48; font-weight: bold;">المتبقي: ${(inv.remaining || 0).toLocaleString()} ج.م</p>
-                </div>
-            </div>
-            <script>
-                window.onload = function() {
-                    setTimeout(function() {
-                        window.print();
-                        window.close();
-                    }, 300);
-                }
-            </script>
-        </body>
-        </html>
-    `);
+    printWindow.document.write(`[cite: 3]
+        <html lang="ar" dir="rtl">[cite: 3]
+        <head>[cite: 3]
+            <meta charset="UTF-8">[cite: 3]
+            <title>فاتورة مبيعات - Bro Tech</title>[cite: 3]
+            <style>[cite: 3]
+                body {[cite: 3]
+                    font-family: Tahoma, sans-serif;[cite: 3]
+                    margin: 0;[cite: 3]
+                    padding: 20px;[cite: 3]
+                    background: #ffffff;[cite: 3]
+                    color: #000000;[cite: 3]
+                    -webkit-print-color-adjust: exact;[cite: 3]
+                    print-color-adjust: exact;[cite: 3]
+                }[cite: 3]
+                table {[cite: 3]
+                    width: 100%;[cite: 3]
+                    border-collapse: collapse;[cite: 3]
+                }[cite: 3]
+                th, td {[cite: 3]
+                    border: 1px solid #cbd5e1 !important;[cite: 3]
+                }[cite: 3]
+                @page {[cite: 3]
+                    size: A4;[cite: 3]
+                    margin: 10mm;[cite: 3]
+                }[cite: 3]
+            </style>[cite: 3]
+        </head>[cite: 3]
+        <body>[cite: 3]
+            <div style="width: 100%; max-width: 800px; margin: 0 auto; background: #fff; padding: 20px; box-sizing: border-box;">[cite: 3]
+                <div style="text-align: center; margin-bottom: 10px;">[cite: 3]
+                    <h1 style="margin: 0 0 5px 0; color: #0284c7; font-size: 24px; font-weight: bold;">Bro Tech</h1>[cite: 3]
+                    <p style="margin: 2px 0; font-size: 13px; color: #475569;">لصيانه و بيع جميع انواع مكن الطباعه</p>[cite: 3]
+                </div>[cite: 3]
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; font-size: 13px;">[cite: 3]
+                    <div>[cite: 3]
+                        <p style="margin: 2px 0;"><strong>العنوان:</strong> 195 شارع جسر السويس</p>[cite: 3]
+                        <p style="margin: 2px 0;"><strong>الهاتف:</strong> 01020008299</p>[cite: 3]
+                    </div>[cite: 3]
+                    <div style="text-align: left;">[cite: 3]
+                        <p style="margin: 2px 0;"><strong>التاريخ:</strong> ${inv.date}</p>[cite: 3]
+                    </div>[cite: 3]
+                </div>[cite: 3]
+                <hr style="border: none; border-top: 2px solid #0284c7; margin: 10px 0;">[cite: 3]
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; margin-bottom: 15px; font-size: 13px; border-radius: 4px;">[cite: 3]
+                    <strong>العميل:</strong> ${inv.customerName} &nbsp;|&nbsp; <strong>الهاتف:</strong> ${inv.customerPhone || '---'} &nbsp;|&nbsp; <strong>العنوان:</strong> ${inv.customerAddress || '---'}[cite: 3]
+                </div>[cite: 3]
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 13px;">[cite: 3]
+                    <thead>[cite: 3]
+                        <tr style="background: #f1f5f9; color: #1e293b;">[cite: 3]
+                            <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">الصنف</th>[cite: 3]
+                            <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">الكمية</th>[cite: 3]
+                            <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">السعر</th>[cite: 3]
+                            <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: left;">الإجمالي</th>[cite: 3]
+                        </tr>[cite: 3]
+                    </thead>[cite: 3]
+                    <tbody>${itemsHtml}</tbody>[cite: 3]
+                </table>[cite: 3]
+                <div style="font-size: 13px; border-top: 2px solid #cbd5e1; padding-top: 10px; text-align: left; width: 300px; margin-right: auto;">[cite: 3]
+                    <p style="margin: 4px 0;">الإجمالي الفرعي: ${(inv.subtotal || inv.total).toLocaleString()} ج.م</p>[cite: 3]
+                    ${discountPrintHtml}[cite: 3]
+                    ${oldBalPrintHtml}[cite: 3]
+                    <p style="margin: 6px 0; font-size: 15px; font-weight: bold; color: #0284c7;">الإجمالي النهائي: ${inv.total.toLocaleString()} ج.م</p>[cite: 3]
+                    <p style="margin: 4px 0;">المدفوع: ${(inv.paid || 0).toLocaleString()} ج.م</p>[cite: 3]
+                    <p style="margin: 4px 0; color: #e11d48; font-weight: bold;">المتبقي: ${(inv.remaining || 0).toLocaleString()} ج.م</p>[cite: 3]
+                </div>[cite: 3]
+            </div>[cite: 3]
+            <script>[cite: 3]
+                window.onload = function() {[cite: 3]
+                    setTimeout(function() {[cite: 3]
+                        window.print();[cite: 3]
+                        window.close();[cite: 3]
+                    }, 300);[cite: 3]
+                }[cite: 3]
+            </script>[cite: 3]
+        </body>[cite: 3]
+        </html>[cite: 3]
+    `);[cite: 3]
     
-    printWindow.document.close();
-};
+    printWindow.document.close();[cite: 3]
+};[cite: 3]
