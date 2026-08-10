@@ -19,9 +19,8 @@ const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const db = getFirestore(app);
 
-// Data State (Initial Defaults) - تم إضافة زجاجة المية بالكود المطلوب هنا
+// Data State (Initial Defaults) - تم ضبط الأكواد بمنتهى الدقة لمنع أي تداخل
 let inventory = [
-    { code: '6223001360056', name: 'زجاجة مية', qty: 50, unit: 'زجاجة', price: 5 },
     { code: 'PR-001', name: 'حبر طابعة ياباني أسود ليزر', qty: 45, unit: 'لتر', price: 1200 },
     { code: 'PR-002', name: 'ماكينة طباعة رقمية موديل X', qty: 5, unit: 'قطعة', price: 25000 },
     { code: 'PR-003', name: 'رول استيكر حراري عالي الجودة', qty: 120, unit: 'لفة', price: 150 },
@@ -337,28 +336,34 @@ window.handleCustomerSelectChange = function() {
     }
 };
 
-window.addInvoiceItemRow = function(preselectedCode = '', preselectedQty = 1) {
+// ==========================================
+// التعديل المضاف خصيصاً للباركود والإصناف
+// ==========================================
+window.addInvoiceItemRow = function(productCode = '', qty = 1) {
     let tbody = document.getElementById('invoiceItemsBody');
     if(!tbody) return;
 
     let optionsHtml = '<option value="">-- اختر الصنف من المخزون --</option>';
     inventory.forEach(i => {
-        let selected = (i.code === preselectedCode) ? 'selected' : '';
+        let selected = (i.code === productCode) ? 'selected' : '';
         optionsHtml += `<option value="${i.code}" data-price="${i.price}" data-qty="${i.qty}" ${selected}>${i.name} (المتاح: ${i.qty} ${i.unit} - ${i.price} ج.م)</option>`;
     });
-
-    let matchedItem = inventory.find(i => i.code === preselectedCode);
-    let itemPrice = matchedItem ? matchedItem.price : 0;
 
     let tr = document.createElement('tr');
     tr.innerHTML = `
         <td style="padding: 5px;"><select class="inv-item-code" dir="auto" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px;" onchange="updateRowPrice(this)">${optionsHtml}</select></td>
-        <td style="padding: 5px;"><input type="number" class="inv-item-qty" value="${preselectedQty}" min="1" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px; text-align:center;" oninput="calculateInvoiceTotal()"></td>
-        <td style="padding: 5px;"><input type="number" class="inv-item-price" value="${itemPrice}" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px; text-align:center;" oninput="calculateInvoiceTotal()"></td>
+        <td style="padding: 5px;"><input type="number" class="inv-item-qty" value="${qty}" min="1" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px; text-align:center;" oninput="calculateInvoiceTotal()"></td>
+        <td style="padding: 5px;"><input type="number" class="inv-item-price" value="0" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px; text-align:center;" oninput="calculateInvoiceTotal()"></td>
         <td style="padding: 5px; text-align: center;"><button type="button" onclick="this.closest('tr').remove(); calculateInvoiceTotal();" style="background:#f43f5e; color:#fff; border:none; padding:5px 8px; border-radius:4px; cursor:pointer;"><i class="fas fa-trash"></i></button></td>
     `;
     tbody.appendChild(tr);
-    calculateInvoiceTotal();
+
+    if(productCode) {
+        let selectEl = tr.querySelector('.inv-item-code');
+        if(selectEl) {
+            updateRowPrice(selectEl);
+        }
+    }
 };
 
 window.updateRowPrice = function(selectElem) {
@@ -367,10 +372,88 @@ window.updateRowPrice = function(selectElem) {
     let tr = selectElem.closest('tr');
     if(tr) {
         let priceInput = tr.querySelector('.inv-item-price');
+        let qtyInput = tr.querySelector('.inv-item-qty');
         if(priceInput) priceInput.value = price;
+        
+        let code = selectElem.value;
+        let product = inventory.find(i => i.code === code);
+        if(product && product.qty !== undefined) {
+            let currentQty = Number(qtyInput ? qtyInput.value : 1);
+            if((product.qty - currentQty) <= 5) {
+                alert(`⚠️ تنبيه: المنتج "${product.name}" باقي منه ${product.qty - currentQty} أو أقل في المخزون!`);
+            }
+        }
     }
     calculateInvoiceTotal();
 };
+
+window.handleBarcodeScan = function(event) {
+    if(event.key === 'Enter') {
+        let scannerInput = document.getElementById('barcodeScannerInput');
+        if(!scannerInput) return;
+        
+        let scannedCode = scannerInput.value.trim();
+        scannerInput.value = '';
+
+        if(!scannedCode) return;
+
+        let product = inventory.find(i => i.code === scannedCode);
+        
+        if(!product) {
+            alert(`❌ عذراً، المنتج غير متوفر (الكود: ${scannedCode} غير مسجل في المخزون)!`);
+            return;
+        }
+
+        let rows = document.querySelectorAll('#invoiceItemsBody tr');
+        let foundRow = null;
+        let emptyRow = null;
+
+        for(let tr of rows) {
+            let selectEl = tr.querySelector('.inv-item-code');
+            if(selectEl) {
+                if(selectEl.value === product.code) {
+                    foundRow = tr;
+                    break;
+                } else if(!selectEl.value && !emptyRow) {
+                    emptyRow = tr;
+                }
+            }
+        }
+
+        let newQty = 1;
+
+        if(foundRow) {
+            let qtyEl = foundRow.querySelector('.inv-item-qty');
+            if(qtyEl) {
+                newQty = Number(qtyEl.value) + 1;
+                qtyEl.value = newQty;
+            }
+        } else if(emptyRow) {
+            let selectEl = emptyRow.querySelector('.inv-item-code');
+            let qtyEl = emptyRow.querySelector('.inv-item-qty');
+            let priceEl = emptyRow.querySelector('.inv-item-price');
+            
+            if(selectEl) selectEl.value = product.code;
+            if(qtyEl) qtyEl.value = 1;
+            if(priceEl) priceEl.value = product.price;
+            newQty = 1;
+            updateRowPrice(selectEl);
+        } else {
+            window.addInvoiceItemRow(product.code, 1);
+            newQty = 1;
+        }
+
+        if(product.qty !== undefined) {
+            let remainingStock = product.qty - newQty;
+            if(remainingStock <= 5) {
+                alert(`⚠️ تنبيه: المنتج (${product.name}) باقي منه ${remainingStock < 0 ? 0 : remainingStock} فقط في المخزون!`);
+            }
+        }
+
+        calculateInvoiceTotal();
+    }
+};
+// ==========================================
 
 window.calculateInvoiceTotal = function() {
     let rows = document.querySelectorAll('#invoiceItemsBody tr');
@@ -422,55 +505,6 @@ window.openNewInvoiceModal = function() {
 
 window.closeNewInvoiceModal = function() { document.getElementById('newInvoiceModal').style.display = 'none'; };
 
-// ================= دالة معالجة جهاز الماسح الضوئي (QR & Barcode Scanner) =================
-window.handleBarcodeScan = function(event) {
-    if (event.key === 'Enter') {
-        let scannerInput = document.getElementById('barcodeScannerInput');
-        if (!scannerInput) return;
-        
-        let scannedCode = scannerInput.value.trim();
-        scannerInput.value = ''; // تفريغ الخانة فوراً لاستقبال الكود التالي
-
-        if (!scannedCode) return;
-
-        // البحث عن المنتج داخل المخزون بكود الـ QR أو الباركود
-        let product = inventory.find(i => i.code === scannedCode);
-        
-        if (!product) {
-            alert(`⚠️ تنبيه: الكود (${scannedCode}) غير مسجل في المخزون!`);
-            return;
-        }
-
-        let rows = document.querySelectorAll('#invoiceItemsBody tr');
-        let added = false;
-
-        for (let tr of rows) {
-            let selectEl = tr.querySelector('.inv-item-code');
-            let qtyEl = tr.querySelector('.inv-item-qty');
-            
-            if (selectEl && !selectEl.value) {
-                selectEl.value = product.code;
-                window.updateRowPrice(selectEl);
-                added = true;
-                break;
-            } else if (selectEl && selectEl.value === product.code) {
-                if (qtyEl) {
-                    qtyEl.value = Number(qtyEl.value) + 1;
-                    window.calculateInvoiceTotal();
-                    added = true;
-                    break;
-                }
-            }
-        }
-
-        if (!added) {
-            window.addInvoiceItemRow(product.code, 1);
-        } else {
-            window.calculateInvoiceTotal();
-        }
-    }
-};
-
 window.createNewInvoice = function(e) {
     if(e) e.preventDefault();
     
@@ -509,7 +543,7 @@ window.createNewInvoice = function(e) {
             alert('يرجى اختيار صنف صحيح في كل السطور!');
             return;
         }
-        let prodCode = selectEl.value; 
+        let prodCode = selectEl.value; // كود الصنف الفريد
         let qty = Number(tr.querySelector('.inv-item-qty').value);
         let price = Number(tr.querySelector('.inv-item-price').value);
         
@@ -552,6 +586,7 @@ window.createNewInvoice = function(e) {
         if(paidAmount < 0) paidAmount = 0;
     }
 
+    // خصم الكميات من المخزون بناءً على كود الصنف بدقة متناهية
     items.forEach(item => {
         let prodObj = inventory.find(i => i.code === item.code);
         if(prodObj) {
