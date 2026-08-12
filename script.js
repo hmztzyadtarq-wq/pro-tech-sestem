@@ -1129,3 +1129,99 @@ window.openCustomReport = function(type) {
     `);
     reportWin.document.close();
 };
+// فتح نافذة صغيرة لاختيار اسم العميل لاستخراج كشف حسابه
+window.openCustomerAccountPrompt = function() {
+    let menu = document.getElementById('reportMenuDropdown');
+    if(menu) menu.style.display = 'none';
+
+    // استخراج أسماء العملاء الفريدين من الفواتير أو قائمة العملاء المتاحة لديك
+    let customerNames = [...new Set(invoices.map(inv => inv.customerName))].filter(Boolean);
+
+    if(customerNames.length === 0) {
+        alert('لا توجد فواتير أو عملاء مسجلين حالياً!');
+        return;
+    }
+
+    let customerListStr = customerNames.map((name, index) => `${index + 1} - ${name}`).join('\n');
+    let chosenIndex = prompt(`اختر رقم العميل المطلوب استخراج كشف حسابه:\n\n${customerListStr}`);
+    
+    if(!chosenIndex) return;
+    let selectedCustomer = customerNames[Number(chosenIndex) - 1];
+
+    if(!selectedCustomer) {
+        alert('اختيار غير صحيح!');
+        return;
+    }
+
+    window.generateCustomerReport(selectedCustomer);
+};
+
+// إنشاء تقرير كشف حساب العميل المنسق والجاهز للطباعة
+window.generateCustomerReport = function(customerName) {
+    let customerInvoices = invoices.filter(inv => inv.customerName === customerName);
+
+    let totalInvoicesAmount = customerInvoices.reduce((sum, inv) => sum + Number(inv.total), 0);
+    let totalPaidAmount = customerInvoices.reduce((sum, inv) => sum + Number(inv.paid || 0), 0);
+    let totalRemainingAmount = customerInvoices.reduce((sum, inv) => sum + Number(inv.remaining || 0), 0);
+
+    let rowsHtml = '';
+    customerInvoices.forEach(inv => {
+        rowsHtml += `
+            <tr>
+                <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${inv.id}</td>
+                <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${inv.date}</td>
+                <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${inv.total.toLocaleString()} ج.م</td>
+                <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; color: #10b981;">${(inv.paid || 0).toLocaleString()} ج.م</td>
+                <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; color: #e11d48;">${(inv.remaining || 0).toLocaleString()} ج.م</td>
+            </tr>
+        `;
+    });
+
+    let reportWin = window.open('', '_blank', 'height=700,width=900');
+    reportWin.document.write(`
+        <html lang="ar" dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <title>كشف حساب عميل: ${customerName} - Bro Tech</title>
+            <style>
+                body { font-family: Tahoma, sans-serif; padding: 20px; background: #fff; color: #000; direction: rtl; }
+                table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                th, td { border: 1px solid #cbd5e1; padding: 8px; font-size: 13px; }
+                th { background: #f1f5f9; }
+                .summary-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 6px; margin-bottom: 20px; display: flex; justify-content: space-around; font-weight: bold; }
+                @media print { .no-print { display: none; } }
+            </style>
+        </head>
+        <body>
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h2 style="color: #0284c7; margin: 0;">Bro Tech - كشف حساب عميل</h2>
+                <p style="font-size: 16px; margin: 5px 0; color: #334155;">اسم العميل: <strong>${customerName}</strong></p>
+            </div>
+
+            <div class="summary-box">
+                <div>إجمالي المشتريات: <span style="color: #0284c7;">${totalInvoicesAmount.toLocaleString()} ج.م</span></div>
+                <div>إجمالي المدفوع: <span style="color: #10b981;">${totalPaidAmount.toLocaleString()} ج.م</span></div>
+                <div>إجمالي المتبقي (الديون): <span style="color: #e11d48;">${totalRemainingAmount.toLocaleString()} ج.م</span></div>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>رقم الفاتورة</th>
+                        <th>التاريخ</th>
+                        <th>إجمالي الفاتورة</th>
+                        <th>المدفوع</th>
+                        <th>المتبقي (عليه)</th>
+                    </tr>
+                </thead>
+                <tbody>${rowsHtml}</tbody>
+            </table>
+
+            <div class="no-print" style="margin-top: 25px; text-align: center;">
+                <button onclick="window.print()" style="background: #0284c7; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold;">🖨️ طباعة كشف الحساب / حفظ PDF</button>
+            </div>
+        </body>
+        </html>
+    `);
+    reportWin.document.close();
+};
