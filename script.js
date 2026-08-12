@@ -336,26 +336,32 @@ window.handleCustomerSelectChange = function() {
     }
 };
 
-window.addInvoiceItemRow = function() {
+window.addInvoiceItemRow = function(selectedCode = '', selectedQty = 1) {
     let tbody = document.getElementById('invoiceItemsBody');
     if(!tbody) return;
 
     let optionsHtml = '<option value="">-- اختر الصنف من المخزون --</option>';
     inventory.forEach(i => {
-        // الاعتماد بالكامل على كود الصنف (code) لمنع التداخل نهائياً
-        optionsHtml += `<option value="${i.code}" data-price="${i.price}" data-qty="${i.qty}">${i.name} (المتاح: ${i.qty} ${i.unit} - ${i.price} ج.م)</option>`;
+        // جعل الـ value هو كود الصنف حصرياً (i.code) لضمان عدم التداخل نهائياً
+        let isSelected = (i.code === selectedCode) ? 'selected' : '';
+        optionsHtml += `<option value="${i.code}" data-price="${i.price}" data-qty="${i.qty}" ${isSelected}>${i.name} (المتاح: ${i.qty} ${i.unit} - ${i.price} ج.م)</option>`;
     });
 
     let tr = document.createElement('tr');
     tr.innerHTML = `
         <td style="padding: 5px;"><select class="inv-item-code" dir="auto" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px;" onchange="updateRowPrice(this)">${optionsHtml}</select></td>
-        <td style="padding: 5px;"><input type="number" class="inv-item-qty" value="1" min="1" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px; text-align:center;" oninput="calculateInvoiceTotal()"></td>
+        <td style="padding: 5px;"><input type="number" class="inv-item-qty" value="${selectedQty}" min="1" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px; text-align:center;" oninput="calculateInvoiceTotal()"></td>
         <td style="padding: 5px;"><input type="number" class="inv-item-price" value="0" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px; text-align:center;" oninput="calculateInvoiceTotal()"></td>
         <td style="padding: 5px; text-align: center;"><button type="button" onclick="this.closest('tr').remove(); calculateInvoiceTotal();" style="background:#f43f5e; color:#fff; border:none; padding:5px 8px; border-radius:4px; cursor:pointer;"><i class="fas fa-trash"></i></button></td>
     `;
     tbody.appendChild(tr);
+    
+    // تحديث السعر تلقائياً إذا كان صنف محدد مسبقاً
+    let selectEl = tr.querySelector('.inv-item-code');
+    if(selectedCode && selectEl) {
+        window.updateRowPrice(selectEl);
+    }
 };
-
 window.updateRowPrice = function(selectElem) {
     let opt = selectElem.options[selectElem.selectedIndex];
     let price = opt ? opt.getAttribute('data-price') : 0;
