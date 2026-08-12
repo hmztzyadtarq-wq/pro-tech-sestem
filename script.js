@@ -935,3 +935,78 @@ window.printInvoice = function() {
     
     printWindow.document.close();
 };
+window.openDailySalesReport = function() {
+    let todayStr = new Date().toLocaleDateString('ar-EG');
+    
+    // تصفية فواتير اليوم فقط
+    let todayInvoices = invoices.filter(inv => inv.date === todayStr);
+    
+    let totalSalesToday = todayInvoices.reduce((sum, inv) => sum + Number(inv.total), 0);
+    let totalPaidToday = todayInvoices.reduce((sum, inv) => sum + Number(inv.paid || 0), 0);
+    let totalRemainingToday = todayInvoices.reduce((sum, inv) => sum + Number(inv.remaining || 0), 0);
+
+    let rowsHtml = '';
+    if(todayInvoices.length === 0) {
+        rowsHtml = `<tr><td colspan="5" style="text-align: center; padding: 15px; color: #64748b;">لا توجد فواتير مسجلة اليوم (${todayStr})</td></tr>`;
+    } else {
+        todayInvoices.forEach(inv => {
+            rowsHtml += `
+                <tr>
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${inv.id}</td>
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">${inv.customerName}</td>
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${inv.total.toLocaleString()} ج.م</td>
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${(inv.paid || 0).toLocaleString()} ج.م</td>
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; color: #e11d48;">${(inv.remaining || 0).toLocaleString()} ج.م</td>
+                </tr>
+            `;
+        });
+    }
+
+    let reportWin = window.open('', '_blank', 'height=700,width=900');
+    reportWin.document.write(`
+        <html lang="ar" dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <title>تقرير المبيعات اليومية - Bro Tech</title>
+            <style>
+                body { font-family: Tahoma, sans-serif; padding: 20px; background: #fff; color: #000; direction: rtl; }
+                table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                th, td { border: 1px solid #cbd5e1; padding: 8px; font-size: 13px; }
+                th { background: #f1f5f9; }
+                .summary-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 6px; margin-bottom: 20px; display: flex; justify-content: space-around; font-weight: bold; }
+                @media print { .no-print { display: none; } }
+            </style>
+        </head>
+        <body>
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h2 style="color: #0284c7; margin: 0;">Bro Tech - تقرير المبيعات اليومية</h2>
+                <p style="color: #64748b; margin: 5px 0;">تاريخ T-Report: ${todayStr}</p>
+            </div>
+
+            <div class="summary-box">
+                <div>إجمالي مبيعات اليوم: <span style="color: #0284c7;">${totalSalesToday.toLocaleString()} ج.م</span></div>
+                <div>التحصيل النقدي: <span style="color: #10b981;">${totalPaidToday.toLocaleString()} ج.م</span></div>
+                <div>الآجل (المتبقي): <span style="color: #e11d48;">${totalRemainingToday.toLocaleString()} ج.م</span></div>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>رقم الفاتورة</th>
+                        <th>اسم العميل</th>
+                        <th>إجمالي الفاتورة</th>
+                        <th>المدفوع</th>
+                        <th>المتبقي</th>
+                    </tr>
+                </thead>
+                <tbody>${rowsHtml}</tbody>
+            </table>
+
+            <div class="no-print" style="margin-top: 25px; text-align: center;">
+                <button onclick="window.print()" style="background: #0284c7; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold;">🖨️ طباعة التقرير / حفظ PDF</button>
+            </div>
+        </body>
+        </html>
+    `);
+    reportWin.document.close();
+};
