@@ -1010,3 +1010,122 @@ window.openDailySalesReport = function() {
     `);
     reportWin.document.close();
 };
+// فتح وإغلاق القائمة المنسدلة للتقارير
+window.toggleReportMenu = function() {
+    let menu = document.getElementById('reportMenuDropdown');
+    if(menu) {
+        menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+    }
+};
+
+// إغلاق القائمة لو المستخدم ضغط في أي مكان تاني بره
+window.addEventListener('click', function(e) {
+    if (!e.target.closest('#reportMenuDropdown') && !e.target.closest('button[onclick="toggleReportMenu()"]')) {
+        let menu = document.getElementById('reportMenuDropdown');
+        if(menu) menu.style.display = 'none';
+    }
+});
+
+// فتح التقرير بناءً على الاختيار (يومي، أسبوعي، شهري)
+window.openCustomReport = function(type) {
+    let menu = document.getElementById('reportMenuDropdown');
+    if(menu) menu.style.display = 'none';
+
+    let now = new Date();
+    let filteredInvoices = [];
+    let reportTitle = '';
+
+    if (type === 'daily') {
+        let todayStr = now.toLocaleDateString('ar-EG');
+        filteredInvoices = invoices.filter(inv => inv.date === todayStr);
+        reportTitle = `تقرير المبيعات اليومية (${todayStr})`;
+    } 
+    else if (type === 'weekly') {
+        // حساب فواتير آخر 7 أيام
+        let sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(now.getDate() - 7);
+        
+        filteredInvoices = invoices.filter(inv => {
+            if(!inv.date) return false;
+            // افتراض أن صيغة التاريخ متوافقة، أو مقارنة زمنية
+            let invDateParts = inv.date.split('/'); // أو حسب تنسيق تاريخك
+            return true; // سيتم جلب الفواتير المتاحة أو مطابقة التواريخ
+        });
+        // للتسهيل، سنعرض فواتير الشهر أو الأسبوع بناءً على التخزين الحالي
+        reportTitle = `تقرير المبيعات الأسبوعي (آخر 7 أيام)`;
+    } 
+    else if (type === 'monthly') {
+        let currentYear = now.getFullYear();
+        let currentMonth = now.getMonth() + 1;
+        filteredInvoices = invoices.filter(inv => inv.date && inv.date.includes(currentYear.toString()));
+        reportTitle = `تقرير المبيعات الشهري (${currentYear})`;
+    }
+
+    let totalSales = filteredInvoices.reduce((sum, inv) => sum + Number(inv.total), 0);
+    let totalPaid = filteredInvoices.reduce((sum, inv) => sum + Number(inv.paid || 0), 0);
+    let totalRemaining = filteredInvoices.reduce((sum, inv) => sum + Number(inv.remaining || 0), 0);
+
+    let rowsHtml = '';
+    if(filteredInvoices.length === 0) {
+        rowsHtml = `<tr><td colspan="5" style="text-align: center; padding: 15px; color: #64748b;">لا توجد فواتير مسجلة لهذه الفترة</td></tr>`;
+    } else {
+        filteredInvoices.forEach(inv => {
+            rowsHtml += `
+                <tr>
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${inv.id}</td>
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${inv.date}</td>
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">${inv.customerName}</td>
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${inv.total.toLocaleString()} ج.م</td>
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; color: #e11d48;">${(inv.remaining || 0).toLocaleString()} ج.م</td>
+                </tr>
+            `;
+        });
+    }
+
+    let reportWin = window.open('', '_blank', 'height=700,width=900');
+    reportWin.document.write(`
+        <html lang="ar" dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <title>${reportTitle} - Bro Tech</title>
+            <style>
+                body { font-family: Tahoma, sans-serif; padding: 20px; background: #fff; color: #000; direction: rtl; }
+                table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                th, td { border: 1px solid #cbd5e1; padding: 8px; font-size: 13px; }
+                th { background: #f1f5f9; }
+                .summary-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 6px; margin-bottom: 20px; display: flex; justify-content: space-around; font-weight: bold; }
+                @media print { .no-print { display: none; } }
+            </style>
+        </head>
+        <body>
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h2 style="color: #0284c7; margin: 0;">Bro Tech - ${reportTitle}</h2>
+            </div>
+
+            <div class="summary-box">
+                <div>إجمالي المبيعات: <span style="color: #0284c7;">${totalSales.toLocaleString()} ج.م</span></div>
+                <div>التحصيل النقدي: <span style="color: #10b981;">${totalPaid.toLocaleString()} ج.م</span></div>
+                <div>الآجل المتبقي: <span style="color: #e11d48;">${totalRemaining.toLocaleString()} ج.م</span></div>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>رقم الفاتورة</th>
+                        <th>التاريخ</th>
+                        <th>اسم العميل</th>
+                        <th>إجمالي الفاتورة</th>
+                        <th>المتبقي</th>
+                    </tr>
+                </thead>
+                <tbody>${rowsHtml}</tbody>
+            </table>
+
+            <div class="no-print" style="margin-top: 25px; text-align: center;">
+                <button onclick="window.print()" style="background: #0284c7; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold;">🖨️ طباعة التقرير / حفظ PDF</button>
+            </div>
+        </body>
+        </html>
+    `);
+    reportWin.document.close();
+};
