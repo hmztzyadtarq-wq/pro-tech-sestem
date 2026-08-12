@@ -170,7 +170,7 @@ function renderDashboard() {
     let alertsList = document.getElementById('lowStockAlertsList');
     if(alertsList) {
         alertsList.innerHTML = '';
-        let lowItems = inventory.filter(i => i.qty < 10);
+        let lowItems = inventory.filter(i => i.qty < 20);
         if(lowItems.length === 0) {
             alertsList.innerHTML = '<p style="color:#10b981; font-size:14px;"><i class="fas fa-check-circle"></i> جميع الأصناف في المخزون متوفرة.</p>';
         } else {
