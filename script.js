@@ -933,80 +933,257 @@ window.printInvoice = function() {
         </html>
     `);
     
-    printWindow.document.close();
-};
-window.openDailySalesReport = function() {
-    let todayStr = new Date().toLocaleDateString('ar-EG');
+ window.showInvoiceModal = function(inv) {
+    currentInvoiceData = inv;
+    window.activePrintingInvoice = inv;
     
-    // تصفية فواتير اليوم فقط
-    let todayInvoices = invoices.filter(inv => inv.date === todayStr);
+    let area = document.getElementById('printableInvoiceArea');
+    if(!area) return;
     
-    let totalSalesToday = todayInvoices.reduce((sum, inv) => sum + Number(inv.total), 0);
-    let totalPaidToday = todayInvoices.reduce((sum, inv) => sum + Number(inv.paid || 0), 0);
-    let totalRemainingToday = todayInvoices.reduce((sum, inv) => sum + Number(inv.remaining || 0), 0);
-
-    let rowsHtml = '';
-    if(todayInvoices.length === 0) {
-        rowsHtml = `<tr><td colspan="5" style="text-align: center; padding: 15px; color: #64748b;">لا توجد فواتير مسجلة اليوم (${todayStr})</td></tr>`;
-    } else {
-        todayInvoices.forEach(inv => {
-            rowsHtml += `
+    let itemsHtml = '';
+    if(inv.items) {
+        inv.items.forEach(item => {
+            itemsHtml += `
                 <tr>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${inv.id}</td>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">${inv.customerName}</td>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${inv.total.toLocaleString()} ج.م</td>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${(inv.paid || 0).toLocaleString()} ج.م</td>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; color: #e11d48;">${(inv.remaining || 0).toLocaleString()} ج.م</td>
+                    <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: right;"><bdi style="unicode-bidi: isolate; direction: auto;">${item.name}</bdi></td>
+                    <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center;">${item.qty}</td>
+                    <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center;">${item.price.toLocaleString()} ج.م</td>
+                    <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: left; font-weight: bold;">${item.total.toLocaleString()} ج.م</td>
                 </tr>
             `;
         });
     }
 
-    let reportWin = window.open('', '_blank', 'height=700,width=900');
-    reportWin.document.write(`
+    let oldBalPrintHtml = '';
+    if(inv.oldBalance && inv.oldBalance > 0) {
+        let label = inv.oldBalanceType === 'on_him' ? 'حساب سابق (عليه)' : 'حساب سابق (له)';
+        oldBalPrintHtml = `<tr><td style="padding: 6px 0; color: #475569;">${label}:</td><td style="padding: 6px 0; text-align: left; font-weight: bold;">${inv.oldBalance.toLocaleString()} ج.م</td></tr>`;
+    }
+
+    let discountPrintHtml = '';
+    if(inv.discountPercent && inv.discountPercent > 0) {
+        discountPrintHtml = `<tr><td style="padding: 6px 0; color: #10b981;">خصم (${inv.discountPercent}%):</td><td style="padding: 6px 0; text-align: left; color: #10b981; font-weight: bold;">-${(inv.discountAmount || 0).toLocaleString()} ج.م</td></tr>`;
+    }
+
+    area.innerHTML = `
+        <div style="background: #fff; color: #1e293b; padding: 30px; font-family: 'Tahoma', sans-serif; direction: rtl; text-align: right; width: 100%; box-sizing: border-box; border-radius: 8px;">
+            
+            <!-- رأس الفاتورة -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0284c7; padding-bottom: 15px; margin-bottom: 20px;">
+                <div>
+                    <h1 style="margin: 0 0 5px 0; color: #0284c7; font-size: 26px; font-weight: bold;">Bro Tech</h1>
+                    <p style="margin: 0; font-size: 13px; color: #64748b;">لصيانة وبيع جميع أنواع ماكينات الطباعة</p>
+                </div>
+                <div style="text-align: left;">
+                    <h3 style="margin: 0 0 5px 0; color: #1e293b; font-size: 18px;">فاتورة مبيعات</h3>
+                    <p style="margin: 2px 0; font-size: 13px; color: #475569;"><strong>رقم الفاتورة:</strong> ${inv.id}</p>
+                    <p style="margin: 2px 0; font-size: 13px; color: #475569;"><strong>التاريخ:</strong> ${inv.date}</p>
+                </div>
+            </div>
+
+            <!-- بيانات الشركة والعميل -->
+            <div style="display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; background: #f8fafc; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
+                <div>
+                    <p style="margin: 2px 0; color: #334155;"><strong>بيانات المعرض:</strong></p>
+                    <p style="margin: 2px 0; color: #64748b;">العنوان: 195 شارع جسر السويس</p>
+                    <p style="margin: 2px 0; color: #64748b;">الهاتف: 01020008299</p>
+                </div>
+                <div style="text-align: left;">
+                    <p style="margin: 2px 0; color: #334155;"><strong>بيانات العميل:</strong></p>
+                    <p style="margin: 2px 0; color: #64748b;">الاسم: ${inv.customerName}</p>
+                    <p style="margin: 2px 0; color: #64748b;">الهاتف: ${inv.customerPhone || '---'}</p>
+                </div>
+            </div>
+
+            <!-- جدول الأصناف -->
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px;">
+                <thead>
+                    <tr style="background: #0284c7; color: white;">
+                        <th style="padding: 10px; text-align: right; border-top-right-radius: 6px;">الصنف</th>
+                        <th style="padding: 10px; text-align: center;">الكمية</th>
+                        <th style="padding: 10px; text-align: center;">السعر</th>
+                        <th style="padding: 10px; text-align: left; border-top-left-radius: 6px;">الإجمالي</th>
+                    </tr>
+                </thead>
+                <tbody>${itemsHtml}</tbody>
+            </table>
+
+            <!-- ملخص الحسابات -->
+            <div style="display: flex; justify-content: flex-end; margin-top: 15px;">
+                <table style="width: 320px; font-size: 13px; border-collapse: collapse; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
+                    <tr>
+                        <td style="padding: 6px 0; color: #475569;">الإجمالي الفرعي:</td>
+                        <td style="padding: 6px 0; text-align: left; font-weight: bold;">${(inv.subtotal || inv.total).toLocaleString()} ج.م</td>
+                    </tr>
+                    ${discountPrintHtml}
+                    ${oldBalPrintHtml}
+                    <tr style="border-top: 1px solid #cbd5e1;">
+                        <td style="padding: 8px 0; font-weight: bold; color: #0284c7; font-size: 15px;">الإجمالي النهائي:</td>
+                        <td style="padding: 8px 0; text-align: left; font-weight: bold; color: #0284c7; font-size: 15px;">${inv.total.toLocaleString()} ج.م</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 6px 0; color: #475569;">المدفوع:</td>
+                        <td style="padding: 6px 0; text-align: left; font-weight: bold; color: #10b981;">${(inv.paid || 0).toLocaleString()} ج.م</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 6px 0; color: #475569;">المتبقي:</td>
+                        <td style="padding: 6px 0; text-align: left; font-weight: bold; color: #e11d48;">${(inv.remaining || 0).toLocaleString()} ج.م</td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- تذييل الفاتورة -->
+            <div style="margin-top: 40px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 15px;">
+                <p style="margin: 0;">شكراً لتعاملكم مع Bro Tech - مع تمنياتنا لكم بدوام التوفيق والنجاح</p>
+            </div>
+        </div>
+
+        <div class="no-print" style="text-align: center; margin-top: 20px; padding: 10px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: center; gap: 10px;">
+            <button onclick="printInvoice()" style="background: #0284c7; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold;"><i class="fas fa-print"></i> طباعة الفاتورة</button>
+            <button onclick="sendToWhatsAppNabawy()" style="background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold;"><i class="fab fa-whatsapp"></i> إرسال لمحمد النبوي</button>
+            <button onclick="closeInvoiceModal()" style="background: #64748b; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold;"><i class="fas fa-times"></i> إغلاق</button>
+        </div>
+    `;
+    document.getElementById('invoiceModal').style.display = 'flex';
+};
+
+window.printInvoice = function() {
+    let inv = window.activePrintingInvoice || currentInvoiceData;
+    if(!inv) {
+        alert('لا توجد فاتورة محددة للطباعة!');
+        return;
+    }
+
+    let itemsHtml = '';
+    if(inv.items) {
+        inv.items.forEach(item => {
+            itemsHtml += `
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: right;"><bdi style="unicode-bidi: isolate; direction: auto;">${item.name}</bdi></td>
+                    <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center;">${item.qty}</td>
+                    <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: center;">${item.price.toLocaleString()} ج.م</td>
+                    <td style="padding: 10px; border: 1px solid #e2e8f0; text-align: left; font-weight: bold;">${item.total.toLocaleString()} ج.م</td>
+                </tr>
+            `;
+        });
+    }
+
+    let oldBalPrintHtml = '';
+    if(inv.oldBalance && inv.oldBalance > 0) {
+        let label = inv.oldBalanceType === 'on_him' ? 'حساب سابق (عليه)' : 'حساب سابق (له)';
+        oldBalPrintHtml = `<tr><td style="padding: 6px 0; color: #475569;">${label}:</td><td style="padding: 6px 0; text-align: left; font-weight: bold;">${inv.oldBalance.toLocaleString()} ج.م</td></tr>`;
+    }
+
+    let discountPrintHtml = '';
+    if(inv.discountPercent && inv.discountPercent > 0) {
+        discountPrintHtml = `<tr><td style="padding: 6px 0; color: #10b981;">خصم (${inv.discountPercent}%):</td><td style="padding: 6px 0; text-align: left; color: #10b981; font-weight: bold;">-${(inv.discountAmount || 0).toLocaleString()} ج.م</td></tr>`;
+    }
+
+    let printWindow = window.open('', '_blank', 'height=900,width=1000');
+    
+    printWindow.document.write(`
         <html lang="ar" dir="rtl">
         <head>
             <meta charset="UTF-8">
-            <title>تقرير المبيعات اليومية - Bro Tech</title>
+            <title>فاتورة مبيعات - Bro Tech</title>
             <style>
-                body { font-family: Tahoma, sans-serif; padding: 20px; background: #fff; color: #000; direction: rtl; }
-                table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-                th, td { border: 1px solid #cbd5e1; padding: 8px; font-size: 13px; }
-                th { background: #f1f5f9; }
-                .summary-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 6px; margin-bottom: 20px; display: flex; justify-content: space-around; font-weight: bold; }
-                @media print { .no-print { display: none; } }
+                body {
+                    font-family: 'Tahoma', sans-serif;
+                    margin: 0;
+                    padding: 20px;
+                    background: #ffffff;
+                    color: #1e293b;
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                }
+                @page {
+                    size: A4;
+                    margin: 10mm;
+                }
             </style>
         </head>
         <body>
-            <div style="text-align: center; margin-bottom: 20px;">
-                <h2 style="color: #0284c7; margin: 0;">Bro Tech - تقرير المبيعات اليومية</h2>
-                <p style="color: #64748b; margin: 5px 0;">تاريخ T-Report: ${todayStr}</p>
-            </div>
+            <div style="width: 100%; max-width: 800px; margin: 0 auto; background: #fff; padding: 20px; box-sizing: border-box;">
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0284c7; padding-bottom: 15px; margin-bottom: 20px;">
+                    <div>
+                        <h1 style="margin: 0 0 5px 0; color: #0284c7; font-size: 26px; font-weight: bold;">Bro Tech</h1>
+                        <p style="margin: 0; font-size: 13px; color: #64748b;">لصيانة وبيع جميع أنواع ماكينات الطباعة</p>
+                    </div>
+                    <div style="text-align: left;">
+                        <h3 style="margin: 0 0 5px 0; color: #1e293b; font-size: 18px;">فاتورة مبيعات</h3>
+                        <p style="margin: 2px 0; font-size: 13px; color: #475569;"><strong>رقم الفاتورة:</strong> ${inv.id}</p>
+                        <p style="margin: 2px 0; font-size: 13px; color: #475569;"><strong>التاريخ:</strong> ${inv.date}</p>
+                    </div>
+                </div>
 
-            <div class="summary-box">
-                <div>إجمالي مبيعات اليوم: <span style="color: #0284c7;">${totalSalesToday.toLocaleString()} ج.م</span></div>
-                <div>التحصيل النقدي: <span style="color: #10b981;">${totalPaidToday.toLocaleString()} ج.م</span></div>
-                <div>الآجل (المتبقي): <span style="color: #e11d48;">${totalRemainingToday.toLocaleString()} ج.م</span></div>
-            </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; background: #f8fafc; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
+                    <div>
+                        <p style="margin: 2px 0; color: #334155;"><strong>بيانات المعرض:</strong></p>
+                        <p style="margin: 2px 0; color: #64748b;">العنوان: 195 شارع جسر السويس</p>
+                        <p style="margin: 2px 0; color: #64748b;">الهاتف: 01020008299</p>
+                    </div>
+                    <div style="text-align: left;">
+                        <p style="margin: 2px 0; color: #334155;"><strong>بيانات العميل:</strong></p>
+                        <p style="margin: 2px 0; color: #64748b;">الاسم: ${inv.customerName}</p>
+                        <p style="margin: 2px 0; color: #64748b;">الهاتف: ${inv.customerPhone || '---'}</p>
+                    </div>
+                </div>
 
-            <table>
-                <thead>
-                    <tr>
-                        <th>رقم الفاتورة</th>
-                        <th>اسم العميل</th>
-                        <th>إجمالي الفاتورة</th>
-                        <th>المدفوع</th>
-                        <th>المتبقي</th>
-                    </tr>
-                </thead>
-                <tbody>${rowsHtml}</tbody>
-            </table>
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px;">
+                    <thead>
+                        <tr style="background: #0284c7; color: white;">
+                            <th style="padding: 10px; text-align: right;">الصنف</th>
+                            <th style="padding: 10px; text-align: center;">الكمية</th>
+                            <th style="padding: 10px; text-align: center;">السعر</th>
+                            <th style="padding: 10px; text-align: left;">الإجمالي</th>
+                        </tr>
+                    </thead>
+                    <tbody>${itemsHtml}</tbody>
+                </table>
 
-            <div class="no-print" style="margin-top: 25px; text-align: center;">
-                <button onclick="window.print()" style="background: #0284c7; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold;">🖨️ طباعة التقرير / حفظ PDF</button>
+                <div style="display: flex; justify-content: flex-end; margin-top: 15px;">
+                    <table style="width: 320px; font-size: 13px; border-collapse: collapse; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
+                        <tr>
+                            <td style="padding: 6px 0; color: #475569;">الإجمالي الفرعي:</td>
+                            <td style="padding: 6px 0; text-align: left; font-weight: bold;">${(inv.subtotal || inv.total).toLocaleString()} ج.م</td>
+                        </tr>
+                        ${discountPrintHtml}
+                        ${oldBalPrintHtml}
+                        <tr style="border-top: 1px solid #cbd5e1;">
+                            <td style="padding: 8px 0; font-weight: bold; color: #0284c7; font-size: 15px;">الإجمالي النهائي:</td>
+                            <td style="padding: 8px 0; text-align: left; font-weight: bold; color: #0284c7; font-size: 15px;">${inv.total.toLocaleString()} ج.م</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 6px 0; color: #475569;">المدفوع:</td>
+                            <td style="padding: 6px 0; text-align: left; font-weight: bold; color: #10b981;">${(inv.paid || 0).toLocaleString()} ج.م</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 6px 0; color: #475569;">المتبقي:</td>
+                            <td style="padding: 6px 0; text-align: left; font-weight: bold; color: #e11d48;">${(inv.remaining || 0).toLocaleString()} ج.م</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div style="margin-top: 50px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 15px;">
+                    <p style="margin: 0;">شكراً لتعاملكم مع Bro Tech - لصيانة وبيع ماكينات الطباعة</p>
+                </div>
             </div>
+            <script>
+                window.onload = function() {
+                    setTimeout(function() {
+                        window.print();
+                        window.close();
+                    }, 400);
+                }
+            </script>
         </body>
         </html>
     `);
-    reportWin.document.close();
+    
+    printWindow.document.close();
 };
