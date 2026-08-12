@@ -184,9 +184,16 @@
                     </div>
                     <button class="btn-primary" onclick="openNewInvoiceModal()"><i class="fas fa-file-invoice-dollar"></i> إصدار فاتورة جديدة</button>
                 </div>
-                <button onclick="openDailySalesReport()" style="background: #0ea5e9; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; display: inline-flex; align-items: center; gap: 8px;">
-    <i class="fas fa-calendar-day"></i> تقرير المبيعات اليومية
-</button>
+             <div style="position: relative; display: inline-block;">
+    <button onclick="toggleReportMenu()" style="background: #0ea5e9; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; display: inline-flex; align-items: center; gap: 8px;">
+        <i class="fas fa-chart-bar"></i> تقارير المبيعات <i class="fas fa-chevron-down"></i>
+    </button>
+    <div id="reportMenuDropdown" style="display: none; position: absolute; right: 0; background: #1e293b; border: 1px solid #334155; border-radius: 6px; margin-top: 5px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); z-index: 100; min-width: 150px;">
+        <button onclick="openCustomReport('daily')" style="width: 100%; padding: 10px; background: none; border: none; color: #fff; text-align: right; cursor: pointer; border-bottom: 1px solid #334155;">📅 تقرير يومي</button>
+        <button onclick="openCustomReport('weekly')" style="width: 100%; padding: 10px; background: none; border: none; color: #fff; text-align: right; cursor: pointer; border-bottom: 1px solid #334155;">📆 تقرير أسبوعي</button>
+        <button onclick="openCustomReport('monthly')" style="width: 100%; padding: 10px; background: none; border: none; color: #fff; text-align: right; cursor: pointer;">🗓️ تقرير شهري</button>
+    </div>
+</div>
                 <div class="card-table-wrapper">
                     <div class="table-toolbar flex-toolbar">
                         <input type="text" id="searchInvoices" placeholder="بحث باسم العميل أو رقم الفاتورة..." onkeyup="filterInvoices()">
