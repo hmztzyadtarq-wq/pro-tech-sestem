@@ -607,9 +607,6 @@ window.showInvoiceModalEncoded = function(encodedInv) {
     window.showInvoiceModal(JSON.parse(decodeURIComponent(encodedInv)));
 };
 
-// ==========================================
-// التعديل المطلوب: زر تعديل الفاتورة في المعاينة
-// ==========================================
 window.editInvoiceStatusModal = function() {
     let inv = window.activePrintingInvoice || currentInvoiceData;
     if(!inv) return;
@@ -751,70 +748,6 @@ function initChart() {
         options: { responsive: true, maintainAspectRatio: false }
     });
 }
-window.openEditProductModal = function(index) {
-    const product = inventory[index];
-    if (!product) return;
-
-    document.getElementById('editProdIndex').value = index;
-    document.getElementById('editProdCode').value = product.code || '';
-    document.getElementById('editProdName').value = product.name || '';
-    document.getElementById('editProdQty').value = product.qty || 0;
-    document.getElementById('editProdUnit').value = product.unit || '';
-    document.getElementById('editProdPrice').value = product.price || 0;
-
-    let modal = document.getElementById('editProductModal');
-    if (modal) {
-        modal.style.display = 'flex';
-        modal.style.zIndex = '99999'; // لضمان ظهور النافذة فوق أي عنصر أو نافذة أخرى في ساعتها
-    }
-};
-
-window.closeEditProductModal = function() {
-    let modal = document.getElementById('editProductModal');
-    if (modal) {
-        modal.style.display = 'none';
-    }
-};
-
-window.saveEditedProduct = function(event) {
-    if (event) event.preventDefault();
-    
-    const index = document.getElementById('editProdIndex').value;
-    if (index === "" || !inventory[index]) return;
-
-    inventory[index].code = document.getElementById('editProdCode').value.trim();
-    inventory[index].name = document.getElementById('editProdName').value.trim();
-    inventory[index].qty = Number(document.getElementById('editProdQty').value);
-    inventory[index].unit = document.getElementById('editProdUnit').value;
-    inventory[index].price = Number(document.getElementById('editProdPrice').value);
-
-    saveData();
-    refreshAllData();
-    closeEditProductModal();
-    alert('تم تعديل بيانات الصنف بنجاح!');
-};
-
-
-
-window.closeEditProductModal = function() {
-    document.getElementById('editProductModal').style.display = 'none';
-};
-
-window.saveEditedProduct = function(event) {
-    event.preventDefault();
-    const index = document.getElementById('editProdIndex').value;
-    if (index === "" || !inventory[index]) return;
-
-    inventory[index].code = document.getElementById('editProdCode').value.trim();
-    inventory[index].name = document.getElementById('editProdName').value.trim();
-    inventory[index].qty = Number(document.getElementById('editProdQty').value);
-    inventory[index].unit = document.getElementById('editProdUnit').value;
-    inventory[index].price = Number(document.getElementById('editProdPrice').value);
-
-    saveData();
-    refreshAllData();
-    closeEditProductModal();
-    alert('تم تعديل بيانات الصنف بنجاح!');
 
 window.printInvoice = function() {
     let inv = window.activePrintingInvoice || currentInvoiceData;
@@ -920,6 +853,7 @@ window.printInvoice = function() {
     `);
     printWindow.document.close();
 };
+
 // دالة لتسجيل أي عملية جديدة في السجل
 function logActivity(actionDescription) {
     if (!window.activityLog) {
@@ -934,7 +868,6 @@ function logActivity(actionDescription) {
         time: timeStr
     });
     
-    // الاحتفاظ بآخر 100 عملية فقط لتخفيف التخزين
     if (window.activityLog.length > 100) {
         window.activityLog.pop();
     }
@@ -943,7 +876,6 @@ function logActivity(actionDescription) {
     renderActivityLog();
 }
 
-// دالة عرض وتحديث جدول سجل العمليات في الصفحة
 function renderActivityLog() {
     let tbody = document.querySelector('#activityLogTableBody') || document.getElementById('activityLogTableBody');
     if (!tbody) return;
@@ -968,8 +900,51 @@ function renderActivityLog() {
     });
 }
 
-// ربط تحديث السجل عند تحميل الصفحة
 document.addEventListener('DOMContentLoaded', function() {
     window.activityLog = JSON.parse(localStorage.getItem('protech_activity_log')) || [];
     renderActivityLog();
 });
+
+// دوال تعديل المنتجات المضبوطة بالكامل للظهور الفوري في المقدمة
+window.openEditProductModal = function(index) {
+    const product = inventory[index];
+    if (!product) return;
+
+    document.getElementById('editProdIndex').value = index;
+    document.getElementById('editProdCode').value = product.code || '';
+    document.getElementById('editProdName').value = product.name || '';
+    document.getElementById('editProdQty').value = product.qty || 0;
+    document.getElementById('editProdUnit').value = product.unit || '';
+    document.getElementById('editProdPrice').value = product.price || 0;
+
+    let modal = document.getElementById('editProductModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        modal.style.zIndex = '99999';
+    }
+};
+
+window.closeEditProductModal = function() {
+    let modal = document.getElementById('editProductModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+};
+
+window.saveEditedProduct = function(event) {
+    if (event) event.preventDefault();
+    
+    const index = document.getElementById('editProdIndex').value;
+    if (index === "" || !inventory[index]) return;
+
+    inventory[index].code = document.getElementById('editProdCode').value.trim();
+    inventory[index].name = document.getElementById('editProdName').value.trim();
+    inventory[index].qty = Number(document.getElementById('editProdQty').value);
+    inventory[index].unit = document.getElementById('editProdUnit').value;
+    inventory[index].price = Number(document.getElementById('editProdPrice').value);
+
+    saveData();
+    refreshAllData();
+    closeEditProductModal();
+    alert('تم تعديل بيانات الصنف بنجاح!');
+};
