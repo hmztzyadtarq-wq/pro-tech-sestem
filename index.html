@@ -389,12 +389,14 @@
                     </div>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button class="btn-secondary" onclick="closeInvoiceModal()">إغلاق</button>
-                <button class="btn-primary" onclick="downloadPDF()"><i class="fas fa-file-pdf"></i> تحميل PDF (للطباعة بالماكينة)</button>
-                <button class="btn-success" onclick="sendToWhatsApp()"><i class="fab fa-whatsapp"></i> إرسال تلقائي للرقم (01020008299)</button>
-            </div>
-        </div>
+             <div class="modal-footer" style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+    <button class="btn-primary" onclick="printInvoice()"><i class="fas fa-print"></i> طباعة الفاتورة</button>
+    <button class="btn-warning" onclick="editInvoiceStatusModal()" style="background: #f59e0b; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fas fa-edit"></i> تعديل وظيفة الفاتورة</button>
+    <button class="btn-success" onclick="sendToWhatsAppNabawy()"><i class="fab fa-whatsapp"></i> إرسال لمحمد النبوي</button>
+    <button class="btn-secondary" onclick="closeInvoiceModal()"><i class="fas fa-times"></i> إغلاق</button>
+</div>
+
+     
     </div>
 
     <!-- New Invoice Creation Modal -->
