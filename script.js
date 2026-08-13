@@ -1225,3 +1225,76 @@ window.generateCustomerReport = function(customerName) {
     `);
     reportWin.document.close();
 };
+// مصفوفة لتخزين السجل (يمكنك ربطها بـ LocalStorage أو فايربيس لاحقاً لحفظها بشكل دائم)
+window.activityLogs = window.activityLogs || [];
+
+// دالة لتسجيل أي حدث جديد في النظام
+window.logActivity = function(actionType, description) {
+    let now = new Date();
+    let timeStr = now.toLocaleDateString('ar-EG') + ' - ' + now.toLocaleTimeString('ar-EG');
+    
+    let logItem = {
+        time: timeStr,
+        type: actionType, // مثل: 'فاتورة جديدة', 'تعديل مخزون', 'حذف'
+        desc: description
+    };
+
+    // إضافة الحدث في بداية المصفوفة عشان الجديد يظهر فوق
+    window.activityLogs.unshift(logItem);
+    
+    // الاحتفاظ بأخر 50 حركة فقط عشان الذاكرة
+    if(window.activityLogs.length > 50) {
+        window.activityLogs.pop();
+    }
+};
+
+// دالة لفتح نافذة أو لوحة عرض سجل النشاطات
+window.openActivityLogModal = function() {
+    let rowsHtml = '';
+    if(window.activityLogs.length === 0) {
+        rowsHtml = `<tr><td colspan="3" style="text-align: center; padding: 15px; color: #64748b;">لا توجد نشاطات مسجلة حتى الآن</td></tr>`;
+    } else {
+        window.activityLogs.forEach(log => {
+            rowsHtml += `
+                <tr>
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; font-size: 12px; color: #475569;">${log.time}</td>
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; color: #0284c7;">${log.type}</td>
+                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">${log.desc}</td>
+                </tr>
+            `;
+        });
+    }
+
+    let logWin = window.open('', '_blank', 'height=600,width=800');
+    logWin.document.write(`
+        <html lang="ar" dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <title>سجل النشاطات والعمليات - Bro Tech</title>
+            <style>
+                body { font-family: Tahoma, sans-serif; padding: 20px; background: #fff; color: #000; direction: rtl; }
+                table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                th, td { border: 1px solid #cbd5e1; padding: 8px; font-size: 13px; }
+                th { background: #f1f5f9; }
+            </style>
+        </head>
+        <body>
+            <h2 style="color: #0284c7; text-align: center; margin-bottom: 20px;">Bro Tech - سجل العمليات والنشاطات</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 150px;">الوقت والتاريخ</th>
+                        <th style="width: 130px;">نوع الحدث</th>
+                        <th>التفاصيل</th>
+                    </tr>
+                </thead>
+                <tbody>${rowsHtml}</tbody>
+            </table>
+            <div style="margin-top: 20px; text-align: center;">
+                <button onclick="window.print()" style="background: #0284c7; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold;">طباعة السجل</button>
+            </div>
+        </body>
+        </html>
+    `);
+    logWin.document.close();
+};
