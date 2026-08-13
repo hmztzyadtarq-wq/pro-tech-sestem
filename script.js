@@ -19,7 +19,7 @@ const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const db = getFirestore(app);
 
-// Data State (Initial Defaults) - تم ضبط الأكواد بمنتهى الدقة لمنع أي تداخل
+// Data State (Initial Defaults)
 let inventory = [
     { code: 'PR-001', name: 'حبر طابعة ياباني أسود ليزر', qty: 45, unit: 'لتر', price: 1200 },
     { code: 'PR-002', name: 'ماكينة طباعة رقمية موديل X', qty: 5, unit: 'قطعة', price: 25000 },
@@ -47,7 +47,6 @@ let settings = {
 let currentInvoiceData = null;
 let mainChartInstance = null;
 
-// Load data from Firebase on startup
 window.onload = async function() {
     await loadDataFromFirebase();
     refreshAllData();
@@ -222,13 +221,49 @@ window.addNewProduct = function(e) {
     let unit = document.getElementById('prodUnit')?.value;
     let price = Number(document.getElementById('prodPrice')?.value);
 
-    if(!code || !name) return;
+    if(!code || !name) {
+        alert('يرجى إدخال كود واسم الصنف على الأقل!');
+        return;
+    }
     
     inventory.push({ code, name, qty, unit, price });
     saveData();
     refreshAllData();
     window.closeAddProductModal();
     if(e && e.target) e.target.reset();
+};
+
+window.openEditProductModal = function(index) {
+    const product = inventory[index];
+    if (!product) return;
+    document.getElementById('editProdIndex').value = index;
+    document.getElementById('editProdCode').value = product.code || '';
+    document.getElementById('editProdName').value = product.name || '';
+    document.getElementById('editProdQty').value = product.qty || 0;
+    document.getElementById('editProdUnit').value = product.unit || '';
+    document.getElementById('editProdPrice').value = product.price || 0;
+    document.getElementById('editProductModal').style.display = 'flex';
+};
+
+window.closeEditProductModal = function() {
+    document.getElementById('editProductModal').style.display = 'none';
+};
+
+window.saveEditedProduct = function(event) {
+    if (event) event.preventDefault();
+    const index = document.getElementById('editProdIndex').value;
+    if (index === "" || !inventory[index]) return;
+
+    inventory[index].code = document.getElementById('editProdCode').value.trim();
+    inventory[index].name = document.getElementById('editProdName').value.trim();
+    inventory[index].qty = Number(document.getElementById('editProdQty').value);
+    inventory[index].unit = document.getElementById('editProdUnit').value;
+    inventory[index].price = Number(document.getElementById('editProdPrice').value);
+
+    saveData();
+    refreshAllData();
+    closeEditProductModal();
+    alert('تم تعديل بيانات الصنف بنجاح!');
 };
 
 window.deleteProduct = function(index) {
@@ -342,7 +377,6 @@ window.addInvoiceItemRow = function(selectedCode = '', selectedQty = 1) {
 
     let optionsHtml = '<option value="">-- اختر الصنف من المخزون --</option>';
     inventory.forEach(i => {
-        // جعل الـ value هو كود الصنف حصرياً (i.code) لضمان عدم التداخل نهائياً
         let isSelected = (i.code === selectedCode) ? 'selected' : '';
         optionsHtml += `<option value="${i.code}" data-price="${i.price}" data-qty="${i.qty}" ${isSelected}>${i.name} (المتاح: ${i.qty} ${i.unit} - ${i.price} ج.م)</option>`;
     });
@@ -356,12 +390,12 @@ window.addInvoiceItemRow = function(selectedCode = '', selectedQty = 1) {
     `;
     tbody.appendChild(tr);
     
-    // تحديث السعر تلقائياً إذا كان صنف محدد مسبقاً
     let selectEl = tr.querySelector('.inv-item-code');
     if(selectedCode && selectEl) {
         window.updateRowPrice(selectEl);
     }
 };
+
 window.updateRowPrice = function(selectElem) {
     let opt = selectElem.options[selectElem.selectedIndex];
     let price = opt ? opt.getAttribute('data-price') : 0;
@@ -461,7 +495,7 @@ window.createNewInvoice = function(e) {
             alert('يرجى اختيار صنف صحيح في كل السطور!');
             return;
         }
-        let prodCode = selectEl.value; // كود الصنف الفريد
+        let prodCode = selectEl.value;
         let qty = Number(tr.querySelector('.inv-item-qty').value);
         let price = Number(tr.querySelector('.inv-item-price').value);
         
@@ -504,7 +538,6 @@ window.createNewInvoice = function(e) {
         if(paidAmount < 0) paidAmount = 0;
     }
 
-    // خصم الكميات من المخزون بناءً على كود الصنف بدقة متناهية
     items.forEach(item => {
         let prodObj = inventory.find(i => i.code === item.code);
         if(prodObj) {
@@ -606,56 +639,33 @@ function renderCustomers() {
 window.openAddCustomerModal = function() { document.getElementById('addCustomerModal').style.display = 'flex'; };
 window.closeAddCustomerModal = function() { document.getElementById('addCustomerModal').style.display = 'none'; };
 
-window.addNewCustomerDirect = function(e) {
-    if(e) e.preventDefault();
-    let name = document.getElementById('custName')?.value.trim();
-    let phone = document.getElementById('custPhone')?.value.trim();
-    let address = document.getElementById('custAddress')?.value.trim();
-    let oldBalance = Number(document.getElementById('custOldBalance')?.value) || 0;
-    let balanceType = document.getElementById('custBalanceType')?.value || 'none';
-    let oldBalanceDate = document.getElementById('custOldBalanceDate')?.value || '';
-
-    if(!name) return;
-    if(customers.some(c => c.name === name)) {
-        alert('هذا العميل مسجل مسبقاً!');
-        return;
-    }
-
-    customers.push({ name, phone, address, oldBalance, balanceType, oldBalanceDate });
-    saveData();
-    refreshAllData();
-    window.closeAddCustomerModal();
-    if(e && e.target) e.target.reset();
-    alert('تم حفظ العميل بنجاح!');
-};
-
-window.openEditCustomerBalance = function(index) {
-    let c = customers[index];
-    let newBal = prompt(`تعديل الحساب القديم للعميل (${c.name}):\nأدخل قيمة الحساب (بالجنيه):`, c.oldBalance || 0);
-    if(newBal === null) return;
-    
-    let type = prompt(`نوع الحساب:\nاكتب (on_him) لو عليه متبقي\nاكتب (for_him) لو له رصيد متبقي`, c.balanceType || 'on_him');
-    let dateStr = prompt(`أدخل تاريخ الحساب القديم (مثال: 2026/01/15):`, c.oldBalanceDate || new Date().toLocaleDateString());
-
-    c.oldBalance = Number(newBal) || 0;
-    c.balanceType = type === 'for_him' ? 'for_him' : 'on_him';
-    c.oldBalanceDate = dateStr || '';
-
-    saveData();
-    refreshAllData();
-    alert('تم تحديث الحساب القديم للعميل بنجاح!');
-};
-
-window.deleteCustomer = function(index) {
-    if(confirm('هل أنت متأكد من حذف هذا العميل من الدليل؟')) {
-        customers.splice(index, 1);
-        saveData();
-        refreshAllData();
-    }
-};
-
 window.showInvoiceModalEncoded = function(encodedInv) {
     window.showInvoiceModal(JSON.parse(decodeURIComponent(encodedInv)));
+};
+
+// دالة تعديل حالة الفاتورة (آجل / مدفوع) المضافة خصيصاً لتتكامل مع المعاينة
+window.editInvoiceStatusModal = function() {
+    let inv = window.activePrintingInvoice || currentInvoiceData;
+    if(!inv) return;
+
+    let newStatus = prompt(`تعديل حالة الفاتورة (${inv.id}):\nاكتب (مدفوع) لو العميل دفع بالكامل\nاكتب (آجل) لو المبلغ متبقي عليه`, inv.remaining > 0 ? 'آجل' : 'مدفوع');
+    if(!newStatus) return;
+
+    if(newStatus.includes('مدفوع')) {
+        inv.paid = inv.total;
+        inv.remaining = 0;
+        inv.status = 'تم الدفع بالكامل';
+    } else {
+        let remVal = prompt(`أدخل المبلغ المتبقي على العميل:`, inv.remaining || 0);
+        inv.remaining = Number(remVal) || 0;
+        inv.paid = inv.total - inv.remaining;
+        inv.status = `متبقي: ${inv.remaining} ج.م`;
+    }
+
+    saveData();
+    refreshAllData();
+    window.showInvoiceModal(inv);
+    alert('تم تعديل وحفظ حالة الفاتورة بنجاح!');
 };
 
 window.showInvoiceModal = function(inv) {
@@ -736,8 +746,9 @@ window.showInvoiceModal = function(inv) {
             </div>
         </div>
 
-        <div class="no-print" style="text-align: center; margin-top: 15px; padding: 10px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: center; gap: 10px;">
+        <div class="no-print" style="text-align: center; margin-top: 15px; padding: 10px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
             <button onclick="printInvoice()" style="background: #0284c7; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fas fa-print"></i> طباعة الفاتورة</button>
+            <button onclick="editInvoiceStatusModal()" style="background: #f59e0b; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fas fa-edit"></i> تعديل وظيفة الفاتورة</button>
             <button onclick="sendToWhatsAppNabawy()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fab fa-whatsapp"></i> إرسال لمحمد النبوي</button>
             <button onclick="closeInvoiceModal()" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fas fa-times"></i> إغلاق</button>
         </div>
@@ -775,45 +786,6 @@ function initChart() {
     });
 }
 
-window.openEditProductModal = function(index) {
-    const product = inventory[index];
-    if (!product) return;
-
-    document.getElementById('editProdIndex').value = index;
-    document.getElementById('editProdCode').value = product.code || '';
-    document.getElementById('editProdName').value = product.name || '';
-    document.getElementById('editProdQty').value = product.qty || 0;
-    document.getElementById('editProdUnit').value = product.unit || '';
-    document.getElementById('editProdPrice').value = product.price || 0;
-
-    document.getElementById('editProductModal').style.display = 'flex';
-};
-
-window.closeEditProductModal = function() {
-    document.getElementById('editProductModal').style.display = 'none';
-};
-
-window.saveEditedProduct = function(event) {
-    event.preventDefault();
-    
-    const index = document.getElementById('editProdIndex').value;
-    if (index === "" || !inventory[index]) return;
-
-    inventory[index].code = document.getElementById('editProdCode').value.trim();
-    inventory[index].name = document.getElementById('editProdName').value.trim();
-    inventory[index].qty = Number(document.getElementById('editProdQty').value);
-    inventory[index].unit = document.getElementById('editProdUnit').value;
-    inventory[index].price = Number(document.getElementById('editProdPrice').value);
-
-    saveData();
-    refreshAllData();
-
-    closeEditProductModal();
-    alert('تم تعديل بيانات الصنف بنجاح!');
-};
-
-document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
-
 window.printInvoice = function() {
     let inv = window.activePrintingInvoice || currentInvoiceData;
     if(!inv) {
@@ -847,33 +819,16 @@ window.printInvoice = function() {
     }
 
     let printWindow = window.open('', '_blank', 'height=900,width=1000');
-    
     printWindow.document.write(`
         <html lang="ar" dir="rtl">
         <head>
             <meta charset="UTF-8">
             <title>فاتورة مبيعات - Bro Tech</title>
             <style>
-                body {
-                    font-family: Tahoma, sans-serif;
-                    margin: 0;
-                    padding: 20px;
-                    background: #ffffff;
-                    color: #000000;
-                    -webkit-print-color-adjust: exact;
-                    print-color-adjust: exact;
-                }
-                table {
-                    width: 100%;
-                    border-collapse: collapse;
-                }
-                th, td {
-                    border: 1px solid #cbd5e1 !important;
-                }
-                @page {
-                    size: A4;
-                    margin: 10mm;
-                }
+                body { font-family: Tahoma, sans-serif; padding: 20px; background: #ffffff; color: #000000; direction: rtl; text-align: right; }
+                table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 13px; }
+                th, td { border: 1px solid #cbd5e1 !important; padding: 8px; }
+                th { background: #f1f5f9; color: #1e293b; }
             </style>
         </head>
         <body>
@@ -900,13 +855,13 @@ window.printInvoice = function() {
                     <strong>العميل:</strong> ${inv.customerName} &nbsp;|&nbsp; <strong>الهاتف:</strong> ${inv.customerPhone || '---'} &nbsp;|&nbsp; <strong>العنوان:</strong> ${inv.customerAddress || '---'}
                 </div>
 
-                <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 13px;">
+                <table>
                     <thead>
-                        <tr style="background: #f1f5f9; color: #1e293b;">
-                            <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">الصنف</th>
-                            <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">الكمية</th>
-                            <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">السعر</th>
-                            <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: left;">الإجمالي</th>
+                        <tr>
+                            <th style="text-align: right;">الصنف</th>
+                            <th style="text-align: center;">الكمية</th>
+                            <th style="text-align: center;">السعر</th>
+                            <th style="text-align: left;">الإجمالي</th>
                         </tr>
                     </thead>
                     <tbody>${itemsHtml}</tbody>
@@ -920,18 +875,56 @@ window.printInvoice = function() {
                     <p style="margin: 4px 0;">المدفوع: ${(inv.paid || 0).toLocaleString()} ج.م</p>
                     <p style="margin: 4px 0; color: #e11d48; font-weight: bold;">المتبقي: ${(inv.remaining || 0).toLocaleString()} ج.م</p>
                 </div>
+
             </div>
             <script>
-                window.onload = function() {
-                    setTimeout(function() {
-                        window.print();
-                        window.close();
-                    }, 300);
+                window.onload = function() { 
+                    setTimeout(function() { 
+                        window.print(); 
+                        window.close(); 
+                    }, 300); 
                 }
             </script>
         </body>
         </html>
     `);
-    
     printWindow.document.close();
 };
+
+function logActivity(actionDescription) {
+    if (!window.activityLog) {
+        window.activityLog = JSON.parse(localStorage.getItem('protech_activity_log')) || [];
+    }
+    let now = new Date();
+    let timeStr = now.toLocaleDateString('ar-EG') + ' ' + now.toLocaleTimeString('ar-EG');
+    window.activityLog.unshift({ text: actionDescription, time: timeStr });
+    if (window.activityLog.length > 100) window.activityLog.pop();
+    localStorage.setItem('protech_activity_log', JSON.stringify(window.activityLog));
+    renderActivityLog();
+}
+
+function renderActivityLog() {
+    let tbody = document.querySelector('#activityLogTableBody') || document.getElementById('activityLogTableBody');
+    if (!tbody) return;
+    if (!window.activityLog) {
+        window.activityLog = JSON.parse(localStorage.getItem('protech_activity_log')) || [];
+    }
+    tbody.innerHTML = '';
+    if (window.activityLog.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: #64748b; padding: 15px;">لا توجد عمليات مسجلة حتى الآن</td></tr>';
+        return;
+    }
+    window.activityLog.forEach((log) => {
+        tbody.innerHTML += `
+            <tr>
+                <td style="padding: 8px; border: 1px solid #334155;"><bdi style="unicode-bidi: isolate; direction: auto;">${log.text}</bdi></td>
+                <td style="padding: 8px; border: 1px solid #334155; text-align: center; color: #94a3b8; font-size: 12px;">${log.time}</td>
+            </tr>
+        `;
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    window.activityLog = JSON.parse(localStorage.getItem('protech_activity_log')) || [];
+    renderActivityLog();
+});
