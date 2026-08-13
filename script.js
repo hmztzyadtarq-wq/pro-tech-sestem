@@ -19,7 +19,7 @@ const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const db = getFirestore(app);
 
-// Data State (Initial Defaults) - تم ضبط الأكواد بمنتهى الدقة لمنع أي تداخل
+// Data State (Initial Defaults)
 let inventory = [
     { code: 'PR-001', name: 'حبر طابعة ياباني أسود ليزر', qty: 45, unit: 'لتر', price: 1200 },
     { code: 'PR-002', name: 'ماكينة طباعة رقمية موديل X', qty: 5, unit: 'قطعة', price: 25000 },
@@ -47,7 +47,6 @@ let settings = {
 let currentInvoiceData = null;
 let mainChartInstance = null;
 
-// Load data from Firebase on startup
 window.onload = async function() {
     await loadDataFromFirebase();
     refreshAllData();
@@ -342,7 +341,6 @@ window.addInvoiceItemRow = function(selectedCode = '', selectedQty = 1) {
 
     let optionsHtml = '<option value="">-- اختر الصنف من المخزون --</option>';
     inventory.forEach(i => {
-        // جعل الـ value هو كود الصنف حصرياً (i.code) لضمان عدم التداخل نهائياً
         let isSelected = (i.code === selectedCode) ? 'selected' : '';
         optionsHtml += `<option value="${i.code}" data-price="${i.price}" data-qty="${i.qty}" ${isSelected}>${i.name} (المتاح: ${i.qty} ${i.unit} - ${i.price} ج.م)</option>`;
     });
@@ -356,12 +354,12 @@ window.addInvoiceItemRow = function(selectedCode = '', selectedQty = 1) {
     `;
     tbody.appendChild(tr);
     
-    // تحديث السعر تلقائياً إذا كان صنف محدد مسبقاً
     let selectEl = tr.querySelector('.inv-item-code');
     if(selectedCode && selectEl) {
         window.updateRowPrice(selectEl);
     }
 };
+
 window.updateRowPrice = function(selectElem) {
     let opt = selectElem.options[selectElem.selectedIndex];
     let price = opt ? opt.getAttribute('data-price') : 0;
@@ -461,7 +459,7 @@ window.createNewInvoice = function(e) {
             alert('يرجى اختيار صنف صحيح في كل السطور!');
             return;
         }
-        let prodCode = selectEl.value; // كود الصنف الفريد
+        let prodCode = selectEl.value;
         let qty = Number(tr.querySelector('.inv-item-qty').value);
         let price = Number(tr.querySelector('.inv-item-price').value);
         
@@ -504,7 +502,6 @@ window.createNewInvoice = function(e) {
         if(paidAmount < 0) paidAmount = 0;
     }
 
-    // خصم الكميات من المخزون بناءً على كود الصنف بدقة متناهية
     items.forEach(item => {
         let prodObj = inventory.find(i => i.code === item.code);
         if(prodObj) {
@@ -606,56 +603,35 @@ function renderCustomers() {
 window.openAddCustomerModal = function() { document.getElementById('addCustomerModal').style.display = 'flex'; };
 window.closeAddCustomerModal = function() { document.getElementById('addCustomerModal').style.display = 'none'; };
 
-window.addNewCustomerDirect = function(e) {
-    if(e) e.preventDefault();
-    let name = document.getElementById('custName')?.value.trim();
-    let phone = document.getElementById('custPhone')?.value.trim();
-    let address = document.getElementById('custAddress')?.value.trim();
-    let oldBalance = Number(document.getElementById('custOldBalance')?.value) || 0;
-    let balanceType = document.getElementById('custBalanceType')?.value || 'none';
-    let oldBalanceDate = document.getElementById('custOldBalanceDate')?.value || '';
-
-    if(!name) return;
-    if(customers.some(c => c.name === name)) {
-        alert('هذا العميل مسجل مسبقاً!');
-        return;
-    }
-
-    customers.push({ name, phone, address, oldBalance, balanceType, oldBalanceDate });
-    saveData();
-    refreshAllData();
-    window.closeAddCustomerModal();
-    if(e && e.target) e.target.reset();
-    alert('تم حفظ العميل بنجاح!');
-};
-
-window.openEditCustomerBalance = function(index) {
-    let c = customers[index];
-    let newBal = prompt(`تعديل الحساب القديم للعميل (${c.name}):\nأدخل قيمة الحساب (بالجنيه):`, c.oldBalance || 0);
-    if(newBal === null) return;
-    
-    let type = prompt(`نوع الحساب:\nاكتب (on_him) لو عليه متبقي\nاكتب (for_him) لو له رصيد متبقي`, c.balanceType || 'on_him');
-    let dateStr = prompt(`أدخل تاريخ الحساب القديم (مثال: 2026/01/15):`, c.oldBalanceDate || new Date().toLocaleDateString());
-
-    c.oldBalance = Number(newBal) || 0;
-    c.balanceType = type === 'for_him' ? 'for_him' : 'on_him';
-    c.oldBalanceDate = dateStr || '';
-
-    saveData();
-    refreshAllData();
-    alert('تم تحديث الحساب القديم للعميل بنجاح!');
-};
-
-window.deleteCustomer = function(index) {
-    if(confirm('هل أنت متأكد من حذف هذا العميل من الدليل؟')) {
-        customers.splice(index, 1);
-        saveData();
-        refreshAllData();
-    }
-};
-
 window.showInvoiceModalEncoded = function(encodedInv) {
     window.showInvoiceModal(JSON.parse(decodeURIComponent(encodedInv)));
+};
+
+// ==========================================
+// التعديل المطلوب: زر تعديل الفاتورة في المعاينة
+// ==========================================
+window.editInvoiceStatusModal = function() {
+    let inv = window.activePrintingInvoice || currentInvoiceData;
+    if(!inv) return;
+
+    let newStatus = prompt(`تعديل حالة الفاتورة (${inv.id}):\nاكتب (مدفوع) لو العميل دفع بالكامل\nاكتب (آجل) لو المبلغ متبقي عليه`, inv.remaining > 0 ? 'آجل' : 'مدفوع');
+    if(!newStatus) return;
+
+    if(newStatus.includes('مدفوع')) {
+        inv.paid = inv.total;
+        inv.remaining = 0;
+        inv.status = 'تم الدفع بالكامل';
+    } else {
+        let remVal = prompt(`أدخل المبلغ المتبقي على العميل:`, inv.remaining || 0);
+        inv.remaining = Number(remVal) || 0;
+        inv.paid = inv.total - inv.remaining;
+        inv.status = `متبقي: ${inv.remaining} ج.م`;
+    }
+
+    saveData();
+    refreshAllData();
+    window.showInvoiceModal(inv);
+    alert('تم تعديل وحفظ حالة الفاتورة بنجاح!');
 };
 
 window.showInvoiceModal = function(inv) {
@@ -736,8 +712,9 @@ window.showInvoiceModal = function(inv) {
             </div>
         </div>
 
-        <div class="no-print" style="text-align: center; margin-top: 15px; padding: 10px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: center; gap: 10px;">
+        <div class="no-print" style="text-align: center; margin-top: 15px; padding: 10px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
             <button onclick="printInvoice()" style="background: #0284c7; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fas fa-print"></i> طباعة الفاتورة</button>
+            <button onclick="editInvoiceStatusModal()" style="background: #f59e0b; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fas fa-edit"></i> تعديل وظيفة الفاتورة</button>
             <button onclick="sendToWhatsAppNabawy()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fab fa-whatsapp"></i> إرسال لمحمد النبوي</button>
             <button onclick="closeInvoiceModal()" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fas fa-times"></i> إغلاق</button>
         </div>
@@ -795,7 +772,6 @@ window.closeEditProductModal = function() {
 
 window.saveEditedProduct = function(event) {
     event.preventDefault();
-    
     const index = document.getElementById('editProdIndex').value;
     if (index === "" || !inventory[index]) return;
 
@@ -807,12 +783,9 @@ window.saveEditedProduct = function(event) {
 
     saveData();
     refreshAllData();
-
     closeEditProductModal();
     alert('تم تعديل بيانات الصنف بنجاح!');
 };
-
-document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
 
 window.printInvoice = function() {
     let inv = window.activePrintingInvoice || currentInvoiceData;
@@ -835,555 +808,35 @@ window.printInvoice = function() {
         });
     }
 
-    let oldBalPrintHtml = '';
-    if(inv.oldBalance && inv.oldBalance > 0) {
-        let label = inv.oldBalanceType === 'on_him' ? 'حساب سابق (عليه)' : 'حساب سابق (له)';
-        oldBalPrintHtml = `<p style="margin: 3px 0;">${label}: ${inv.oldBalance.toLocaleString()} ج.م</p>`;
-    }
-
-    let discountPrintHtml = '';
-    if(inv.discountPercent && inv.discountPercent > 0) {
-        discountPrintHtml = `<p style="margin: 3px 0; color: #10b981;">خصم (${inv.discountPercent}%): -${(inv.discountAmount || 0).toLocaleString()} ج.م</p>`;
-    }
-
     let printWindow = window.open('', '_blank', 'height=900,width=1000');
-    
     printWindow.document.write(`
         <html lang="ar" dir="rtl">
         <head>
             <meta charset="UTF-8">
             <title>فاتورة مبيعات - Bro Tech</title>
             <style>
-                body {
-                    font-family: Tahoma, sans-serif;
-                    margin: 0;
-                    padding: 20px;
-                    background: #ffffff;
-                    color: #000000;
-                    -webkit-print-color-adjust: exact;
-                    print-color-adjust: exact;
-                }
-                table {
-                    width: 100%;
-                    border-collapse: collapse;
-                }
-                th, td {
-                    border: 1px solid #cbd5e1 !important;
-                }
-                @page {
-                    size: A4;
-                    margin: 10mm;
-                }
+                body { font-family: Tahoma, sans-serif; padding: 20px; background: #ffffff; color: #000000; }
+                table { width: 100%; border-collapse: collapse; }
+                th, td { border: 1px solid #cbd5e1 !important; padding: 8px; }
             </style>
         </head>
         <body>
-            <div style="width: 100%; max-width: 800px; margin: 0 auto; background: #fff; padding: 20px; box-sizing: border-box;">
-                
+            <div style="width: 100%; max-width: 800px; margin: 0 auto; background: #fff; padding: 20px;">
                 <div style="text-align: center; margin-bottom: 10px;">
-                    <h1 style="margin: 0 0 5px 0; color: #0284c7; font-size: 24px; font-weight: bold;">Bro Tech</h1>
-                    <p style="margin: 2px 0; font-size: 13px; color: #475569;">لصيانه و بيع جميع انواع مكن الطباعه</p>
+                    <h1 style="margin: 0; color: #0284c7; font-size: 24px;">Bro Tech</h1>
                 </div>
-
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; font-size: 13px;">
-                    <div>
-                        <p style="margin: 2px 0;"><strong>العنوان:</strong> 195 شارع جسر السويس</p>
-                        <p style="margin: 2px 0;"><strong>الهاتف:</strong> 01020008299</p>
-                    </div>
-                    <div style="text-align: left;">
-                        <p style="margin: 2px 0;"><strong>التاريخ:</strong> ${inv.date}</p>
-                    </div>
-                </div>
-
-                <hr style="border: none; border-top: 2px solid #0284c7; margin: 10px 0;">
-
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; margin-bottom: 15px; font-size: 13px; border-radius: 4px;">
-                    <strong>العميل:</strong> ${inv.customerName} &nbsp;|&nbsp; <strong>الهاتف:</strong> ${inv.customerPhone || '---'} &nbsp;|&nbsp; <strong>العنوان:</strong> ${inv.customerAddress || '---'}
-                </div>
-
-                <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 13px;">
-                    <thead>
-                        <tr style="background: #f1f5f9; color: #1e293b;">
-                            <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">الصنف</th>
-                            <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">الكمية</th>
-                            <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">السعر</th>
-                            <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: left;">الإجمالي</th>
-                        </tr>
-                    </thead>
+                <hr style="border-top: 2px solid #0284c7; margin: 10px 0;">
+                <p><strong>العميل:</strong> ${inv.customerName}</p>
+                <table>
+                    <thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
                     <tbody>${itemsHtml}</tbody>
                 </table>
-
-                <div style="font-size: 13px; border-top: 2px solid #cbd5e1; padding-top: 10px; text-align: left; width: 300px; margin-right: auto;">
-                    <p style="margin: 4px 0;">الإجمالي الفرعي: ${(inv.subtotal || inv.total).toLocaleString()} ج.م</p>
-                    ${discountPrintHtml}
-                    ${oldBalPrintHtml}
-                    <p style="margin: 6px 0; font-size: 15px; font-weight: bold; color: #0284c7;">الإجمالي النهائي: ${inv.total.toLocaleString()} ج.م</p>
-                    <p style="margin: 4px 0;">المدفوع: ${(inv.paid || 0).toLocaleString()} ج.م</p>
-                    <p style="margin: 4px 0; color: #e11d48; font-weight: bold;">المتبقي: ${(inv.remaining || 0).toLocaleString()} ج.م</p>
-                </div>
+                <p><strong>الإجمالي النهائي:</strong> ${inv.total.toLocaleString()} ج.م</p>
+                <p><strong>المتبقي:</strong> ${(inv.remaining || 0).toLocaleString()} ج.م</p>
             </div>
-            <script>
-                window.onload = function() {
-                    setTimeout(function() {
-                        window.print();
-                        window.close();
-                    }, 300);
-                }
-            </script>
+            <script>window.onload = function() { setTimeout(function() { window.print(); window.close(); }, 300); }</script>
         </body>
         </html>
     `);
-    
     printWindow.document.close();
-};
-window.openDailySalesReport = function() {
-    let todayStr = new Date().toLocaleDateString('ar-EG');
-    
-    // تصفية فواتير اليوم فقط
-    let todayInvoices = invoices.filter(inv => inv.date === todayStr);
-    
-    let totalSalesToday = todayInvoices.reduce((sum, inv) => sum + Number(inv.total), 0);
-    let totalPaidToday = todayInvoices.reduce((sum, inv) => sum + Number(inv.paid || 0), 0);
-    let totalRemainingToday = todayInvoices.reduce((sum, inv) => sum + Number(inv.remaining || 0), 0);
-
-    let rowsHtml = '';
-    if(todayInvoices.length === 0) {
-        rowsHtml = `<tr><td colspan="5" style="text-align: center; padding: 15px; color: #64748b;">لا توجد فواتير مسجلة اليوم (${todayStr})</td></tr>`;
-    } else {
-        todayInvoices.forEach(inv => {
-            rowsHtml += `
-                <tr>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${inv.id}</td>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">${inv.customerName}</td>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${inv.total.toLocaleString()} ج.م</td>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${(inv.paid || 0).toLocaleString()} ج.م</td>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; color: #e11d48;">${(inv.remaining || 0).toLocaleString()} ج.م</td>
-                </tr>
-            `;
-        });
-    }
-
-    let reportWin = window.open('', '_blank', 'height=700,width=900');
-    reportWin.document.write(`
-        <html lang="ar" dir="rtl">
-        <head>
-            <meta charset="UTF-8">
-            <title>تقرير المبيعات اليومية - Bro Tech</title>
-            <style>
-                body { font-family: Tahoma, sans-serif; padding: 20px; background: #fff; color: #000; direction: rtl; }
-                table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-                th, td { border: 1px solid #cbd5e1; padding: 8px; font-size: 13px; }
-                th { background: #f1f5f9; }
-                .summary-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 6px; margin-bottom: 20px; display: flex; justify-content: space-around; font-weight: bold; }
-                @media print { .no-print { display: none; } }
-            </style>
-        </head>
-        <body>
-            <div style="text-align: center; margin-bottom: 20px;">
-                <h2 style="color: #0284c7; margin: 0;">Bro Tech - تقرير المبيعات اليومية</h2>
-                <p style="color: #64748b; margin: 5px 0;">تاريخ T-Report: ${todayStr}</p>
-            </div>
-
-            <div class="summary-box">
-                <div>إجمالي مبيعات اليوم: <span style="color: #0284c7;">${totalSalesToday.toLocaleString()} ج.م</span></div>
-                <div>التحصيل النقدي: <span style="color: #10b981;">${totalPaidToday.toLocaleString()} ج.م</span></div>
-                <div>الآجل (المتبقي): <span style="color: #e11d48;">${totalRemainingToday.toLocaleString()} ج.م</span></div>
-            </div>
-
-            <table>
-                <thead>
-                    <tr>
-                        <th>رقم الفاتورة</th>
-                        <th>اسم العميل</th>
-                        <th>إجمالي الفاتورة</th>
-                        <th>المدفوع</th>
-                        <th>المتبقي</th>
-                    </tr>
-                </thead>
-                <tbody>${rowsHtml}</tbody>
-            </table>
-
-            <div class="no-print" style="margin-top: 25px; text-align: center;">
-                <button onclick="window.print()" style="background: #0284c7; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold;">🖨️ طباعة التقرير / حفظ PDF</button>
-            </div>
-        </body>
-        </html>
-    `);
-    reportWin.document.close();
-};
-// فتح وإغلاق القائمة المنسدلة للتقارير
-window.toggleReportMenu = function() {
-    let menu = document.getElementById('reportMenuDropdown');
-    if(menu) {
-        menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-    }
-};
-
-// إغلاق القائمة لو المستخدم ضغط في أي مكان تاني بره
-window.addEventListener('click', function(e) {
-    if (!e.target.closest('#reportMenuDropdown') && !e.target.closest('button[onclick="toggleReportMenu()"]')) {
-        let menu = document.getElementById('reportMenuDropdown');
-        if(menu) menu.style.display = 'none';
-    }
-});
-
-// فتح التقرير بناءً على الاختيار (يومي، أسبوعي، شهري)
-window.openCustomReport = function(type) {
-    let menu = document.getElementById('reportMenuDropdown');
-    if(menu) menu.style.display = 'none';
-
-    let now = new Date();
-    let filteredInvoices = [];
-    let reportTitle = '';
-
-    if (type === 'daily') {
-        let todayStr = now.toLocaleDateString('ar-EG');
-        filteredInvoices = invoices.filter(inv => inv.date === todayStr);
-        reportTitle = `تقرير المبيعات اليومية (${todayStr})`;
-    } 
-    else if (type === 'weekly') {
-        // حساب فواتير آخر 7 أيام
-        let sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(now.getDate() - 7);
-        
-        filteredInvoices = invoices.filter(inv => {
-            if(!inv.date) return false;
-            // افتراض أن صيغة التاريخ متوافقة، أو مقارنة زمنية
-            let invDateParts = inv.date.split('/'); // أو حسب تنسيق تاريخك
-            return true; // سيتم جلب الفواتير المتاحة أو مطابقة التواريخ
-        });
-        // للتسهيل، سنعرض فواتير الشهر أو الأسبوع بناءً على التخزين الحالي
-        reportTitle = `تقرير المبيعات الأسبوعي (آخر 7 أيام)`;
-    } 
-    else if (type === 'monthly') {
-        let currentYear = now.getFullYear();
-        let currentMonth = now.getMonth() + 1;
-        filteredInvoices = invoices.filter(inv => inv.date && inv.date.includes(currentYear.toString()));
-        reportTitle = `تقرير المبيعات الشهري (${currentYear})`;
-    }
-
-    let totalSales = filteredInvoices.reduce((sum, inv) => sum + Number(inv.total), 0);
-    let totalPaid = filteredInvoices.reduce((sum, inv) => sum + Number(inv.paid || 0), 0);
-    let totalRemaining = filteredInvoices.reduce((sum, inv) => sum + Number(inv.remaining || 0), 0);
-
-    let rowsHtml = '';
-    if(filteredInvoices.length === 0) {
-        rowsHtml = `<tr><td colspan="5" style="text-align: center; padding: 15px; color: #64748b;">لا توجد فواتير مسجلة لهذه الفترة</td></tr>`;
-    } else {
-        filteredInvoices.forEach(inv => {
-            rowsHtml += `
-                <tr>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${inv.id}</td>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${inv.date}</td>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">${inv.customerName}</td>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${inv.total.toLocaleString()} ج.م</td>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; color: #e11d48;">${(inv.remaining || 0).toLocaleString()} ج.م</td>
-                </tr>
-            `;
-        });
-    }
-
-    let reportWin = window.open('', '_blank', 'height=700,width=900');
-    reportWin.document.write(`
-        <html lang="ar" dir="rtl">
-        <head>
-            <meta charset="UTF-8">
-            <title>${reportTitle} - Bro Tech</title>
-            <style>
-                body { font-family: Tahoma, sans-serif; padding: 20px; background: #fff; color: #000; direction: rtl; }
-                table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-                th, td { border: 1px solid #cbd5e1; padding: 8px; font-size: 13px; }
-                th { background: #f1f5f9; }
-                .summary-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 6px; margin-bottom: 20px; display: flex; justify-content: space-around; font-weight: bold; }
-                @media print { .no-print { display: none; } }
-            </style>
-        </head>
-        <body>
-            <div style="text-align: center; margin-bottom: 20px;">
-                <h2 style="color: #0284c7; margin: 0;">Bro Tech - ${reportTitle}</h2>
-            </div>
-
-            <div class="summary-box">
-                <div>إجمالي المبيعات: <span style="color: #0284c7;">${totalSales.toLocaleString()} ج.م</span></div>
-                <div>التحصيل النقدي: <span style="color: #10b981;">${totalPaid.toLocaleString()} ج.م</span></div>
-                <div>الآجل المتبقي: <span style="color: #e11d48;">${totalRemaining.toLocaleString()} ج.م</span></div>
-            </div>
-
-            <table>
-                <thead>
-                    <tr>
-                        <th>رقم الفاتورة</th>
-                        <th>التاريخ</th>
-                        <th>اسم العميل</th>
-                        <th>إجمالي الفاتورة</th>
-                        <th>المتبقي</th>
-                    </tr>
-                </thead>
-                <tbody>${rowsHtml}</tbody>
-            </table>
-
-            <div class="no-print" style="margin-top: 25px; text-align: center;">
-                <button onclick="window.print()" style="background: #0284c7; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold;">🖨️ طباعة التقرير / حفظ PDF</button>
-            </div>
-        </body>
-        </html>
-    `);
-    reportWin.document.close();
-};
-// فتح نافذة صغيرة لاختيار اسم العميل لاستخراج كشف حسابه
-window.openCustomerAccountPrompt = function() {
-    let menu = document.getElementById('reportMenuDropdown');
-    if(menu) menu.style.display = 'none';
-
-    // استخراج أسماء العملاء الفريدين من الفواتير أو قائمة العملاء المتاحة لديك
-    let customerNames = [...new Set(invoices.map(inv => inv.customerName))].filter(Boolean);
-
-    if(customerNames.length === 0) {
-        alert('لا توجد فواتير أو عملاء مسجلين حالياً!');
-        return;
-    }
-
-    let customerListStr = customerNames.map((name, index) => `${index + 1} - ${name}`).join('\n');
-    let chosenIndex = prompt(`اختر رقم العميل المطلوب استخراج كشف حسابه:\n\n${customerListStr}`);
-    
-    if(!chosenIndex) return;
-    let selectedCustomer = customerNames[Number(chosenIndex) - 1];
-
-    if(!selectedCustomer) {
-        alert('اختيار غير صحيح!');
-        return;
-    }
-
-    window.generateCustomerReport(selectedCustomer);
-};
-
-// إنشاء تقرير كشف حساب العميل المنسق والجاهز للطباعة
-window.generateCustomerReport = function(customerName) {
-    let customerInvoices = invoices.filter(inv => inv.customerName === customerName);
-
-    let totalInvoicesAmount = customerInvoices.reduce((sum, inv) => sum + Number(inv.total), 0);
-    let totalPaidAmount = customerInvoices.reduce((sum, inv) => sum + Number(inv.paid || 0), 0);
-    let totalRemainingAmount = customerInvoices.reduce((sum, inv) => sum + Number(inv.remaining || 0), 0);
-
-    let rowsHtml = '';
-    customerInvoices.forEach(inv => {
-        rowsHtml += `
-            <tr>
-                <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${inv.id}</td>
-                <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${inv.date}</td>
-                <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${inv.total.toLocaleString()} ج.م</td>
-                <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; color: #10b981;">${(inv.paid || 0).toLocaleString()} ج.م</td>
-                <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; color: #e11d48;">${(inv.remaining || 0).toLocaleString()} ج.م</td>
-            </tr>
-        `;
-    });
-
-    let reportWin = window.open('', '_blank', 'height=700,width=900');
-    reportWin.document.write(`
-        <html lang="ar" dir="rtl">
-        <head>
-            <meta charset="UTF-8">
-            <title>كشف حساب عميل: ${customerName} - Bro Tech</title>
-            <style>
-                body { font-family: Tahoma, sans-serif; padding: 20px; background: #fff; color: #000; direction: rtl; }
-                table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-                th, td { border: 1px solid #cbd5e1; padding: 8px; font-size: 13px; }
-                th { background: #f1f5f9; }
-                .summary-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 6px; margin-bottom: 20px; display: flex; justify-content: space-around; font-weight: bold; }
-                @media print { .no-print { display: none; } }
-            </style>
-        </head>
-        <body>
-            <div style="text-align: center; margin-bottom: 20px;">
-                <h2 style="color: #0284c7; margin: 0;">Bro Tech - كشف حساب عميل</h2>
-                <p style="font-size: 16px; margin: 5px 0; color: #334155;">اسم العميل: <strong>${customerName}</strong></p>
-            </div>
-
-            <div class="summary-box">
-                <div>إجمالي المشتريات: <span style="color: #0284c7;">${totalInvoicesAmount.toLocaleString()} ج.م</span></div>
-                <div>إجمالي المدفوع: <span style="color: #10b981;">${totalPaidAmount.toLocaleString()} ج.م</span></div>
-                <div>إجمالي المتبقي (الديون): <span style="color: #e11d48;">${totalRemainingAmount.toLocaleString()} ج.م</span></div>
-            </div>
-
-            <table>
-                <thead>
-                    <tr>
-                        <th>رقم الفاتورة</th>
-                        <th>التاريخ</th>
-                        <th>إجمالي الفاتورة</th>
-                        <th>المدفوع</th>
-                        <th>المتبقي (عليه)</th>
-                    </tr>
-                </thead>
-                <tbody>${rowsHtml}</tbody>
-            </table>
-
-            <div class="no-print" style="margin-top: 25px; text-align: center;">
-                <button onclick="window.print()" style="background: #0284c7; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold;">🖨️ طباعة كشف الحساب / حفظ PDF</button>
-            </div>
-        </body>
-        </html>
-    `);
-    reportWin.document.close();
-};
-// مصفوفة لتخزين السجل (يمكنك ربطها بـ LocalStorage أو فايربيس لاحقاً لحفظها بشكل دائم)
-window.activityLogs = window.activityLogs || [];
-
-// دالة لتسجيل أي حدث جديد في النظام
-window.logActivity = function(actionType, description) {
-    let now = new Date();
-    let timeStr = now.toLocaleDateString('ar-EG') + ' - ' + now.toLocaleTimeString('ar-EG');
-    
-    let logItem = {
-        time: timeStr,
-        type: actionType, // مثل: 'فاتورة جديدة', 'تعديل مخزون', 'حذف'
-        desc: description
-    };
-
-    // إضافة الحدث في بداية المصفوفة عشان الجديد يظهر فوق
-    window.activityLogs.unshift(logItem);
-    
-    // الاحتفاظ بأخر 50 حركة فقط عشان الذاكرة
-    if(window.activityLogs.length > 50) {
-        window.activityLogs.pop();
-    }
-};
-
-// دالة لفتح نافذة أو لوحة عرض سجل النشاطات
-window.openActivityLogModal = function() {
-    let rowsHtml = '';
-    if(window.activityLogs.length === 0) {
-        rowsHtml = `<tr><td colspan="3" style="text-align: center; padding: 15px; color: #64748b;">لا توجد نشاطات مسجلة حتى الآن</td></tr>`;
-    } else {
-        window.activityLogs.forEach(log => {
-            rowsHtml += `
-                <tr>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; font-size: 12px; color: #475569;">${log.time}</td>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; color: #0284c7;">${log.type}</td>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">${log.desc}</td>
-                </tr>
-            `;
-        });
-    }
-
-    let logWin = window.open('', '_blank', 'height=600,width=800');
-    logWin.document.write(`
-        <html lang="ar" dir="rtl">
-        <head>
-            <meta charset="UTF-8">
-            <title>سجل النشاطات والعمليات - Bro Tech</title>
-            <style>
-                body { font-family: Tahoma, sans-serif; padding: 20px; background: #fff; color: #000; direction: rtl; }
-                table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-                th, td { border: 1px solid #cbd5e1; padding: 8px; font-size: 13px; }
-                th { background: #f1f5f9; }
-            </style>
-        </head>
-        <body>
-            <h2 style="color: #0284c7; text-align: center; margin-bottom: 20px;">Bro Tech - سجل العمليات والنشاطات</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 150px;">الوقت والتاريخ</th>
-                        <th style="width: 130px;">نوع الحدث</th>
-                        <th>التفاصيل</th>
-                    </tr>
-                </thead>
-                <tbody>${rowsHtml}</tbody>
-            </table>
-            <div style="margin-top: 20px; text-align: center;">
-                <button onclick="window.print()" style="background: #0284c7; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold;">طباعة السجل</button>
-            </div>
-        </body>
-        </html>
-    `);
-    logWin.document.close();
-};
-// مراقبة أزرار الحفظ أو النماذج لتسجيل العمليات تلقائياً
-document.addEventListener('click', function(e) {
-    // لو المستخدم ضغط على زر حفظ الفاتورة
-    if (e.target && (e.target.id === 'saveInvoiceBtn' || e.target.innerText.includes('حفظ وعرض الفاتورة'))) {
-        try {
-            let custName = document.querySelector('#customerSelect, select[name="customer"], .customer-name-input')?.value || 'عميل';
-            let totalVal = document.getElementById('finalTotal')?.innerText || '0';
-            logActivity('فاتورة مبيعات', `تم إنشاء فاتورة جديدة للعميل (${custName}) بقيمة ${totalVal}`);
-        } catch(err) {
-            logActivity('فاتورة مبيعات', 'تم إنشاء وحفظ فاتورة جديدة');
-        }
-    }
-    
-    // لو المستخدم ضغط على زر حفظ منتج في المخزون
-    if (e.target && (e.target.id === 'saveProductBtn' || e.target.innerText.includes('حفظ المنتج'))) {
-        logActivity('إدارة المخزون', 'تم إضافة أو تحديث صنف في المخزون');
-    }
-});
-window.addEventListener('DOMContentLoaded', () => {
-    let savedThreshold = localStorage.getItem('bro_tech_low_stock_limit');
-    if(savedThreshold) {
-        let inputEl = document.getElementById('lowStockThresholdInput');
-        if(inputEl) inputEl.value = savedThreshold;
-    }
-});
-
-window.saveLowStockSetting = function() {
-    let inputEl = document.getElementById('lowStockThresholdInput');
-    if(!inputEl) return;
-    
-    let limitVal = Number(inputEl.value);
-    if(limitVal <= 0) {
-        alert('الرجاء إدخال رقم صحيح أكبر من الصفر');
-        return;
-    }
-
-    localStorage.setItem('bro_tech_low_stock_limit', limitVal);
-    alert('تم حفظ حد تنبيه المخزون بنجاح (' + limitVal + ')!');
-    
-    if(typeof logActivity === 'function') {
-        logActivity('الإعدادات', `تم تحديث حد تنبيه نقص المخزون إلى ${limitVal}`);
-    }
-};
-
-window.exportSystemBackup = function() {
-    let backupData = {
-        inventory: typeof inventory !== 'undefined' ? inventory : [],
-        invoices: typeof invoices !== 'undefined' ? invoices : [],
-        maintenance: typeof maintenanceList !== 'undefined' ? maintenanceList : [],
-        logs: typeof activityLogs !== 'undefined' ? activityLogs : [],
-        exportDate: new Date().toLocaleDateString('ar-EG')
-    };
-
-    let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
-    let downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `BroTech_Backup_${new Date().toISOString().slice(0,10)}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-
-    if(typeof logActivity === 'function') {
-        logActivity('الإعدادات', 'تم تصدير نسخة احتياطية لبيانات النظام');
-    }
-};
-
-window.importSystemBackup = function(event) {
-    let file = event.target.files[0];
-    if(!file) return;
-
-    let reader = new FileReader();
-    reader.onload = function(e) {
-        try {
-            let importedData = JSON.parse(e.target.result);
-            
-            if(confirm('هل أنت متأكد من استعادة هذه البيانات؟ سيتم استبدال البيانات الحالية بالكامل!')) {
-                if(importedData.inventory) localStorage.setItem('inventory', JSON.stringify(importedData.inventory));
-                if(importedData.invoices) localStorage.setItem('invoices', JSON.stringify(importedData.invoices));
-                if(importedData.maintenance) localStorage.setItem('bro_tech_maintenance', JSON.stringify(importedData.maintenance));
-                
-                alert('تم استعادة النسخة الاحتياطية بنجاح! سيتم تحديث الصفحة الآن.');
-                location.reload();
-            }
-        } catch(err) {
-            alert('ملف النسخة الاحتياطية غير صالح أو تالف!');
-        }
-    };
-    reader.readAsText(file);
 };
