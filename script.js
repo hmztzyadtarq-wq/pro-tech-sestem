@@ -210,26 +210,6 @@ window.filterInventory = function() {
     });
 };
 
-window.openAddProductModal = function() { document.getElementById('addProductModal').style.display = 'flex'; };
-window.closeAddProductModal = function() { document.getElementById('addProductModal').style.display = 'none'; };
-
-window.addNewProduct = function(e) {
-    if(e) e.preventDefault();
-    let code = document.getElementById('prodCode')?.value.trim();
-    let name = document.getElementById('prodName')?.value.trim();
-    let qty = Number(document.getElementById('prodQty')?.value);
-    let unit = document.getElementById('prodUnit')?.value;
-    let price = Number(document.getElementById('prodPrice')?.value);
-
-    if(!code || !name) return;
-    
-    inventory.push({ code, name, qty, unit, price });
-    saveData();
-    refreshAllData();
-    window.closeAddProductModal();
-    if(e && e.target) e.target.reset();
-};
-
 window.deleteProduct = function(index) {
     if(confirm('هل أنت متأكد من حذف هذا الصنف؟')) {
         inventory.splice(index, 1);
@@ -904,11 +884,50 @@ document.addEventListener('DOMContentLoaded', function() {
     window.activityLog = JSON.parse(localStorage.getItem('protech_activity_log')) || [];
     renderActivityLog();
 });
+
+// دوال إدارة المنتجات (إضافة وتعديل وحفظ) بشكل سليم ومنظم
+window.openAddProductModal = function() {
+    let modal = document.getElementById('addProductModal');
+    if(modal) {
+        modal.style.display = 'flex';
+        modal.style.zIndex = '999999';
+    }
+};
+
+window.closeAddProductModal = function() {
+    let modal = document.getElementById('addProductModal');
+    if(modal) modal.style.display = 'none';
+};
+
+window.addNewProduct = function(e) {
+    if(e) e.preventDefault();
+    
+    let code = document.getElementById('prodCode')?.value.trim();
+    let name = document.getElementById('prodName')?.value.trim();
+    let qty = Number(document.getElementById('prodQty')?.value);
+    let unit = document.getElementById('prodUnit')?.value;
+    let price = Number(document.getElementById('prodPrice')?.value);
+
+    if(!code || !name) {
+        alert('يرجى إدخال كود واسم الصنف على الأقل!');
+        return;
+    }
+    
+    inventory.push({ code, name, qty, unit, price });
+    saveData();
+    refreshAllData();
+    window.closeAddProductModal();
+    
+    let form = document.querySelector('#addProductModal form') || document.getElementById('addProductForm');
+    if(form) form.reset();
+    
+    alert('تم إضافة الصنف بنجاح!');
+};
+
 window.openEditProductModal = function(index) {
     const product = inventory[index];
     if (!product) return;
 
-    // إغلاق نافذة الفاتورة إن كانت مفتوحة لكي لا تغطي نافذة التعديل
     let invoiceModal = document.getElementById('invoiceModal');
     if (invoiceModal) invoiceModal.style.display = 'none';
 
@@ -925,6 +944,7 @@ window.openEditProductModal = function(index) {
         modal.style.zIndex = '999999';
     }
 };
+
 window.closeEditProductModal = function() {
     let modal = document.getElementById('editProductModal');
     if (modal) {
@@ -949,7 +969,3 @@ window.saveEditedProduct = function(event) {
     closeEditProductModal();
     alert('تم تعديل بيانات الصنف بنجاح!');
 };
-
-
-
-
