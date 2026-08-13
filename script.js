@@ -904,8 +904,6 @@ document.addEventListener('DOMContentLoaded', function() {
     window.activityLog = JSON.parse(localStorage.getItem('protech_activity_log')) || [];
     renderActivityLog();
 });
-
-// دوال تعديل المنتجات المضبوطة بالكامل للظهور الفوري في المقدمة
 window.openEditProductModal = function(index) {
     const product = inventory[index];
     if (!product) return;
@@ -920,7 +918,7 @@ window.openEditProductModal = function(index) {
     let modal = document.getElementById('editProductModal');
     if (modal) {
         modal.style.display = 'flex';
-        modal.style.zIndex = '99999';
+        modal.style.zIndex = '999999'; // رفع طبقة العرض لتكون فوق نافذة الفاتورة وأي عنصر آخر
     }
 };
 
@@ -948,3 +946,5 @@ window.saveEditedProduct = function(event) {
     closeEditProductModal();
     alert('تم تعديل بيانات الصنف بنجاح!');
 };
+
+
