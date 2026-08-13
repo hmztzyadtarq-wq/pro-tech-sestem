@@ -38,6 +38,9 @@
                 <li onclick="switchTab('purchases')"><i class="fas fa-shopping-cart"></i> المشتريات والتوريد</li>
                 <li onclick="switchTab('customers')"><i class="fas fa-users"></i> دليل العملاء</li>
                 <li onclick="switchTab('settings')"><i class="fas fa-cogs"></i> الإعدادات والربط</li>
+                <a href="#" onclick="switchTab('maintenanceTab')" class="sidebar-link" style="display: flex; align-items: center; gap: 10px; padding: 12px 15px; color: #cbd5e1; text-decoration: none; border-radius: 6px; margin-bottom: 5px; transition: 0.2s;">
+    <i class="fas fa-tools" style="width: 20px;"></i> مواعيد الصيانة
+</a>
                 <button onclick="openActivityLogModal()" style="background: #334155; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; display: inline-flex; align-items: center; gap: 8px;">
     <i class="fas fa-history"></i> سجل العمليات
 </button>
@@ -117,8 +120,32 @@
                         <canvas id="salesPurchasesChart"></canvas>
                     </div>
                 </div>
+                <div id="maintenanceTab" class="app-tab-content" style="display: none; padding: 20px; background: #0f172a; color: #fff; min-height: 100vh;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 style="margin: 0; color: #38bdf8;"><i class="fas fa-tools"></i> جدول مواعيد الصيانة والدعم الدوري</h2>
+        <button onclick="openAddMaintenanceModal()" style="background: #0284c7; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold;"><i class="fas fa-plus"></i> تسجيل صيانة جديدة</button>
+    </div>
 
-                <!-- Recent Activities & Low Stock Alerts -->
+    <!-- جدول مواعيد الصيانة -->
+    <div style="background: #1e293b; padding: 15px; border-radius: 8px; border: 1px solid #334155;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+            <thead>
+                <tr style="background: #0f172a; color: #38bdf8; text-align: right;">
+                    <th style="padding: 10px; border-bottom: 1px solid #334155;">اسم العميل</th>
+                    <th style="padding: 10px; border-bottom: 1px solid #334155;">رقم الهاتف</th>
+                    <th style="padding: 10px; border-bottom: 1px solid #334155;">نوع الماكينة</th>
+                    <th style="padding: 10px; border-bottom: 1px solid #334155;">تاريخ الصيانة القادمة</th>
+                    <th style="padding: 10px; border-bottom: 1px solid #334155;">ملاحظات / نوع الخدمة</th>
+                    <th style="padding: 10px; border-bottom: 1px solid #334155; text-align: center;">إجراء</th>
+                </tr>
+            </thead>
+            <tbody id="maintenanceTableBody">
+                <tr><td colspan="6" style="text-align: center; padding: 20px; color: #64748b;">لا توجد مواعيد صيانة مسجلة حالياً</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+          <!-- Recent Activities & Low Stock Alerts -->
                 <div class="dashboard-grid-two">
                     <div class="sub-card">
                         <h3><i class="fas fa-history"></i> آخر الفواتير المصدرة</h3>
