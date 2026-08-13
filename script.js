@@ -890,3 +890,56 @@ window.printInvoice = function() {
     `);
     printWindow.document.close();
 };
+// دالة لتسجيل أي عملية جديدة في السجل
+function logActivity(actionDescription) {
+    if (!window.activityLog) {
+        window.activityLog = JSON.parse(localStorage.getItem('protech_activity_log')) || [];
+    }
+    
+    let now = new Date();
+    let timeStr = now.toLocaleDateString('ar-EG') + ' ' + now.toLocaleTimeString('ar-EG');
+    
+    window.activityLog.unshift({
+        text: actionDescription,
+        time: timeStr
+    });
+    
+    // الاحتفاظ بآخر 100 عملية فقط لتخفيف التخزين
+    if (window.activityLog.length > 100) {
+        window.activityLog.pop();
+    }
+    
+    localStorage.setItem('protech_activity_log', JSON.stringify(window.activityLog));
+    renderActivityLog();
+}
+
+// دالة عرض وتحديث جدول سجل العمليات في الصفحة
+function renderActivityLog() {
+    let tbody = document.querySelector('#activityLogTableBody') || document.getElementById('activityLogTableBody');
+    if (!tbody) return;
+    
+    if (!window.activityLog) {
+        window.activityLog = JSON.parse(localStorage.getItem('protech_activity_log')) || [];
+    }
+    
+    tbody.innerHTML = '';
+    if (window.activityLog.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: #64748b; padding: 15px;">لا توجد عمليات مسجلة حتى الآن</td></tr>';
+        return;
+    }
+
+    window.activityLog.forEach((log, index) => {
+        tbody.innerHTML += `
+            <tr>
+                <td style="padding: 8px; border: 1px solid #334155;"><bdi style="unicode-bidi: isolate; direction: auto;">${log.text}</bdi></td>
+                <td style="padding: 8px; border: 1px solid #334155; text-align: center; color: #94a3b8; font-size: 12px;">${log.time}</td>
+            </tr>
+        `;
+    });
+}
+
+// ربط تحديث السجل عند تحميل الصفحة
+document.addEventListener('DOMContentLoaded', function() {
+    window.activityLog = JSON.parse(localStorage.getItem('protech_activity_log')) || [];
+    renderActivityLog();
+});
