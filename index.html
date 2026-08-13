@@ -697,5 +697,38 @@
         // تجاوز مؤقت لتسجيل الدخول للعمل مباشرة
         localStorage.setItem('protech_logged_in', 'true');
     </script>
+    <!-- نافذة تعديل حالة الدفع وسداد المتبقي -->
+<div id="editInvoicePaymentModal" class="modal" style="display: none;">
+    <div class="modal-content" style="width: 450px; max-width: 95%; background: #1e293b; color: #fff; padding: 20px; border-radius: 10px; text-align: right; direction: rtl;">
+        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 10px; margin-bottom: 15px;">
+            <h3 style="margin: 0; color: #38bdf8;"><i class="fas fa-hand-holding-usd"></i> تسجيل سداد / تعديل حالة الفاتورة</h3>
+            <span class="close-btn" onclick="closeEditPaymentModal()" style="cursor: pointer; font-size: 20px;">&times;</span>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="editPaymentInvIndex">
+            
+            <div style="margin-bottom: 12px; background: #0f172a; padding: 10px; border-radius: 6px;">
+                <p style="margin: 0 0 5px 0; font-size: 13px;">رقم الفاتورة: <strong id="editPaymentInvNumber" style="color: #fbbf24;">--</strong></p>
+                <p style="margin: 0 0 5px 0; font-size: 13px;">اسم العميل: <strong id="editPaymentCustomerName">--</strong></p>
+                <p style="margin: 0; font-size: 13px;">المبلغ المتبقي الحالي: <strong id="editPaymentCurrentRemaining" style="color: #f43f5e;">0 ج.م</strong></p>
+            </div>
+
+            <div style="margin-bottom: 12px;">
+                <label style="display: block; font-size: 13px; margin-bottom: 5px; color: #94a3b8;">المبلغ المدفوع الآن (ج.م):</label>
+                <input type="number" id="payAmountInput" placeholder="أدخل المبلغ المسدد" style="width: 100%; padding: 8px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 4px; box-sizing: border-radius;">
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; font-size: 13px; margin-bottom: 5px; color: #94a3b8;">تاريخ / ملاحظة السداد:</label>
+                <input type="text" id="payNoteInput" placeholder="مثال: تم سداد جزء بشيك / كاش بتاريخ اليوم" style="width: 100%; padding: 8px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 4px; box-sizing: border-radius;">
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button type="button" onclick="submitInvoicePaymentUpdate()" style="flex: 2; background: #10b981; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;"><i class="fas fa-check-circle"></i> تأكيد وحفظ السداد</button>
+                <button type="button" onclick="closeEditPaymentModal()" style="flex: 1; background: #64748b; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer;">إلغاء</button>
+            </div>
+        </div>
+    </div>
+</div>
 </body>
 </html>
