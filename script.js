@@ -928,3 +928,12 @@ document.addEventListener('DOMContentLoaded', function() {
     window.activityLog = JSON.parse(localStorage.getItem('protech_activity_log')) || [];
     renderActivityLog();
 });
+// أضف السطر ده في آخر ملف script.js عشان يربط كل الأزرار بالنافذة العامة وتفتح فوراً
+window.openNewInvoiceModal = openNewInvoiceModal;
+window.openAddProductModal = openAddProductModal;
+window.openNewPurchaseModal = openNewPurchaseModal;
+window.openAddCustomerModal = openAddCustomerModal;
+window.toggleReportMenu = toggleReportMenu;
+window.openCustomReport = openCustomReport;
+window.openCustomerAccountPrompt = openCustomerAccountPrompt;
+window.switchTab = switchTab;
