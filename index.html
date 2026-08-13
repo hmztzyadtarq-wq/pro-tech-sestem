@@ -324,31 +324,6 @@
             </section>
         </main>
     </div>
-  
-    <div style="background: #1e293b; padding: 20px; border-radius: 8px; border: 1px solid #334155; margin-bottom: 20px; max-width: 600px;">
-        <h3 style="margin-top: 0; color: #f8fafc; font-size: 16px;"><i class="fas fa-bell"></i> حد تنبيه نقص المخزون</h3>
-        <p style="color: #94a3b8; font-size: 13px;">حدد الرقم الذي ترغب في أن ينبهك النظام عندما تصل كمية الصنف إليه أو تقله عنه:</p>
-        <div style="display: flex; gap: 10px; align-items: center; margin-top: 15px;">
-            <input type="number" id="lowStockThresholdInput" value="20" style="padding: 8px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 4px; width: 100px; text-align: center;">
-            <button onclick="saveLowStockSetting()" style="background: #0284c7; color: white; border: none; padding: 9px 15px; border-radius: 4px; cursor: pointer; font-weight: bold;">حفظ الحد الأدنى</button>
-        </div>
-    </div>
-
-    
-           <div style="background: #1e293b; padding: 20px; border-radius: 8px; border: 1px solid #334155; margin-bottom: 20px; max-width: 600px;">
-            <h3 style="margin-top: 0; color: #f8fafc; font-size: 16px;"><i class="fas fa-database"></i> النسخ الاحتياطي وإدارة البيانات</h3>
-            <p style="color: #94a3b8; font-size: 13px;">قم بتحميل نسخة احتياطية لكل بياناتك (فواتير، مخزون، صيانة) لحمايتها من الضياع، أو استعدتها في أي وقت:</p>
-        
-           <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
-            <button onclick="exportSystemBackup()" style="background: #10b981; color: white; border: none; padding: 9px 15px; border-radius: 4px; cursor: pointer; font-weight: bold;"><i class="fas fa-download"></i> تصدير نسخة احتياطية</button>
-            
-            <label style="background: #f59e0b; color: white; border: none; padding: 9px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; display: inline-flex; align-items: center; gap: 5px;">
-                <i class="fas fa-upload"></i> استعادة نسخة احتياطية
-                <input type="file" id="importFile" accept=".json" onchange="importSystemBackup(event)" style="display: none;">
-            </label>
-        </div>
-          </div>      
-  
 
     <!-- Hidden Invoice Template Modal / Preview -->
     <div id="invoiceModal" class="modal">
