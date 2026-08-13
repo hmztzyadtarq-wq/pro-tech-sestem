@@ -1225,3 +1225,88 @@ window.generateCustomerReport = function(customerName) {
     `);
     reportWin.document.close();
 };
+// ==========================================
+// وظائف تعديل سداد الفواتير وتحديث كشف الحساب
+// ==========================================
+
+// 1. فتح نافذة السداد من الفاتورة المعروضة
+window.editInvoiceStatusModal = function() {
+    if (typeof currentInvoiceIndex === 'undefined' || currentInvoiceIndex === null) {
+        alert('برجاء اختيار فاتورة أولاً!');
+        return;
+    }
+    
+    let inv = invoices[currentInvoiceIndex];
+    document.getElementById('editPaymentInvIndex').value = currentInvoiceIndex;
+    document.getElementById('editPaymentInvNumber').innerText = inv.number || inv.id;
+    document.getElementById('editPaymentCustomerName').innerText = inv.customerName;
+    document.getElementById('editPaymentCurrentRemaining').innerText = (inv.remaining || 0) + ' ج.م';
+    document.getElementById('payAmountInput').value = inv.remaining || 0;
+    
+    // تاريخ اليوم التلقائي
+    let today = new Date().toISOString().split('T')[0];
+    document.getElementById('payNoteInput').value = `تم سداد دفعة بتاريخ ${today}`;
+    
+    document.getElementById('editInvoicePaymentModal').style.display = 'flex';
+};
+
+// 2. إغلاق النافذة
+window.closeEditPaymentModal = function() {
+    document.getElementById('editInvoicePaymentModal').style.display = 'none';
+};
+
+// 3. تأكيد عملية السداد وربطها بالعميل وسجل العمليات
+window.submitInvoicePaymentUpdate = function() {
+    let index = document.getElementById('editPaymentInvIndex').value;
+    let payAmount = parseFloat(document.getElementById('payAmountInput').value) || 0;
+    let payNote = document.getElementById('payNoteInput').value.trim();
+
+    if (index === "" || payAmount <= 0) {
+        alert('برجاء أدخال مبلغ سداد صحيح!');
+        return;
+    }
+
+    let inv = invoices[index];
+    let currentRemaining = inv.remaining || 0;
+
+    if (payAmount > currentRemaining) {
+        if (!confirm('المبلغ المدفوع أكبر من المتبقي على الفاتورة، هل تريد الاستمرار وإضافة الباقي كصيد دائن للعميل؟')) {
+            return;
+        }
+    }
+
+    // تحديث المتبقي وحالة الفاتورة
+    inv.remaining = Math.max(0, currentRemaining - payAmount);
+    if (inv.remaining === 0) {
+        inv.paymentStatus = 'تم الدفع بالكامل';
+    } else {
+        inv.paymentStatus = `تم دفع ${payAmount} ج.م - متبقي ${inv.remaining} ج.م`;
+    }
+
+    // إضافة سطر في سجل دفعات الفاتورة (عشان يظهر متى وسدد كام في المعاينة)
+    if (!inv.paymentHistory) inv.paymentHistory = [];
+    inv.paymentHistory.push({
+        amount: payAmount,
+        date: new Date().toLocaleString('ar-EG'),
+        note: payNote
+    });
+
+    // تسجيل العملية في سجل الأنشطة العام للبرنامج (Activity Log)
+    if (typeof activityLog !== 'undefined') {
+        activityLog.unshift({
+            title: `سداد فاتورة (${inv.number || inv.id})`,
+            details: `قام العميل ${inv.customerName} بسداد مبلغ ${payAmount} ج.م. (${payNote})`,
+            date: new Date().toLocaleString('ar-EG')
+        });
+    }
+
+    // حفظ البيانات وتحديث الشاشة
+    if (typeof saveData === 'function') saveData();
+    if (typeof refreshAllData === 'function') refreshAllData();
+    if (typeof renderInvoicesTable === 'function') renderInvoicesTable();
+    
+    closeEditPaymentModal();
+    if (typeof closeInvoiceModal === 'function') closeInvoiceModal();
+
+    alert(`تم تسجل سداد مبلغ ${payAmount} ج.م بنجاح وتحديث حساب العميل!`);
+};
