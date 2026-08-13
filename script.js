@@ -1316,3 +1316,74 @@ document.addEventListener('click', function(e) {
         logActivity('إدارة المخزون', 'تم إضافة أو تحديث صنف في المخزون');
     }
 });
+window.addEventListener('DOMContentLoaded', () => {
+    let savedThreshold = localStorage.getItem('bro_tech_low_stock_limit');
+    if(savedThreshold) {
+        let inputEl = document.getElementById('lowStockThresholdInput');
+        if(inputEl) inputEl.value = savedThreshold;
+    }
+});
+
+window.saveLowStockSetting = function() {
+    let inputEl = document.getElementById('lowStockThresholdInput');
+    if(!inputEl) return;
+    
+    let limitVal = Number(inputEl.value);
+    if(limitVal <= 0) {
+        alert('الرجاء إدخال رقم صحيح أكبر من الصفر');
+        return;
+    }
+
+    localStorage.setItem('bro_tech_low_stock_limit', limitVal);
+    alert('تم حفظ حد تنبيه المخزون بنجاح (' + limitVal + ')!');
+    
+    if(typeof logActivity === 'function') {
+        logActivity('الإعدادات', `تم تحديث حد تنبيه نقص المخزون إلى ${limitVal}`);
+    }
+};
+
+window.exportSystemBackup = function() {
+    let backupData = {
+        inventory: typeof inventory !== 'undefined' ? inventory : [],
+        invoices: typeof invoices !== 'undefined' ? invoices : [],
+        maintenance: typeof maintenanceList !== 'undefined' ? maintenanceList : [],
+        logs: typeof activityLogs !== 'undefined' ? activityLogs : [],
+        exportDate: new Date().toLocaleDateString('ar-EG')
+    };
+
+    let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+    let downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `BroTech_Backup_${new Date().toISOString().slice(0,10)}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+
+    if(typeof logActivity === 'function') {
+        logActivity('الإعدادات', 'تم تصدير نسخة احتياطية لبيانات النظام');
+    }
+};
+
+window.importSystemBackup = function(event) {
+    let file = event.target.files[0];
+    if(!file) return;
+
+    let reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            let importedData = JSON.parse(e.target.result);
+            
+            if(confirm('هل أنت متأكد من استعادة هذه البيانات؟ سيتم استبدال البيانات الحالية بالكامل!')) {
+                if(importedData.inventory) localStorage.setItem('inventory', JSON.stringify(importedData.inventory));
+                if(importedData.invoices) localStorage.setItem('invoices', JSON.stringify(importedData.invoices));
+                if(importedData.maintenance) localStorage.setItem('bro_tech_maintenance', JSON.stringify(importedData.maintenance));
+                
+                alert('تم استعادة النسخة الاحتياطية بنجاح! سيتم تحديث الصفحة الآن.');
+                location.reload();
+            }
+        } catch(err) {
+            alert('ملف النسخة الاحتياطية غير صالح أو تالف!');
+        }
+    };
+    reader.readAsText(file);
+};
