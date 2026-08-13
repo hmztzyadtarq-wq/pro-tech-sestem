@@ -1298,3 +1298,21 @@ window.openActivityLogModal = function() {
     `);
     logWin.document.close();
 };
+// مراقبة أزرار الحفظ أو النماذج لتسجيل العمليات تلقائياً
+document.addEventListener('click', function(e) {
+    // لو المستخدم ضغط على زر حفظ الفاتورة
+    if (e.target && (e.target.id === 'saveInvoiceBtn' || e.target.innerText.includes('حفظ وعرض الفاتورة'))) {
+        try {
+            let custName = document.querySelector('#customerSelect, select[name="customer"], .customer-name-input')?.value || 'عميل';
+            let totalVal = document.getElementById('finalTotal')?.innerText || '0';
+            logActivity('فاتورة مبيعات', `تم إنشاء فاتورة جديدة للعميل (${custName}) بقيمة ${totalVal}`);
+        } catch(err) {
+            logActivity('فاتورة مبيعات', 'تم إنشاء وحفظ فاتورة جديدة');
+        }
+    }
+    
+    // لو المستخدم ضغط على زر حفظ منتج في المخزون
+    if (e.target && (e.target.id === 'saveProductBtn' || e.target.innerText.includes('حفظ المنتج'))) {
+        logActivity('إدارة المخزون', 'تم إضافة أو تحديث صنف في المخزون');
+    }
+});
