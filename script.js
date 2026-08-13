@@ -342,7 +342,6 @@ window.addInvoiceItemRow = function(selectedCode = '', selectedQty = 1) {
 
     let optionsHtml = '<option value="">-- اختر الصنف من المخزون --</option>';
     inventory.forEach(i => {
-        // جعل الـ value هو كود الصنف حصرياً (i.code) لضمان عدم التداخل نهائياً
         let isSelected = (i.code === selectedCode) ? 'selected' : '';
         optionsHtml += `<option value="${i.code}" data-price="${i.price}" data-qty="${i.qty}" ${isSelected}>${i.name} (المتاح: ${i.qty} ${i.unit} - ${i.price} ج.م)</option>`;
     });
@@ -356,7 +355,6 @@ window.addInvoiceItemRow = function(selectedCode = '', selectedQty = 1) {
     `;
     tbody.appendChild(tr);
     
-    // تحديث السعر تلقائياً إذا كان صنف محدد مسبقاً
     let selectEl = tr.querySelector('.inv-item-code');
     if(selectedCode && selectEl) {
         window.updateRowPrice(selectEl);
@@ -461,7 +459,7 @@ window.createNewInvoice = function(e) {
             alert('يرجى اختيار صنف صحيح في كل السطور!');
             return;
         }
-        let prodCode = selectEl.value; // كود الصنف الفريد
+        let prodCode = selectEl.value;
         let qty = Number(tr.querySelector('.inv-item-qty').value);
         let price = Number(tr.querySelector('.inv-item-price').value);
         
@@ -504,7 +502,6 @@ window.createNewInvoice = function(e) {
         if(paidAmount < 0) paidAmount = 0;
     }
 
-    // خصم الكميات من المخزون بناءً على كود الصنف بدقة متناهية
     items.forEach(item => {
         let prodObj = inventory.find(i => i.code === item.code);
         if(prodObj) {
@@ -536,9 +533,13 @@ function renderInvoices() {
     let tbody = document.getElementById('invoicesTableBody');
     if(!tbody) return;
     tbody.innerHTML = '';
-    invoices.slice().reverse().forEach(inv => {
+    
+    // نستخدم الـ index الحقيقي للفاتورة بناءً على المصفوفة الأصلية أو البحث العكسي الدقيق
+    invoices.slice().reverse().forEach((inv, revIndex) => {
+        let index = invoices.length - 1 - revIndex;
         let statusBadge = (inv.remaining > 0) ? `<span class="badge-danger">متبقي: ${inv.remaining} ج.م</span>` : '<span class="badge-success">تم الدفع بالكامل</span>';
         let invString = encodeURIComponent(JSON.stringify(inv));
+        
         tbody.innerHTML += `
             <tr>
                 <td><strong>${inv.id}</strong></td>
@@ -548,6 +549,7 @@ function renderInvoices() {
                 <td>${statusBadge}</td>
                 <td>
                     <button onclick='showInvoiceModalEncoded("${invString}")' style="background: #0284c7; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left:5px;"><i class="fas fa-eye"></i> معاينة</button>
+                    <button onclick="openInvoicePaymentByIndex(${index})" style="background: #f59e0b; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;"><i class="fas fa-edit"></i> تعديل</button>
                     <button onclick="deleteInvoice('${inv.id}')" style="background: #f43f5e; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;"><i class="fas fa-trash"></i></button>
                 </td>
             </tr>
@@ -935,10 +937,9 @@ window.printInvoice = function() {
     
     printWindow.document.close();
 };
+
 window.openDailySalesReport = function() {
     let todayStr = new Date().toLocaleDateString('ar-EG');
-    
-    // تصفية فواتير اليوم فقط
     let todayInvoices = invoices.filter(inv => inv.date === todayStr);
     
     let totalSalesToday = todayInvoices.reduce((sum, inv) => sum + Number(inv.total), 0);
@@ -1010,7 +1011,7 @@ window.openDailySalesReport = function() {
     `);
     reportWin.document.close();
 };
-// فتح وإغلاق القائمة المنسدلة للتقارير
+
 window.toggleReportMenu = function() {
     let menu = document.getElementById('reportMenuDropdown');
     if(menu) {
@@ -1018,7 +1019,6 @@ window.toggleReportMenu = function() {
     }
 };
 
-// إغلاق القائمة لو المستخدم ضغط في أي مكان تاني بره
 window.addEventListener('click', function(e) {
     if (!e.target.closest('#reportMenuDropdown') && !e.target.closest('button[onclick="toggleReportMenu()"]')) {
         let menu = document.getElementById('reportMenuDropdown');
@@ -1026,7 +1026,6 @@ window.addEventListener('click', function(e) {
     }
 });
 
-// فتح التقرير بناءً على الاختيار (يومي، أسبوعي، شهري)
 window.openCustomReport = function(type) {
     let menu = document.getElementById('reportMenuDropdown');
     if(menu) menu.style.display = 'none';
@@ -1041,22 +1040,10 @@ window.openCustomReport = function(type) {
         reportTitle = `تقرير المبيعات اليومية (${todayStr})`;
     } 
     else if (type === 'weekly') {
-        // حساب فواتير آخر 7 أيام
-        let sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(now.getDate() - 7);
-        
-        filteredInvoices = invoices.filter(inv => {
-            if(!inv.date) return false;
-            // افتراض أن صيغة التاريخ متوافقة، أو مقارنة زمنية
-            let invDateParts = inv.date.split('/'); // أو حسب تنسيق تاريخك
-            return true; // سيتم جلب الفواتير المتاحة أو مطابقة التواريخ
-        });
-        // للتسهيل، سنعرض فواتير الشهر أو الأسبوع بناءً على التخزين الحالي
         reportTitle = `تقرير المبيعات الأسبوعي (آخر 7 أيام)`;
     } 
     else if (type === 'monthly') {
         let currentYear = now.getFullYear();
-        let currentMonth = now.getMonth() + 1;
         filteredInvoices = invoices.filter(inv => inv.date && inv.date.includes(currentYear.toString()));
         reportTitle = `تقرير المبيعات الشهري (${currentYear})`;
     }
@@ -1129,12 +1116,11 @@ window.openCustomReport = function(type) {
     `);
     reportWin.document.close();
 };
-// فتح نافذة صغيرة لاختيار اسم العميل لاستخراج كشف حسابه
+
 window.openCustomerAccountPrompt = function() {
     let menu = document.getElementById('reportMenuDropdown');
     if(menu) menu.style.display = 'none';
 
-    // استخراج أسماء العملاء الفريدين من الفواتير أو قائمة العملاء المتاحة لديك
     let customerNames = [...new Set(invoices.map(inv => inv.customerName))].filter(Boolean);
 
     if(customerNames.length === 0) {
@@ -1156,7 +1142,6 @@ window.openCustomerAccountPrompt = function() {
     window.generateCustomerReport(selectedCustomer);
 };
 
-// إنشاء تقرير كشف حساب العميل المنسق والجاهز للطباعة
 window.generateCustomerReport = function(customerName) {
     let customerInvoices = invoices.filter(inv => inv.customerName === customerName);
 
@@ -1225,37 +1210,55 @@ window.generateCustomerReport = function(customerName) {
     `);
     reportWin.document.close();
 };
+
 // ==========================================
-// وظائف تعديل سداد الفواتير وتحديث كشف الحساب
+// وظائف تعديل سداد الفواتير المباشر من الجدول
 // ==========================================
 
-// 1. فتح نافذة السداد من الفاتورة المعروضة
+window.openInvoicePaymentByIndex = function(index) {
+    if (typeof invoices === 'undefined' || !invoices[index]) {
+        alert('خطأ في بيانات الفاتورة!');
+        return;
+    }
+
+    let inv = invoices[index];
+    
+    window.currentEditingInvoiceIndex = index;
+
+    document.getElementById('editPaymentInvIndex').value = index;
+    let invNumEl = document.getElementById('editPaymentInvNumber');
+    if(invNumEl) invNumEl.innerText = inv.number || inv.id;
+    
+    let custNameEl = document.getElementById('editPaymentCustomerName');
+    if(custNameEl) custNameEl.innerText = inv.customerName;
+    
+    let remEl = document.getElementById('editPaymentCurrentRemaining');
+    if(remEl) remEl.innerText = (inv.remaining || 0) + ' ج.م';
+    
+    let payInput = document.getElementById('payAmountInput');
+    if(payInput) payInput.value = inv.remaining || 0;
+    
+    let today = new Date().toISOString().split('T')[0];
+    let noteInput = document.getElementById('payNoteInput');
+    if(noteInput) noteInput.value = `تم سداد دفعة بتاريخ ${today}`;
+    
+    let modal = document.getElementById('editInvoicePaymentModal');
+    if(modal) modal.style.display = 'flex';
+};
+
 window.editInvoiceStatusModal = function() {
     if (typeof currentInvoiceIndex === 'undefined' || currentInvoiceIndex === null) {
         alert('برجاء اختيار فاتورة أولاً!');
         return;
     }
-    
-    let inv = invoices[currentInvoiceIndex];
-    document.getElementById('editPaymentInvIndex').value = currentInvoiceIndex;
-    document.getElementById('editPaymentInvNumber').innerText = inv.number || inv.id;
-    document.getElementById('editPaymentCustomerName').innerText = inv.customerName;
-    document.getElementById('editPaymentCurrentRemaining').innerText = (inv.remaining || 0) + ' ج.م';
-    document.getElementById('payAmountInput').value = inv.remaining || 0;
-    
-    // تاريخ اليوم التلقائي
-    let today = new Date().toISOString().split('T')[0];
-    document.getElementById('payNoteInput').value = `تم سداد دفعة بتاريخ ${today}`;
-    
-    document.getElementById('editInvoicePaymentModal').style.display = 'flex';
+    window.openInvoicePaymentByIndex(currentInvoiceIndex);
 };
 
-// 2. إغلاق النافذة
 window.closeEditPaymentModal = function() {
-    document.getElementById('editInvoicePaymentModal').style.display = 'none';
+    let modal = document.getElementById('editInvoicePaymentModal');
+    if(modal) modal.style.display = 'none';
 };
 
-// 3. تأكيد عملية السداد وربطها بالعميل وسجل العمليات
 window.submitInvoicePaymentUpdate = function() {
     let index = document.getElementById('editPaymentInvIndex').value;
     let payAmount = parseFloat(document.getElementById('payAmountInput').value) || 0;
@@ -1270,12 +1273,11 @@ window.submitInvoicePaymentUpdate = function() {
     let currentRemaining = inv.remaining || 0;
 
     if (payAmount > currentRemaining) {
-        if (!confirm('المبلغ المدفوع أكبر من المتبقي على الفاتورة، هل تريد الاستمرار وإضافة الباقي كصيد دائن للعميل؟')) {
+        if (!confirm('المبلغ المدفوع أكبر من المتبقي على الفاتورة، هل تريد الاستمرار وإضافة الباقي رصيد دائن للعميل؟')) {
             return;
         }
     }
 
-    // تحديث المتبقي وحالة الفاتورة
     inv.remaining = Math.max(0, currentRemaining - payAmount);
     if (inv.remaining === 0) {
         inv.paymentStatus = 'تم الدفع بالكامل';
@@ -1283,7 +1285,6 @@ window.submitInvoicePaymentUpdate = function() {
         inv.paymentStatus = `تم دفع ${payAmount} ج.م - متبقي ${inv.remaining} ج.م`;
     }
 
-    // إضافة سطر في سجل دفعات الفاتورة (عشان يظهر متى وسدد كام في المعاينة)
     if (!inv.paymentHistory) inv.paymentHistory = [];
     inv.paymentHistory.push({
         amount: payAmount,
@@ -1291,7 +1292,6 @@ window.submitInvoicePaymentUpdate = function() {
         note: payNote
     });
 
-    // تسجيل العملية في سجل الأنشطة العام للبرنامج (Activity Log)
     if (typeof activityLog !== 'undefined') {
         activityLog.unshift({
             title: `سداد فاتورة (${inv.number || inv.id})`,
@@ -1300,13 +1300,11 @@ window.submitInvoicePaymentUpdate = function() {
         });
     }
 
-    // حفظ البيانات وتحديث الشاشة
     if (typeof saveData === 'function') saveData();
     if (typeof refreshAllData === 'function') refreshAllData();
-    if (typeof renderInvoicesTable === 'function') renderInvoicesTable();
     
     closeEditPaymentModal();
     if (typeof closeInvoiceModal === 'function') closeInvoiceModal();
 
-    alert(`تم تسجل سداد مبلغ ${payAmount} ج.م بنجاح وتحديث حساب العميل!`);
+    alert(`تم تسجيل سداد مبلغ ${payAmount} ج.م بنجاح وتحديث حساب العميل!`);
 };
