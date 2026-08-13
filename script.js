@@ -908,6 +908,10 @@ window.openEditProductModal = function(index) {
     const product = inventory[index];
     if (!product) return;
 
+    // إغلاق نافذة الفاتورة إن كانت مفتوحة لكي لا تغطي نافذة التعديل
+    let invoiceModal = document.getElementById('invoiceModal');
+    if (invoiceModal) invoiceModal.style.display = 'none';
+
     document.getElementById('editProdIndex').value = index;
     document.getElementById('editProdCode').value = product.code || '';
     document.getElementById('editProdName').value = product.name || '';
@@ -918,10 +922,9 @@ window.openEditProductModal = function(index) {
     let modal = document.getElementById('editProductModal');
     if (modal) {
         modal.style.display = 'flex';
-        modal.style.zIndex = '999999'; // رفع طبقة العرض لتكون فوق نافذة الفاتورة وأي عنصر آخر
+        modal.style.zIndex = '999999';
     }
 };
-
 window.closeEditProductModal = function() {
     let modal = document.getElementById('editProductModal');
     if (modal) {
@@ -946,5 +949,7 @@ window.saveEditedProduct = function(event) {
     closeEditProductModal();
     alert('تم تعديل بيانات الصنف بنجاح!');
 };
+
+
 
 
