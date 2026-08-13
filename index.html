@@ -1,10 +1,8 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>نظام إدارة شركة برو تيك - ProTech ERP Dashboard</title>
     <link rel="stylesheet" href="style.css">
     <!-- Font Awesome Icons -->
@@ -27,7 +25,7 @@
         <!-- Sidebar Navigation -->
         <aside class="sidebar">
             <div class="brand-header">
-                <div class="logo-circle"><i class="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS0EvxQU4VfuMDI5Y18DiV5Kz1p3qBras992xTbQT4s1g&s=10"></i></div>
+                <div class="logo-circle"><i class="fas fa-print"></i></div>
                 <h1>Bro Tech</h1>
                 <span>ProTech ERP v2.0</span>
             </div>
@@ -39,7 +37,6 @@
                 <li onclick="switchTab('customers')"><i class="fas fa-users"></i> دليل العملاء</li>
                 <li onclick="switchTab('settings')"><i class="fas fa-cogs"></i> الإعدادات والربط</li>
                 <li onclick="switchTab('activity')"><i class="fas fa-history"></i> سجل العمليات</li>
-            
             </ul>
             <div class="sidebar-footer">
                 <p><i class="fas fa-phone-alt"></i> 01020008299</p>
@@ -145,20 +142,22 @@
                     </div>
                 </div>
             </section>
-            <div id="tab-activity" class="tab-content" style="display: none;">
-    <h2>سجل العمليات والأنشطة</h2>
-    <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
-        <thead>
-            <tr style="background: #1e293b; color: #fff;">
-                <th style="padding: 10px; border: 1px solid #334155; text-align: right;">العملية / الحدث</th>
-                <th style="padding: 10px; border: 1px solid #334155; text-align: center; width: 200px;">التاريخ والوقت</th>
-            </tr>
-        </thead>
-        <tbody id="activityLogTableBody">
-            <!-- سيتم تعبئة العمليات هنا تلقائياً -->
-        </tbody>
-    </table>
-</div>
+
+            <!-- Activity Tab -->
+            <section id="tab-activity" class="tab-content" style="display: none;">
+                <h2>سجل العمليات والأنشطة</h2>
+                <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                    <thead>
+                        <tr style="background: #1e293b; color: #fff;">
+                            <th style="padding: 10px; border: 1px solid #334155; text-align: right;">العملية / الحدث</th>
+                            <th style="padding: 10px; border: 1px solid #334155; text-align: center; width: 200px;">التاريخ والوقت</th>
+                        </tr>
+                    </thead>
+                    <tbody id="activityLogTableBody">
+                        <!-- سيتم تعبئة العمليات هنا تلقائياً -->
+                    </tbody>
+                </table>
+            </section>
 
             <!-- Inventory Tab -->
             <section id="tab-inventory" class="tab-content">
@@ -185,7 +184,7 @@
                             </tr>
                         </thead>
                         <tbody id="inventoryTableBody">
-                            <!-- Dynamic - يتضمن زر التعديل المحدث الذي يستدعي openEditProductModal(index) -->
+                            <!-- Dynamic -->
                         </tbody>
                     </table>
                 </div>
@@ -200,17 +199,17 @@
                     </div>
                     <button class="btn-primary" onclick="openNewInvoiceModal()"><i class="fas fa-file-invoice-dollar"></i> إصدار فاتورة جديدة</button>
                 </div>
-             <div style="position: relative; display: inline-block;">
-    <button onclick="toggleReportMenu()" style="background: #0ea5e9; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; display: inline-flex; align-items: center; gap: 8px;">
-        <i class="fas fa-chart-bar"></i> تقارير المبيعات <i class="fas fa-chevron-down"></i>
-    </button>
-    <div id="reportMenuDropdown" style="display: none; position: absolute; right: 0; background: #1e293b; border: 1px solid #334155; border-radius: 6px; margin-top: 5px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); z-index: 100; min-width: 150px;">
-        <button onclick="openCustomReport('daily')" style="width: 100%; padding: 10px; background: none; border: none; color: #fff; text-align: right; cursor: pointer; border-bottom: 1px solid #334155;">📅 تقرير يومي</button>
-        <button onclick="openCustomReport('weekly')" style="width: 100%; padding: 10px; background: none; border: none; color: #fff; text-align: right; cursor: pointer; border-bottom: 1px solid #334155;">📆 تقرير أسبوعي</button>
-        <button onclick="openCustomReport('monthly')" style="width: 100%; padding: 10px; background: none; border: none; color: #fff; text-align: right; cursor: pointer;">🗓️ تقرير شهري</button>
-        <button onclick="openCustomerAccountPrompt()" style="width: 100%; padding: 10px; background: none; border: none; color: #38bdf8; text-align: right; cursor: pointer; font-weight: bold;">👤 كشف حساب عميل</button>
-    </div>
-</div>
+                <div style="position: relative; display: inline-block; margin-bottom: 15px;">
+                    <button onclick="toggleReportMenu()" style="background: #0ea5e9; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; display: inline-flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-chart-bar"></i> تقارير المبيعات <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div id="reportMenuDropdown" style="display: none; position: absolute; right: 0; background: #1e293b; border: 1px solid #334155; border-radius: 6px; margin-top: 5px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); z-index: 100; min-width: 150px;">
+                        <button onclick="openCustomReport('daily')" style="width: 100%; padding: 10px; background: none; border: none; color: #fff; text-align: right; cursor: pointer; border-bottom: 1px solid #334155;">📅 تقرير يومي</button>
+                        <button onclick="openCustomReport('weekly')" style="width: 100%; padding: 10px; background: none; border: none; color: #fff; text-align: right; cursor: pointer; border-bottom: 1px solid #334155;">📆 تقرير أسبوعي</button>
+                        <button onclick="openCustomReport('monthly')" style="width: 100%; padding: 10px; background: none; border: none; color: #fff; text-align: right; cursor: pointer;">🗓️ تقرير شهري</button>
+                        <button onclick="openCustomerAccountPrompt()" style="width: 100%; padding: 10px; background: none; border: none; color: #38bdf8; text-align: right; cursor: pointer; font-weight: bold;">👤 كشف حساب عميل</button>
+                    </div>
+                </div>
                 <div class="card-table-wrapper">
                     <div class="table-toolbar flex-toolbar">
                         <input type="text" id="searchInvoices" placeholder="بحث باسم العميل أو رقم الفاتورة..." onkeyup="filterInvoices()">
@@ -261,7 +260,7 @@
                 </div>
             </section>
 
-            <!-- Customers Tab (تم تحديث الجدول وترتيبه بدقة) -->
+            <!-- Customers Tab -->
             <section id="tab-customers" class="tab-content">
                 <div class="page-header-title flex-header">
                     <div>
@@ -287,14 +286,14 @@
                             </tr>
                         </thead>
                         <tbody id="customersTableBody">
-                            <!-- Dynamic - تم توسيع أعمدة ودلالات الجدول للعملاء بوضوح وتكامل -->
+                            <!-- Dynamic -->
                         </tbody>
                     </table>
                 </div>
             </section>
 
             <!-- Expenses Tab -->
-            <section id="tab-expenses" class="tab-content">
+            <section id="tab-expenses" class="tab-content" style="display: none;">
                 <div class="page-header-title flex-header">
                     <div>
                         <h1>كشف مصروفات الموظفين</h1>
@@ -342,11 +341,10 @@
     <div id="invoiceModal" class="modal">
         <div class="modal-content invoice-modal-width">
             <div class="modal-header">
-                <h2>معاينة الفاتورة الرسمية (مطابقة للتصميم الأصلي بالعربية)</h2>
+                <h2>معاينة الفاتورة الرسمية</h2>
                 <span class="close-btn" onclick="closeInvoiceModal()">&times;</span>
             </div>
             <div class="modal-body" id="printableInvoiceArea">
-                <!-- Exact Arabic Professional Invoice Template -->
                 <div class="invoice-box" style="background: #fff; color: #000; padding: 20px; font-family: 'Cairo', sans-serif; direction: rtl; text-align: right; border-radius: 8px;">
                     <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #0284c7; padding-bottom: 15px; margin-bottom: 15px;">
                         <div>
@@ -373,9 +371,7 @@
                                 <th style="padding: 8px; text-align: center;">الإجمالي</th>
                             </tr>
                         </thead>
-                        <tbody id="invModalItemsList">
-                            <!-- سيتم تعبئتها ديناميكياً من السكربت -->
-                        </tbody>
+                        <tbody id="invModalItemsList"></tbody>
                     </table>
                     <div style="display: flex; justify-content: flex-end; margin-bottom: 15px;">
                         <div style="width: 250px; font-size: 14px;">
@@ -402,14 +398,13 @@
                     </div>
                 </div>
             </div>
-             <div class="modal-footer" style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-    <button class="btn-primary" onclick="printInvoice()"><i class="fas fa-print"></i> طباعة الفاتورة</button>
-    <button class="btn-warning" onclick="editInvoiceStatusModal()" style="background: #f59e0b; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fas fa-edit"></i> تعديل وظيفة الفاتورة</button>
-    <button class="btn-success" onclick="sendToWhatsAppNabawy()"><i class="fab fa-whatsapp"></i> إرسال لمحمد النبوي</button>
-    <button class="btn-secondary" onclick="closeInvoiceModal()"><i class="fas fa-times"></i> إغلاق</button>
-</div>
-
-     
+            <div class="modal-footer" style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <button class="btn-primary" onclick="printInvoice()"><i class="fas fa-print"></i> طباعة الفاتورة</button>
+                <button class="btn-warning" onclick="editInvoiceStatusModal()" style="background: #f59e0b; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fas fa-edit"></i> تعديل وظيفة الفاتورة</button>
+                <button class="btn-success" onclick="sendToWhatsAppNabawy()"><i class="fab fa-whatsapp"></i> إرسال لمحمد النبوي</button>
+                <button class="btn-secondary" onclick="closeInvoiceModal()"><i class="fas fa-times"></i> إغلاق</button>
+            </div>
+        </div>
     </div>
 
     <!-- New Invoice Creation Modal -->
@@ -489,62 +484,8 @@
         </div>
     </div>
 
-    <!-- Modal تفاصيل مصروفات الموظف -->
-    <div id="employeeExpenseModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
-        <div class="modal-content" style="background: #fff; padding: 25px; border-radius: 8px; width: 600px; max-width: 90%; direction: rtl; text-align: right; max-height: 85vh; overflow-y: auto;">
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 15px;">
-                <h3 id="modalEmployeeName" style="margin: 0; color: #0284c7;">مصروفات الموظف</h3>
-                <button onclick="closeEmployeeExpenseModal()" style="background: none; border: none; font-size: 18px; cursor: pointer; color: #666;"><i class="fas fa-times"></i></button>
-            </div>
-            <form onsubmit="addEmployeeExpenseItem(event)" style="background: #f8fafc; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
-                <input type="hidden" id="activeEmployeeId">
-                <div style="display: flex; gap: 10px; margin-bottom: 8px;">
-                    <input type="number" id="expenseAmount" placeholder="المبلغ (ج.م)" required style="flex: 1; padding: 8px; border: 1.5px solid #ccc; border-radius: 4px;">
-                    <input type="text" id="expenseNote" placeholder="بيان الصرف (الملحوظة)..." required style="flex: 2; padding: 8px; border: 1.5px solid #ccc; border-radius: 4px;">
-                </div>
-                <button type="submit" class="btn-primary" style="width: 100%; padding: 8px; background: #0284c7; color: #fff; border: none; border-radius: 4px; cursor: pointer;">إضافة بند الصرف</button>
-            </form>
-            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                <thead>
-                    <tr style="background: #e2e8f0;">
-                        <th style="padding: 8px; text-align: right;">المبلغ</th>
-                        <th style="padding: 8px; text-align: right;">البيان (الملحوظة)</th>
-                        <th style="padding: 8px; text-align: center;">التاريخ</th>
-                        <th style="padding: 8px; text-align: center;">إجراء</th>
-                    </tr>
-                </thead>
-                <tbody id="employeeExpensesTableBody"></tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- Modal إضافة موظف جديد -->
-    <div id="addEmployeeModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
-        <div class="modal-content" style="background: #fff; padding: 25px; border-radius: 8px; width: 400px; max-width: 90%; direction: rtl; text-align: right;">
-            <h3 style="margin-top: 0; color: #0284c7;">إضافة موظف جديد</h3>
-            <form onsubmit="addNewEmployee(event)">
-                <div style="margin-bottom: 12px;">
-                    <label style="display: block; margin-bottom: 5px; font-size: 13px;">اسم الموظف</label>
-                    <input type="text" id="empName" required style="width: 100%; padding: 8px; border: 1.5px solid #ccc; border-radius: 4px;">
-                </div>
-                <div style="margin-bottom: 12px;">
-                    <label style="display: block; margin-bottom: 5px; font-size: 13px;">رابط الصورة الشخصية (URL) أو اتركها فارغة</label>
-                    <input type="text" id="empImg" placeholder="https://..." style="width: 100%; padding: 8px; border: 1.5px solid #ccc; border-radius: 4px;">
-                </div>
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-size: 13px;">معلومات / المسمى الوظيفي</label>
-                    <input type="text" id="empInfo" placeholder="مثال: مسؤول مبيعات وتوصيل" style="width: 100%; padding: 8px; border: 1.5px solid #ccc; border-radius: 4px;">
-                </div>
-                <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                    <button type="button" onclick="closeAddEmployeeModal()" style="padding: 8px 15px; background: #cbd5e1; border: none; border-radius: 4px; cursor: pointer;">إلغاء</button>
-                    <button type="submit" style="padding: 8px 15px; background: #0284c7; color: #fff; border: none; border-radius: 4px; cursor: pointer;">حفظ الموظف</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <!-- Add Product Modal -->
-    <div id="addProductModal" class="modal">
+    <div id="addProductModal" class="modal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
                 <h2>إضافة صنف جديد للمخزون</h2>
@@ -578,7 +519,7 @@
         </div>
     </div>
 
-    <!-- Edit Product Modal (نافذة تعديل صنف المخزون المرتبطة بزر التعديل بدقة) -->
+    <!-- Edit Product Modal -->
     <div id="editProductModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
         <div style="background: white; width: 400px; max-width: 95%; padding: 25px; border-radius: 10px; box-sizing: border-box; text-align: right; direction: rtl;">
             <h3 style="margin-top: 0; color: #0284c7; font-size: 18px; margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">تعديل بيانات الصنف</h3>
@@ -613,7 +554,7 @@
     </div>
 
     <!-- New Purchase Modal -->
-    <div id="newPurchaseModal" class="modal">
+    <div id="newPurchaseModal" class="modal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
                 <h2>تسجيل عملية شراء (زيادة المخزون تلقائياً)</h2>
@@ -644,7 +585,7 @@
     </div>
 
     <!-- Add Customer Modal -->
-    <div id="addCustomerModal" class="modal">
+    <div id="addCustomerModal" class="modal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
                 <h2>إضافة عميل جديد</h2>
@@ -670,16 +611,48 @@
         </div>
     </div>
 
-    <!-- ربط السكربت البرمجي -->
-    <script type="module" src="script.js"></script>
+    <!-- ربط السكربت البرمجي وربط الدوال العامة لتعمل الأزرار فوراً -->
+    <script type="module">
+        import * as appLogic from './script.js';
+        
+        // ربط الدوال بالـ Window لضمان استجابة الأزرار فوراً دون الحاجة لمعاينة فاتورة
+        window.switchTab = appLogic.switchTab;
+        window.openNewInvoiceModal = appLogic.openNewInvoiceModal;
+        window.closeNewInvoiceModal = appLogic.closeNewInvoiceModal;
+        window.openAddProductModal = appLogic.openAddProductModal;
+        window.closeAddProductModal = appLogic.closeAddProductModal;
+        window.openNewPurchaseModal = appLogic.openNewPurchaseModal;
+        window.closeNewPurchaseModal = appLogic.closeNewPurchaseModal;
+        window.openAddCustomerModal = appLogic.openAddCustomerModal;
+        window.closeAddCustomerModal = appLogic.closeAddCustomerModal;
+        window.toggleReportMenu = appLogic.toggleReportMenu;
+        window.openCustomReport = appLogic.openCustomReport;
+        window.openCustomerAccountPrompt = appLogic.openCustomerAccountPrompt;
+        window.closeInvoiceModal = appLogic.closeInvoiceModal;
+        window.printInvoice = appLogic.printInvoice;
+        window.editInvoiceStatusModal = appLogic.editInvoiceStatusModal;
+        window.sendToWhatsAppNabawy = appLogic.sendToWhatsAppNabawy;
+        window.handleGlobalSearch = appLogic.handleGlobalSearch;
+        window.filterInventory = appLogic.filterInventory;
+        window.filterInvoices = appLogic.filterInvoices;
+        window.filterCustomers = appLogic.filterCustomers;
+        window.handleCustomerSelectChange = appLogic.handleCustomerSelectChange;
+        window.addInvoiceItemRow = appLogic.addInvoiceItemRow;
+        window.calculateInvoiceTotal = appLogic.calculateInvoiceTotal;
+        window.createNewInvoice = appLogic.createNewInvoice;
+        window.addNewProduct = appLogic.addNewProduct;
+        window.saveEditedProduct = appLogic.saveEditedProduct;
+        window.closeEditProductModal = appLogic.closeEditProductModal;
+        window.createNewPurchase = appLogic.createNewPurchase;
+        window.saveSettings = appLogic.saveSettings;
+    </script>
+    
     <script>
-        // دوال التحكم المساعدة المدمجة واختصار الخروج
         function logoutSystem() {
             localStorage.removeItem('protech_logged_in');
             window.location.href = "login.html";
         }
 
-        // دالة حفظ العميل المباشر لمنع ريفريش الصفحة وضمان إضافته للقائمة
         function addNewCustomerDirect(e) {
             e.preventDefault();
             let name = document.getElementById('custName').value.trim();
@@ -687,33 +660,26 @@
             let address = document.getElementById('custAddress').value.trim();
 
             if(!name) return;
-
-            let exists = customers.some(c => c.name === name);
-            if(exists) {
-                alert('هذا العميل مسجل مسبقاً!');
-                return;
+            if(typeof customers !== 'undefined') {
+                let exists = customers.some(c => c.name === name);
+                if(exists) {
+                    alert('هذا العميل مسجل مسبقاً!');
+                    return;
+                }
+                customers.push({ name, phone, address });
+                saveData();
+                refreshAllData();
             }
-
-            customers.push({ name, phone, address });
-            saveData();
-            refreshAllData();
             closeAddCustomerModal();
-            
             document.getElementById('custName').value = '';
             document.getElementById('custPhone').value = '';
             document.getElementById('custAddress').value = '';
-            
             alert('تم حفظ العميل بنجاح!');
         }
 
-        // دوال فتح وإغلاق نافذة تعديل صنف المخزون
         function closeEditProductModal() {
             document.getElementById('editProductModal').style.display = 'none';
         }
-    </script>
-    <script>
-        // تجاوز مؤقت لتسجيل الدخول للعمل مباشرة
-        localStorage.setItem('protech_logged_in', 'true');
     </script>
 </body>
 </html>
