@@ -786,6 +786,27 @@ window.saveEditedProduct = function(event) {
     closeEditProductModal();
     alert('تم تعديل بيانات الصنف بنجاح!');
 };
+
+window.closeEditProductModal = function() {
+    document.getElementById('editProductModal').style.display = 'none';
+};
+
+window.saveEditedProduct = function(event) {
+    event.preventDefault();
+    const index = document.getElementById('editProdIndex').value;
+    if (index === "" || !inventory[index]) return;
+
+    inventory[index].code = document.getElementById('editProdCode').value.trim();
+    inventory[index].name = document.getElementById('editProdName').value.trim();
+    inventory[index].qty = Number(document.getElementById('editProdQty').value);
+    inventory[index].unit = document.getElementById('editProdUnit').value;
+    inventory[index].price = Number(document.getElementById('editProdPrice').value);
+
+    saveData();
+    refreshAllData();
+    closeEditProductModal();
+    alert('تم تعديل بيانات الصنف بنجاح!');
+};
 window.printInvoice = function() {
     let inv = window.activePrintingInvoice || currentInvoiceData;
     if(!inv) {
