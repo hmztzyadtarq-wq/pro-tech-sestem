@@ -3,7 +3,7 @@
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
     <meta charset="UTF-8">
-    <title>نظام إدارة شركة برو تيك - ProTech ERP v2.0</title>
+    <title>نظام إدارة شركة برو تيك - ProTech ERP Dashboard</title>
     <link rel="stylesheet" href="style.css">
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -276,18 +276,18 @@
                 </div>
             </section>
 
-            <!-- Employees Section Management (الصفحة الكاملة المحدثة للموظفين والرواتب) -->
+            <!-- Employees Section Management (الصفحة الكاملة المحدثة للموظفين والورديات) -->
             <section id="employees-section" class="tab-content" style="display: none;">
                 <div class="page-header-title flex-header">
                     <div>
-                        <h1>إدارة الموظفين والورديات والرواتب</h1>
-                        <p>التحكم في رواتب الموظفين، تسجيل السلف والخصومات يومياً حتى كشف الحساب في آخر الشهر (من 15/8 إلى 30)</p>
+                        <h1>إدارة الموظفين والورديات المخصصة</h1>
+                        <p>متابعة بيانات الموظفين، أوقات الحضور والانصراف، وحالة الأجهزة المرتبطة بالبصمة</p>
                     </div>
                     <button class="btn-primary" onclick="openAddEmployeeModal()"><i class="fas fa-plus"></i> إضافة موظف جديد</button>
                 </div>
 
-                <!-- كروت عرض الموظفين التفاعلية (النقر عليها يفتح نافذة تسجيل السلف والخصومات القديمة والجديدة) -->
-                <div id="employeesCardsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; margin-top: 20px; margin-bottom: 30px;">
+                <!-- كروت عرض الموظفين التفاعلية (تفتح نافذة المصروفات والبيانات عند النقر) -->
+                <div id="employeesCardsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; margin-top: 20px; margin-bottom: 30px;">
                     <!-- يتم تعبئتها ديناميكياً -->
                 </div>
 
@@ -298,10 +298,10 @@
                                 <th>كود الموظف</th>
                                 <th>اسم الموظف</th>
                                 <th>الوظيفة</th>
-                                <th>الراتب الأساسي</th>
-                                <th>وردية العمل</th>
-                                <th>حالة البصمة</th>
-                                <th>إجراءات وتحكم الرواتب</th>
+                                <th>وردية الحضور</th>
+                                <th>وردية الانصراف</th>
+                                <th>حالة الجهاز (البصمة)</th>
+                                <th>الإجراءات والتحكم</th>
                             </tr>
                         </thead>
                         <tbody id="manageEmployeesTableBody">
@@ -489,49 +489,36 @@
         </div>
     </div>
 
-    <!-- Modal تفاصيل سلف ومصروفات الموظف (يمكن إضافة أي سلف سابقة أو حالية من تاريخ 15/8) -->
-    <div id="employeeExpenseModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 1000;">
-        <div class="modal-content" style="background: #1e293b; color: #fff; padding: 25px; border-radius: 12px; width: 650px; max-width: 95%; direction: rtl; text-align: right; max-height: 85vh; overflow-y: auto;">
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 10px; margin-bottom: 15px;">
-                <h3 id="modalEmployeeName" style="margin: 0; color: #38bdf8;">التحكم في سلف وخصومات الموظف</h3>
-                <button onclick="closeEmployeeExpenseModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #94a3b8;"><i class="fas fa-times"></i></button>
+    <!-- Modal تفاصيل مصروفات الموظف -->
+    <div id="employeeExpenseModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
+        <div class="modal-content" style="background: #fff; padding: 25px; border-radius: 8px; width: 600px; max-width: 90%; direction: rtl; text-align: right; max-height: 85vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 15px;">
+                <h3 id="modalEmployeeName" style="margin: 0; color: #0284c7;">مصروفات الموظف</h3>
+                <button onclick="closeEmployeeExpenseModal()" style="background: none; border: none; font-size: 18px; cursor: pointer; color: #666;"><i class="fas fa-times"></i></button>
             </div>
-            
-            <div style="background: #0f172a; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #334155;">
-                <p style="margin: 0 0 8px 0; font-size: 13px; color: #fbbf24; font-weight: bold;"><i class="fas fa-info-circle"></i> يمكنك تسجيل سلفة جديدة، جزاء، أو إدخال مبالغ وسلف قديمة خاصة بالموظف لتظهر مباشرة في كشف حساب نهاية الشهر.</p>
-                <form onsubmit="addEmployeeExpenseItem(event)">
-                    <input type="hidden" id="activeEmployeeId">
-                    <div style="display: flex; gap: 10px; margin-bottom: 8px;">
-                        <input type="number" id="expenseAmount" placeholder="المبلغ (ج.م)" required style="flex: 1; padding: 8px; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 6px;">
-                        <input type="text" id="expenseNote" placeholder="بيان الصرف أو السلفة (مثال: سلفة نقدية / جزاء تأخير)..." required style="flex: 2; padding: 8px; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 6px;">
-                    </div>
-                    <div style="display: flex; gap: 10px; margin-bottom: 8px;">
-                        <input type="date" id="expenseDate" required style="flex: 1; padding: 8px; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 6px;">
-                    </div>
-                    <button type="submit" style="width: 100%; padding: 9px; background: #0284c7; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;"><i class="fas fa-plus"></i> إضافة للسلف / المستقطعات</button>
-                </form>
-            </div>
-
-            <h4 style="color: #f1f5f9; margin-bottom: 8px; font-size: 14px;">سجل السلف والخصومات المسجلة:</h4>
-            <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 15px;" border="1" bordercolor="#334155">
+            <form onsubmit="addEmployeeExpenseItem(event)" style="background: #f8fafc; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
+                <input type="hidden" id="activeEmployeeId">
+                <div style="display: flex; gap: 10px; margin-bottom: 8px;">
+                    <input type="number" id="expenseAmount" placeholder="المبلغ (ج.م)" required style="flex: 1; padding: 8px; border: 1.5px solid #ccc; border-radius: 4px;">
+                    <input type="text" id="expenseNote" placeholder="بيان الصرف (الملحوظة)..." required style="flex: 2; padding: 8px; border: 1.5px solid #ccc; border-radius: 4px;">
+                </div>
+                <button type="submit" class="btn-primary" style="width: 100%; padding: 8px; background: #0284c7; color: #fff; border: none; border-radius: 4px; cursor: pointer;">إضافة بند الصرف</button>
+            </form>
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
                 <thead>
-                    <tr style="background: #0f172a; color: #38bdf8;">
+                    <tr style="background: #e2e8f0;">
                         <th style="padding: 8px; text-align: right;">المبلغ</th>
-                        <th style="padding: 8px; text-align: right;">البيان (السبب)</th>
+                        <th style="padding: 8px; text-align: right;">البيان (الملحوظة)</th>
                         <th style="padding: 8px; text-align: center;">التاريخ</th>
                         <th style="padding: 8px; text-align: center;">إجراء</th>
                     </tr>
                 </thead>
                 <tbody id="employeeExpensesTableBody"></tbody>
             </table>
-
-            <div style="text-align: center; border-top: 1px solid #334155; padding-top: 12px;">
-                <button onclick="openEmployeeReportFromModal()" style="background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer;"><i class="fas fa-file-invoice-dollar"></i> عرض كشف حساب وراتب الموظف (شامل الشهر)</button>
-            </div>
         </div>
     </div>
 
-    <!-- Modal: إضافة أو تعديل موظف وردية وراتب -->
+    <!-- Modal: إضافة أو تعديل موظف وردية -->
     <div id="employeeConfigModal" class="modal" style="display: none;">
         <div class="modal-content" style="width: 450px; max-width: 95%; background: #1e293b; color: #fff; padding: 25px; border-radius: 12px; text-align: right; direction: rtl;">
             <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #334155; padding-bottom: 10px;">
@@ -548,10 +535,6 @@
                     <div style="margin-bottom: 12px;">
                         <label style="display: block; margin-bottom: 5px; font-size: 13px; color: #94a3b8;">الوظيفة / التخصص</label>
                         <input type="text" id="configEmpRole" required style="width: 100%; padding: 8px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 6px; box-sizing: border-box;">
-                    </div>
-                    <div style="margin-bottom: 12px;">
-                        <label style="display: block; margin-bottom: 5px; font-size: 13px; color: #38bdf8; font-weight: bold;">الراتب الأساسي الشهري (ج.م)</label>
-                        <input type="number" id="configEmpSalary" placeholder="مثال: 5500" required style="width: 100%; padding: 8px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 6px; box-sizing: border-box;">
                     </div>
                     <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                         <div style="flex: 1;">
@@ -729,55 +712,6 @@
         </div>
     </div>
 
-    <!-- نافذة Modal الخاصة بكشف حساب وراتب الموظف الشهري (يوم 30 وأيام الشهر) -->
-    <div id="employeeReportModal" class="modal" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 2000;">
-        <div class="modal-content" style="background: #1e293b; color: #fff; padding: 25px; border-radius: 12px; width: 680px; max-width: 95%; direction: rtl; text-align: right;">
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 10px; margin-bottom: 15px;">
-                <h3 style="margin: 0; color: #38bdf8;"><i class="fas fa-file-invoice-dollar"></i> كشف حساب وراتب الموظف (عن شهر أغسطس 2026)</h3>
-                <button onclick="closeEmployeeReport()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #94a3b8;"><i class="fas fa-times"></i></button>
-            </div>
-            
-            <div id="printableReportArea" style="background: #0f172a; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                <div style="text-align: center; border-bottom: 1px dashed #334155; padding-bottom: 10px; margin-bottom: 12px;">
-                    <h2 style="margin: 0 0 5px 0; color: #38bdf8; font-size: 18px;">شركة برو تيك للأحبار وماكينات الطباعة</h2>
-                    <p id="repEmployeeName" style="margin: 3px 0; font-size: 14px; color: #f8fafc;">اسم الموظف: --</p>
-                    <p id="repEmployeeRole" style="margin: 3px 0; font-size: 13px; color: #94a3b8;">الوظيفة: --</p>
-                </div>
-                <table style="width: 100%; border-collapse: collapse; font-size: 13px;" border="1" bordercolor="#334155">
-                    <tr>
-                        <td style="padding: 8px; color: #94a3b8;">أيام الحضور الفعلي (من 15/8)</td>
-                        <td id="repPresentDays" style="padding: 8px; text-align: center; color: #34d399; font-weight: bold;">0 أيام</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 8px; color: #94a3b8;">أيام الغياب</td>
-                        <td id="repAbsentDays" style="padding: 8px; text-align: center; color: #f87171; font-weight: bold;">0 أيام</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 8px; color: #94a3b8;">إجمالي ساعات العمل</td>
-                        <td id="repTotalHours" style="padding: 8px; text-align: center; color: #38bdf8; font-weight: bold;">0 ساعة</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 8px; color: #94a3b8;">إجمالي المستحق (الراتب الأساسي المخصص)</td>
-                        <td id="repGrossSalary" style="padding: 8px; text-align: center; font-weight: bold;">0.00 ج.م</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 8px; color: #94a3b8;">إجمالي المستقطعات (السلف والجزاءات المسجلة)</td>
-                        <td id="repDeductions" style="padding: 8px; text-align: center; color: #fbbf24; font-weight: bold;">0.00 ج.م</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 8px; font-weight: bold; background: #1e293b; color: #38bdf8;">صافي المستحق للموظف (نهاية الشهر)</td>
-                        <td id="repNetSalary" style="padding: 8px; font-weight: bold; text-align: center; background: #1e293b; color: #34d399; font-size: 15px;">0.00 ج.م</td>
-                    </tr>
-                </table>
-            </div>
-
-            <div style="display: flex; gap: 10px;">
-                <button onclick="printEmployeeReport()" style="flex: 2; background: #10b981; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;"><i class="fas fa-print"></i> طباعة التقرير</button>
-                <button onclick="closeEmployeeReport()" style="flex: 1; background: #64748b; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer;">إلغاء</button>
-            </div>
-        </div>
-    </div>
-
     <!-- ربط السكربت البرمجي والدوال البرمجية المدمجة -->
     <script type="module" src="script.js"></script>
     <script>
@@ -819,6 +753,7 @@
                 target.style.display = 'block';
                 target.classList.add('active');
             }
+            // استدعاء تحديث الكروت والجدول الخاص بالموظفين عند فتح القسم
             if(sectionId === 'employees-section') {
                 renderManageEmployeesTable();
                 renderEmployeeCards();
@@ -837,10 +772,9 @@
             });
         };
 
-        // قاعدة بيانات الموظفين المحدثة برواتب أساسية لكل موظف
         let managedEmployees = JSON.parse(localStorage.getItem('broTechManagedEmployees')) || [
-            { id: 'EMP-01', name: 'محمد النبوي', role: 'فني صيانة', baseSalary: 6000, checkIn: '09:00', checkOut: '17:00', deviceBound: 'مسجل (جهاز هاتف)' },
-            { id: 'EMP-02', name: 'سهام', role: 'سكرتيره', baseSalary: 5500, checkIn: '10:00', checkOut: '18:00', deviceBound: 'مسجل (جهاز هاتف)' }
+            { id: 'EMP-01', name: 'محمد النبوي', role: 'فني صيانة', checkIn: '09:00', checkOut: '17:00', deviceBound: 'مسجل (جهاز هاتف)' },
+            { id: 'EMP-02', name: 'أحمد محمود', role: 'مبيعات', checkIn: '10:00', checkOut: '18:00', deviceBound: 'مسجل (جهاز هاتف)' }
         ];
 
         // دالة عرض كروت الموظفين التفاعلية
@@ -855,7 +789,6 @@
             }
 
             managedEmployees.forEach(emp => {
-                let baseSalary = parseFloat(emp.baseSalary) || 0;
                 grid.innerHTML += `
                     <div onclick="openEmployeeExpenseModal('${emp.id}', '${emp.name}')" style="background: #1e293b; border: 1px solid #334155; padding: 20px; border-radius: 10px; cursor: pointer; transition: 0.2s; text-align: right; color: #fff;">
                         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
@@ -867,8 +800,7 @@
                                 <small style="color: #94a3b8;">${emp.role}</small>
                             </div>
                         </div>
-                        <div style="font-size: 13px; color: #cbd5e1; border-top: 1px solid #334155; margin-top: 10px; padding-top: 8px; display: flex; justify-content: space-between;">
-                            <span>الراتب: <strong style="color: #34d399;">${baseSalary} ج.م</strong></span>
+                        <div style="font-size: 13px; color: #cbd5e1; border-top: 1px solid #334155; margin-top: 10px; padding-top: 8px;">
                             <span>الوردية: ${emp.checkIn} - ${emp.checkOut}</span>
                         </div>
                     </div>
@@ -887,20 +819,18 @@
             }
 
             managedEmployees.forEach(emp => {
-                let salary = parseFloat(emp.baseSalary) || 0;
                 tbody.innerHTML += `
                     <tr>
                         <td><strong>${emp.id}</strong></td>
                         <td>${emp.name}</td>
                         <td>${emp.role}</td>
-                        <td style="color: #34d399; font-weight: bold;">${salary} ج.م</td>
-                        <td><span style="background: #065f46; color: #34d399; padding: 3px 8px; border-radius: 4px; font-size: 12px;">من ${emp.checkIn} إلى ${emp.checkOut}</span></td>
-                        <td><small style="color: #94a3b8;">${emp.deviceBound || 'مسجل'}</small> <button onclick="resetEmpDevice('${emp.id}')" style="background: #d97706; color: white; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 11px; margin-right: 5px;">إعادة تعيين</button></td>
+                        <td><span style="background: #065f46; color: #34d399; padding: 3px 8px; border-radius: 4px; font-size: 12px;">${emp.checkIn}</span></td>
+                        <td><span style="background: #991b1b; color: #fca5a5; padding: 3px 8px; border-radius: 4px; font-size: 12px;">${emp.checkOut}</span></td>
+                        <td><small style="color: #94a3b8;">${emp.deviceBound}</small> <button onclick="resetEmpDevice('${emp.id}')" style="background: #d97706; color: white; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 11px; margin-right: 5px;">إعادة تعيين</button></td>
                         <td>
-                            <button onclick="openEmployeeExpenseModal('${emp.id}', '${emp.name}')" style="background: #10b981; color: white; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 3px;"><i class="fas fa-hand-holding-usd"></i> السلف والخصم</button>
-                            <button onclick="openEmployeeReportModal('${emp.id}')" style="background: #0ea5e9; color: white; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 3px;"><i class="fas fa-file-invoice-dollar"></i> كشف حساب</button>
-                            <button onclick="editEmployee('${emp.id}')" style="background: #0284c7; color: white; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 3px;">تعديل</button>
-                            <button onclick="deleteEmployee('${emp.id}')" style="background: #ef4444; color: white; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 12px;">حذف</button>
+                            <button onclick="openEmployeeReport('${emp.id}')" style="background: #0ea5e9; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 5px;"><i class="fas fa-file-invoice-dollar"></i> كشف حساب</button>
+                            <button onclick="editEmployee('${emp.id}')" style="background: #0284c7; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 5px;">تعديل</button>
+                            <button onclick="deleteEmployee('${emp.id}')" style="background: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">حذف</button>
                         </td>
                     </tr>
                 `;
@@ -923,7 +853,6 @@
             const id = document.getElementById('empDatabaseId').value;
             const name = document.getElementById('configEmpName').value.trim();
             const role = document.getElementById('configEmpRole').value.trim();
-            const baseSalary = parseFloat(document.getElementById('configEmpSalary').value) || 0;
             const checkIn = document.getElementById('configCheckInTime').value;
             const checkOut = document.getElementById('configCheckOutTime').value;
 
@@ -937,7 +866,6 @@
                 if (emp) {
                     emp.name = name;
                     emp.role = role;
-                    emp.baseSalary = baseSalary;
                     emp.checkIn = checkIn;
                     emp.checkOut = checkOut;
                 }
@@ -946,7 +874,6 @@
                     id: 'EMP-' + (managedEmployees.length + 1).toString().padStart(2, '0'),
                     name,
                     role,
-                    baseSalary,
                     checkIn,
                     checkOut,
                     deviceBound: 'غير مسجل بعد'
@@ -967,7 +894,6 @@
             document.getElementById('empDatabaseId').value = emp.id;
             document.getElementById('configEmpName').value = emp.name;
             document.getElementById('configEmpRole').value = emp.role;
-            document.getElementById('configEmpSalary').value = emp.baseSalary || 0;
             document.getElementById('configCheckInTime').value = emp.checkIn;
             document.getElementById('configCheckOutTime').value = emp.checkOut;
             document.getElementById('empModalTitle').innerText = 'تعديل بيانات ووردية الموظف';
@@ -994,14 +920,10 @@
             }
         }
 
-        // دوال التحكم بمصروفات وسلف وخصومات الموظف (تدعم تسجيل أي شيء قديم أو من 15/8)
-        let currentModalEmpId = null;
-
+        // دوال التحكم الخاصة بمصروفات الموظف
         function openEmployeeExpenseModal(empId, empName) {
-            currentModalEmpId = empId;
             document.getElementById('activeEmployeeId').value = empId;
-            document.getElementById('modalEmployeeName').innerText = `مصروفات وسلف الموظف: ${empName}`;
-            document.getElementById('expenseDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('modalEmployeeName').innerText = `مصروفات الموظف: ${empName}`;
             document.getElementById('employeeExpenseModal').style.display = 'flex';
             renderEmployeeExpensesList(empId);
         }
@@ -1013,9 +935,9 @@
         function addEmployeeExpenseItem(e) {
             e.preventDefault();
             const empId = document.getElementById('activeEmployeeId').value;
-            const amount = parseFloat(document.getElementById('expenseAmount').value) || 0;
-            const note = document.getElementById('expenseNote').value.trim();
-            const date = document.getElementById('expenseDate').value;
+            const amount = document.getElementById('expenseAmount').value;
+            const note = document.getElementById('expenseNote').value;
+            const date = new Date().toISOString().split('T')[0];
 
             let allExpenses = JSON.parse(localStorage.getItem('broTechEmpExpenses')) || {};
             if(!allExpenses[empId]) allExpenses[empId] = [];
@@ -1026,7 +948,7 @@
             document.getElementById('expenseAmount').value = '';
             document.getElementById('expenseNote').value = '';
             renderEmployeeExpensesList(empId);
-            alert('تم تسجيل البند بنجاح وتدوينه في الحساب!');
+            alert('تم إضافة بند الصرف بنجاح!');
         }
 
         function renderEmployeeExpensesList(empId) {
@@ -1038,14 +960,14 @@
             let empExps = allExpenses[empId] || [];
 
             if(empExps.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 15px; color: #94a3b8;">لا توجد سلف أو خصومات مسجلة لهذا الموظف</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 15px; color: #666;">لا توجد مصروفات مسجلة لهذا الموظف</td></tr>`;
                 return;
             }
 
             empExps.forEach((exp, idx) => {
                 tbody.innerHTML += `
                     <tr>
-                        <td style="padding: 8px;"><strong style="color: #fbbf24;">${exp.amount} ج.م</strong></td>
+                        <td style="padding: 8px;"><strong>${exp.amount} ج.م</strong></td>
                         <td style="padding: 8px;">${exp.note}</td>
                         <td style="padding: 8px; text-align: center;">${exp.date}</td>
                         <td style="padding: 8px; text-align: center;">
@@ -1065,78 +987,6 @@
             }
         }
 
-        function openEmployeeReportFromModal() {
-            if(currentModalEmpId) {
-                closeEmployeeExpenseModal();
-                openEmployeeReportModal(currentModalEmpId);
-            }
-        }
-
-        // دوال فتح وطباعة كشف حساب وراتب الموظف (يوم 30 ونهاية الشهر)
-        function openEmployeeReportModal(empId) {
-            let emp = managedEmployees.find(e => e.id === empId);
-            if(!emp) return;
-
-            document.getElementById('repEmployeeName').innerText = `اسم الموظف: ${emp.name}`;
-            document.getElementById('repEmployeeRole').innerText = `الوظيفة: ${emp.role}`;
-
-            // حساب الحضور والغياب (من يوم 15/8 حتى نهاية الشهر)
-            let allAttendance = JSON.parse(localStorage.getItem('broTechEmpAttendance')) || {};
-            let empLogs = allAttendance[empId] || [];
-            
-            // تصفية السجلات لتكون من 15/8 صاعداً أو احتساب الأيام المسجلة
-            let presentDaysCount = empLogs.filter(log => log.status === 'حاضر').length;
-            if(presentDaysCount === 0 && empLogs.length === 0) {
-                // افتراضي لو مافيش بصمة سابقة مسجلة اليومين دول
-                presentDaysCount = 12; // من 15 إلى 30 أغسطس
-            }
-            let totalTargetDays = 15; // الفترة من 15/8 إلى 30/8
-            let absentDaysCount = Math.max(0, totalTargetDays - presentDaysCount);
-
-            let totalMinutesWorked = 0;
-            empLogs.forEach(log => {
-                if(log.checkInTime && log.checkOutTime) {
-                    let [inH, inM] = log.checkInTime.split(':').map(Number);
-                    let [outH, outM] = log.checkOutTime.split(':').map(Number);
-                    let diffMinutes = (outH * 60 + outM) - (inH * 60 + inM);
-                    if(diffMinutes > 0) totalMinutesWorked += diffMinutes;
-                }
-            });
-            if(totalMinutesWorked === 0) totalMinutesWorked = presentDaysCount * 8 * 60; // افتراضي 8 ساعات يومياً
-            let totalHoursCalculated = (totalMinutesWorked / 60).toFixed(1);
-
-            let grossSalary = parseFloat(emp.baseSalary) || 0;
-
-            // جلب السلف والخصومات الخاصة بالموظف
-            let allExpenses = JSON.parse(localStorage.getItem('broTechEmpExpenses')) || {};
-            let empExps = allExpenses[empId] || [];
-            let totalDeductions = empExps.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
-
-            let netSalary = Math.max(0, grossSalary - totalDeductions);
-
-            document.getElementById('repPresentDays').innerText = `${presentDaysCount} يوم`;
-            document.getElementById('repAbsentDays').innerText = `${absentDaysCount} أيام`;
-            document.getElementById('repTotalHours').innerText = `${totalHoursCalculated} ساعة`;
-            document.getElementById('repGrossSalary').innerText = `${grossSalary.toFixed(2)} ج.م`;
-            document.getElementById('repDeductions').innerText = `${totalDeductions.toFixed(2)} ج.م`;
-            document.getElementById('repNetSalary').innerText = `${netSalary.toFixed(2)} ج.م`;
-
-            document.getElementById('employeeReportModal').style.display = 'flex';
-        }
-
-        function closeEmployeeReport() {
-            document.getElementById('employeeReportModal').style.display = 'none';
-        }
-
-        function printEmployeeReport() {
-            let printContents = document.getElementById('printableReportArea').innerHTML;
-            let originalContents = document.body.innerHTML;
-            document.body.innerHTML = `<div style="direction: rtl; padding: 20px; font-family: Cairo, sans-serif;">${printContents}</div>`;
-            window.print();
-            document.body.innerHTML = originalContents;
-            location.reload();
-        }
-
         document.addEventListener('DOMContentLoaded', () => {
             renderManageEmployeesTable();
         });
@@ -1144,5 +994,53 @@
     <script>
         localStorage.setItem('protech_logged_in', 'true');
     </script>
+    <!-- نافذة Modal الخاصة بالتقرير الشامل للموظف -->
+<div id="employeeReportModal" class="modal" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 2000;">
+    <div class="modal-content" style="background: #1e293b; color: #fff; padding: 25px; border-radius: 12px; width: 650px; max-width: 95%; direction: rtl; text-align: right;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 10px; margin-bottom: 15px;">
+            <h3 style="margin: 0; color: #38bdf8;"><i class="fas fa-file-invoice-dollar"></i> كشف حساب وراتب موظف</h3>
+            <button onclick="closeEmployeeReport()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #94a3b8;"><i class="fas fa-times"></i></button>
+        </div>
+        
+        <div id="printableReportArea" style="background: #0f172a; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+            <div style="text-align: center; border-bottom: 1px dashed #334155; padding-bottom: 10px; margin-bottom: 12px;">
+                <h2 style="margin: 0 0 5px 0; color: #38bdf8; font-size: 18px;">شركة برو تيك للأحبار وماكينات الطباعة</h2>
+                <p id="repEmployeeName" style="margin: 3px 0; font-size: 14px; color: #f8fafc;">اسم الموظف: --</p>
+                <p id="repEmployeeRole" style="margin: 3px 0; font-size: 13px; color: #94a3b8;">الوظيفة: --</p>
+            </div>
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;" border="1" bordercolor="#334155">
+                <tr>
+                    <td style="padding: 8px; color: #94a3b8;">أيام الحضور الفعلي</td>
+                    <td id="repPresentDays" style="padding: 8px; text-align: center; color: #34d399; font-weight: bold;">0 أيام</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; color: #94a3b8;">أيام الغياب</td>
+                    <td id="repAbsentDays" style="padding: 8px; text-align: center; color: #f87171; font-weight: bold;">0 أيام</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; color: #94a3b8;">إجمالي ساعات العمل</td>
+                    <td id="repTotalHours" style="padding: 8px; text-align: center; color: #38bdf8; font-weight: bold;">0 ساعة</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; color: #94a3b8;">إجمالي المستحق (الراتب)</td>
+                    <td id="repGrossSalary" style="padding: 8px; text-align: center; font-weight: bold;">0.00 ج.م</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; color: #94a3b8;">المستقطعات (سلف / جزاءات)</td>
+                    <td id="repDeductions" style="padding: 8px; text-align: center; color: #fbbf24; font-weight: bold;">0.00 ج.م</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; font-weight: bold; background: #1e293b; color: #38bdf8;">صافي المستحق للموظف</td>
+                    <td id="repNetSalary" style="padding: 8px; font-weight: bold; text-align: center; background: #1e293b; color: #34d399; font-size: 15px;">0.00 ج.م</td>
+                </tr>
+            </table>
+        </div>
+
+        <div style="display: flex; gap: 10px;">
+            <button onclick="printEmployeeReport()" style="flex: 2; background: #10b981; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;"><i class="fas fa-print"></i> طباعة التقرير</button>
+            <button onclick="closeEmployeeReport()" style="flex: 1; background: #64748b; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer;">إلغاء</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>
