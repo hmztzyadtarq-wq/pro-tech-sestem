@@ -1527,3 +1527,43 @@ function printEmployeeReport() {
     document.body.innerHTML = originalContents;
     window.location.reload(); // إعادة تحميل الصفحة لاستعادة الحالة البرمجية واختصارات الأحداث
 }
+// دالة فتح وتشغيل تقرير الموظف الشامل
+window.openEmployeeReport = function(empId) {
+    // البحث عن بيانات الموظف من المخزن المحلي أو المصفوفة
+    let managedEmployees = JSON.parse(localStorage.getItem('broTechManagedEmployees')) || [];
+    let emp = managedEmployees.find(e => e.id === empId);
+
+    // إذا لم يتم العثور عليه عن طريق الـ ID، نأخذ أول موظف كمثال افتراضي (مثل رمضان)
+    if (!emp) {
+        emp = managedEmployees[0] || { name: "رمضان", role: "فني / عامل", id: "EMP-01" };
+    }
+
+    // تعبئة البيانات الوهمية أو الحسابية داخل النافذة
+    document.getElementById('repEmployeeName').innerText = `اسم الموظف: ${emp.name} (${emp.id})`;
+    document.getElementById('repEmployeeRole').innerText = `الوظيفة: ${emp.role || 'غير محدد'}`;
+    document.getElementById('repPresentDays').innerText = "22 يوم";
+    document.getElementById('repAbsentDays').innerText = "يومان (تأخير / غياب عارض)";
+    document.getElementById('repTotalHours').innerText = "176 ساعة";
+    document.getElementById('repGrossSalary').innerText = "5500.00 ج.م";
+    document.getElementById('repDeductions').innerText = "150.00 ج.م";
+    document.getElementById('repNetSalary').innerText = "5350.00 ج.م";
+
+    // إظهار النافذة المنبثقة
+    document.getElementById('employeeReportModal').style.display = 'flex';
+};
+
+// دالة إغلاق النافذة
+window.closeEmployeeReport = function() {
+    document.getElementById('employeeReportModal').style.display = 'none';
+};
+
+// دالة طباعة التقرير
+window.printEmployeeReport = function() {
+    const printContents = document.getElementById('printableReportArea').innerHTML;
+    const originalContents = document.body.innerHTML;
+
+    document.body.innerHTML = printContents;
+    window.print();
+    document.body.innerHTML = originalContents;
+    window.location.reload();
+};
