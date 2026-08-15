@@ -37,11 +37,7 @@
                 <li onclick="switchTab('sales')"><i class="fas fa-cash-register"></i> المبيعات والفواتير</li>
                 <li onclick="switchTab('purchases')"><i class="fas fa-shopping-cart"></i> المشتريات والتوريد</li>
                 <li onclick="switchTab('customers')"><i class="fas fa-users"></i> دليل العملاء</li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#" onclick="showSection('employees-section', event)">
-                        <i class="bi bi-people me-2"></i> إدارة الموظفين والورديات
-                    </a>
-                </li>
+                <li onclick="showSection('employees-section', event)"><i class="fas fa-user-tie"></i> إدارة الموظفين والورديات</li>
                 <li onclick="switchTab('settings')"><i class="fas fa-cogs"></i> الإعدادات والربط</li>
             </ul>
             <div class="sidebar-footer">
@@ -297,77 +293,33 @@
             </section>
 
             <!-- Employees Section Management -->
-            <div id="employees-section" class="app-section" style="display: none;">
-                <div class="container-fluid py-4">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h2>👥 إدارة الموظفين والورديات المخصصة</h2>
-                        <button class="btn btn-primary" onclick="openAddEmployeeModal()"><i class="bi bi-plus-lg"></i> إضافة موظف جديد</button>
+            <section id="employees-section" class="tab-content" style="display: none;">
+                <div class="page-header-title flex-header">
+                    <div>
+                        <h1>إدارة الموظفين والورديات المخصصة</h1>
+                        <p>متابعة بيانات الموظفين، أوقات الحضور والانصراف، وحالة الأجهزة المرتبطة بالبصمة</p>
                     </div>
-
-                    <!-- جدول الموظفين وإدارة الورديات -->
-                    <div class="card shadow-sm">
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-hover align-middle">
-                                    <thead class="table-dark">
-                                        <tr>
-                                            <th>كود الموظف</th>
-                                            <th>اسم الموظف</th>
-                                            <th>الوظيفة</th>
-                                            <th>وردية الحضور</th>
-                                            <th>وردية الانصراف</th>
-                                            <th>حالة الجهاز (البصمة)</th>
-                                            <th>الإجراءات والتحكم</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="manageEmployeesTableBody">
-                                        <!-- يتم تعبئتها ديناميكياً -->
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
+                    <button class="btn-primary" onclick="openAddEmployeeModal()"><i class="fas fa-plus"></i> إضافة موظف جديد</button>
                 </div>
-
-                <!-- Modal: إضافة أو تعديل موظف وردية -->
-                <div class="modal fade" id="employeeConfigModal" tabindex="-1" aria-hidden="true">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="empModalTitle">إضافة موظف جديد</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body">
-                                <form id="employeeForm">
-                                    <input type="hidden" id="empDatabaseId">
-                                    <div class="mb-3">
-                                        <label class="form-label">اسم الموظف</label>
-                                        <input type="text" class="form-control" id="configEmpName" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">الوظيفة / التخصص</label>
-                                        <input type="text" class="form-control" id="configEmpRole" required>
-                                    </div>
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3">
-                                            <label class="form-label">وقت الحضور المستهدف</label>
-                                            <input type="time" class="form-control" id="configCheckInTime" value="09:00" required>
-                                        </div>
-                                        <div class="col-md-6 mb-3">
-                                            <label class="form-label">وقت الانصراف المستهدف</label>
-                                            <input type="time" class="form-control" id="configCheckOutTime" value="17:00" required>
-                                        </div>
-                                    </div>
-                                </form>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                                <button type="button" class="btn btn-success" onclick="saveEmployeeData()">حفظ البيانات</button>
-                            </div>
-                        </div>
-                    </div>
+                <div class="card-table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>كود الموظف</th>
+                                <th>اسم الموظف</th>
+                                <th>الوظيفة</th>
+                                <th>وردية الحضور</th>
+                                <th>وردية الانصراف</th>
+                                <th>حالة الجهاز (البصمة)</th>
+                                <th>الإجراءات والتحكم</th>
+                            </tr>
+                        </thead>
+                        <tbody id="manageEmployeesTableBody">
+                            <!-- يتم تعبئتها ديناميكياً -->
+                        </tbody>
+                    </table>
                 </div>
-            </div>
+            </section>
 
             <!-- Settings Tab -->
             <section id="tab-settings" class="tab-content">
@@ -604,6 +556,43 @@
         </div>
     </div>
 
+    <!-- Modal: إضافة أو تعديل موظف وردية -->
+    <div id="employeeConfigModal" class="modal" style="display: none;">
+        <div class="modal-content" style="width: 450px; max-width: 95%; background: #1e293b; color: #fff; padding: 25px; border-radius: 12px; text-align: right; direction: rtl;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #334155; padding-bottom: 10px;">
+                <h3 id="empModalTitle" style="color: #38bdf8; margin: 0; font-size: 18px;">إضافة موظف جديد</h3>
+                <span class="close-btn" onclick="document.getElementById('employeeConfigModal').style.display='none'" style="cursor: pointer; font-size: 20px; color: #94a3b8;">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="employeeForm">
+                    <input type="hidden" id="empDatabaseId">
+                    <div style="margin-bottom: 12px;">
+                        <label style="display: block; margin-bottom: 5px; font-size: 13px; color: #94a3b8;">اسم الموظف</label>
+                        <input type="text" id="configEmpName" required style="width: 100%; padding: 8px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 6px; box-sizing: border-box;">
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <label style="display: block; margin-bottom: 5px; font-size: 13px; color: #94a3b8;">الوظيفة / التخصص</label>
+                        <input type="text" id="configEmpRole" required style="width: 100%; padding: 8px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 6px; box-sizing: border-box;">
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                        <div style="flex: 1;">
+                            <label style="display: block; margin-bottom: 5px; font-size: 13px; color: #94a3b8;">وقت الحضور</label>
+                            <input type="time" id="configCheckInTime" value="09:00" required style="width: 100%; padding: 8px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 6px; box-sizing: border-box;">
+                        </div>
+                        <div style="flex: 1;">
+                            <label style="display: block; margin-bottom: 5px; font-size: 13px; color: #94a3b8;">وقت الانصراف</label>
+                            <input type="time" id="configCheckOutTime" value="17:00" required style="width: 100%; padding: 8px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 6px; box-sizing: border-box;">
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 20px;">
+                        <button type="button" onclick="saveEmployeeData()" style="flex: 2; background: #10b981; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;">حفظ البيانات</button>
+                        <button type="button" onclick="document.getElementById('employeeConfigModal').style.display='none'" style="flex: 1; background: #64748b; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer;">إلغاء</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Add Product Modal -->
     <div id="addProductModal" class="modal">
         <div class="modal-content">
@@ -734,142 +723,6 @@
     <!-- ربط السكربت البرمجي -->
     <script type="module" src="script.js"></script>
     <script>
-        // دالة عرض الأقسام (الموظفين)
-        function showSection(sectionId, event) {
-            if (event) event.preventDefault();
-            
-            // إخفاء المحتويات الأخرى أو الأقسام المرتبطة
-            document.querySelectorAll('.tab-content').forEach(tab => {
-                tab.classList.remove('active');
-                tab.style.display = 'none';
-            });
-            document.querySelectorAll('.app-section').forEach(sec => {
-                sec.style.display = 'none';
-            });
-            
-            let target = document.getElementById(sectionId);
-            if (target) {
-                target.style.display = 'block';
-            }
-        }
-
-        let managedEmployees = JSON.parse(localStorage.getItem('broTechManagedEmployees')) || [
-            { id: 'EMP-01', name: 'محمد النبوي', role: 'فني صيانة', checkIn: '09:00', checkOut: '17:00', deviceBound: 'مسجل (جهاز هاتف)' },
-            { id: 'EMP-02', name: 'أحمد محمود', role: 'مبيعات', checkIn: '10:00', checkOut: '18:00', deviceBound: 'مسجل (جهاز هاتف)' }
-        ];
-
-        function renderManageEmployeesTable() {
-            const tbody = document.getElementById('manageEmployeesTableBody');
-            if (!tbody) return;
-            tbody.innerHTML = '';
-
-            if (managedEmployees.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4">لا يوجد موظفون مسجلون حالياً</td></tr>`;
-                return;
-            }
-
-            managedEmployees.forEach(emp => {
-                tbody.innerHTML += `
-                    <tr>
-                        <td><strong>${emp.id}</strong></td>
-                        <td>${emp.name}</td>
-                        <td>${emp.role}</td>
-                        <td><span class="badge bg-success">${emp.checkIn}</span></td>
-                        <td><span class="badge bg-danger">${emp.checkOut}</span></td>
-                        <td><small class="text-muted">${emp.deviceBound}</small> <button class="btn btn-sm btn-outline-warning ms-1" onclick="resetEmpDevice('${emp.id}')">إعادة تعيين</button></td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-primary" onclick="editEmployee('${emp.id}')">تعديل الوردية</button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteEmployee('${emp.id}')">حذف</button>
-                        </td>
-                    </tr>
-                `;
-            });
-        }
-
-        function openAddEmployeeModal() {
-            document.getElementById('employeeForm').reset();
-            document.getElementById('empDatabaseId').value = '';
-            document.getElementById('empModalTitle').innerText = 'إضافة موظف جديد';
-            let modalEl = document.getElementById('employeeConfigModal');
-            if(modalEl) {
-                modalEl.style.display = 'block';
-            }
-        }
-
-        function saveEmployeeData() {
-            const id = document.getElementById('empDatabaseId').value;
-            const name = document.getElementById('configEmpName').value;
-            const role = document.getElementById('configEmpRole').value;
-            const checkIn = document.getElementById('configCheckInTime').value;
-            const checkOut = document.getElementById('configCheckOutTime').value;
-
-            if (!name || !role) {
-                alert('يرجى ملء اسم الموظف ووظيفته');
-                return;
-            }
-
-            if (id) {
-                let emp = managedEmployees.find(e => e.id === id);
-                if (emp) {
-                    emp.name = name;
-                    emp.role = role;
-                    emp.checkIn = checkIn;
-                    emp.checkOut = checkOut;
-                }
-            } else {
-                const newEmp = {
-                    id: 'EMP-' + (managedEmployees.length + 1).toString().padStart(2, '0'),
-                    name,
-                    role,
-                    checkIn,
-                    checkOut,
-                    deviceBound: 'غير مسجل بعد'
-                };
-                managedEmployees.push(newEmp);
-            }
-
-            localStorage.setItem('broTechManagedEmployees', JSON.stringify(managedEmployees));
-            let modalEl = document.getElementById('employeeConfigModal');
-            if(modalEl) modalEl.style.display = 'none';
-            renderManageEmployeesTable();
-            alert('تم الحفظ بنجاح!');
-        }
-
-        function editEmployee(id) {
-            let emp = managedEmployees.find(e => e.id === id);
-            if (!emp) return;
-
-            document.getElementById('empDatabaseId').value = emp.id;
-            document.getElementById('configEmpName').value = emp.name;
-            document.getElementById('configEmpRole').value = emp.role;
-            document.getElementById('configCheckInTime').value = emp.checkIn;
-            document.getElementById('configCheckOutTime').value = emp.checkOut;
-            document.getElementById('empModalTitle').innerText = 'تعديل بيانات ووردية الموظف';
-
-            let modalEl = document.getElementById('employeeConfigModal');
-            if(modalEl) modalEl.style.display = 'block';
-        }
-
-        function deleteEmployee(id) {
-            if (confirm('هل أنت متأكد من حذف هذا الموظف نهائياً؟')) {
-                managedEmployees = managedEmployees.filter(e => e.id !== id);
-                localStorage.setItem('broTechManagedEmployees', JSON.stringify(managedEmployees));
-                renderManageEmployeesTable();
-            }
-        }
-
-        function resetEmpDevice(id) {
-            let emp = managedEmployees.find(e => e.id === id);
-            if (emp) {
-                emp.deviceBound = 'غير مسجل بعد';
-                localStorage.setItem('broTechManagedEmployees', JSON.stringify(managedEmployees));
-                renderManageEmployeesTable();
-                alert(`تم مسح بصمة الهاتف للموظف ${emp.name} بنجاح.`);
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', renderManageEmployeesTable);
-
         // دوال التحكم المساعدة المدمجة واختصار الخروج
         function logoutSystem() {
             localStorage.removeItem('protech_logged_in');
@@ -907,6 +760,150 @@
         function closeEditProductModal() {
             document.getElementById('editProductModal').style.display = 'none';
         }
+
+        // دالة تبديل الأقسام متوافقة مع القائمة الجانبية لإظهار قسم الموظفين
+        function showSection(sectionId, event) {
+            if (event) event.preventDefault();
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+                tab.style.display = 'none';
+            });
+            let target = document.getElementById(sectionId);
+            if (target) {
+                target.style.display = 'block';
+                target.classList.add('active');
+            }
+        }
+
+        // توسيع دالة switchTab لإخفاء قسم الموظفين عند التنقل لباقي الأقسام
+        const originalSwitchTab = window.switchTab || function(){};
+        window.switchTab = function(tabName) {
+            let empSec = document.getElementById('employees-section');
+            if(empSec) { empSec.style.display = 'none'; empSec.classList.remove('active'); }
+            document.querySelectorAll('.tab-content').forEach(t => {
+                t.classList.remove('active');
+                if(t.id === 'tab-' + tabName) {
+                    t.classList.add('active');
+                }
+            });
+        };
+
+        let managedEmployees = JSON.parse(localStorage.getItem('broTechManagedEmployees')) || [
+            { id: 'EMP-01', name: 'محمد النبوي', role: 'فني صيانة', checkIn: '09:00', checkOut: '17:00', deviceBound: 'مسجل (جهاز هاتف)' },
+            { id: 'EMP-02', name: 'أحمد محمود', role: 'مبيعات', checkIn: '10:00', checkOut: '18:00', deviceBound: 'مسجل (جهاز هاتف)' }
+        ];
+
+        function renderManageEmployeesTable() {
+            const tbody = document.getElementById('manageEmployeesTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            if (managedEmployees.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px; color: #94a3b8;">لا يوجد موظفون مسجلون حالياً</td></tr>`;
+                return;
+            }
+
+            managedEmployees.forEach(emp => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${emp.id}</strong></td>
+                        <td>${emp.name}</td>
+                        <td>${emp.role}</td>
+                        <td><span style="background: #065f46; color: #34d399; padding: 3px 8px; border-radius: 4px; font-size: 12px;">${emp.checkIn}</span></td>
+                        <td><span style="background: #991b1b; color: #fca5a5; padding: 3px 8px; border-radius: 4px; font-size: 12px;">${emp.checkOut}</span></td>
+                        <td><small style="color: #94a3b8;">${emp.deviceBound}</small> <button onclick="resetEmpDevice('${emp.id}')" style="background: #d97706; color: white; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 11px; margin-right: 5px;">إعادة تعيين</button></td>
+                        <td>
+                            <button onclick="editEmployee('${emp.id}')" style="background: #0284c7; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 5px;">تعديل</button>
+                            <button onclick="deleteEmployee('${emp.id}')" style="background: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">حذف</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function openAddEmployeeModal() {
+            const formEl = document.getElementById('employeeForm');
+            if(formEl) formEl.reset();
+            const dbIdEl = document.getElementById('empDatabaseId');
+            if(dbIdEl) dbIdEl.value = '';
+            const titleEl = document.getElementById('empModalTitle');
+            if(titleEl) titleEl.innerText = 'إضافة موظف جديد';
+            let modalEl = document.getElementById('employeeConfigModal');
+            if(modalEl) modalEl.style.display = 'flex';
+        }
+
+        function saveEmployeeData() {
+            const id = document.getElementById('empDatabaseId').value;
+            const name = document.getElementById('configEmpName').value.trim();
+            const role = document.getElementById('configEmpRole').value.trim();
+            const checkIn = document.getElementById('configCheckInTime').value;
+            const checkOut = document.getElementById('configCheckOutTime').value;
+
+            if (!name || !role) {
+                alert('يرجى ملء اسم الموظف ووظيفته');
+                return;
+            }
+
+            if (id) {
+                let emp = managedEmployees.find(e => e.id === id);
+                if (emp) {
+                    emp.name = name;
+                    emp.role = role;
+                    emp.checkIn = checkIn;
+                    emp.checkOut = checkOut;
+                }
+            } else {
+                const newEmp = {
+                    id: 'EMP-' + (managedEmployees.length + 1).toString().padStart(2, '0'),
+                    name,
+                    role,
+                    checkIn,
+                    checkOut,
+                    deviceBound: 'غير مسجل بعد'
+                };
+                managedEmployees.push(newEmp);
+            }
+
+            localStorage.setItem('broTechManagedEmployees', JSON.stringify(managedEmployees));
+            document.getElementById('employeeConfigModal').style.display = 'none';
+            renderManageEmployeesTable();
+            alert('تم الحفظ بنجاح!');
+        }
+
+        function editEmployee(id) {
+            let emp = managedEmployees.find(e => e.id === id);
+            if (!emp) return;
+
+            document.getElementById('empDatabaseId').value = emp.id;
+            document.getElementById('configEmpName').value = emp.name;
+            document.getElementById('configEmpRole').value = emp.role;
+            document.getElementById('configCheckInTime').value = emp.checkIn;
+            document.getElementById('configCheckOutTime').value = emp.checkOut;
+            document.getElementById('empModalTitle').innerText = 'تعديل بيانات ووردية الموظف';
+
+            let modalEl = document.getElementById('employeeConfigModal');
+            if(modalEl) modalEl.style.display = 'flex';
+        }
+
+        function deleteEmployee(id) {
+            if (confirm('هل أنت متأكد من حذف هذا الموظف نهائياً؟')) {
+                managedEmployees = managedEmployees.filter(e => e.id !== id);
+                localStorage.setItem('broTechManagedEmployees', JSON.stringify(managedEmployees));
+                renderManageEmployeesTable();
+            }
+        }
+
+        function resetEmpDevice(id) {
+            let emp = managedEmployees.find(e => e.id === id);
+            if (emp) {
+                emp.deviceBound = 'غير مسجل بعد';
+                localStorage.setItem('broTechManagedEmployees', JSON.stringify(managedEmployees));
+                renderManageEmployeesTable();
+                alert(`تم مسح بصمة الهاتف للموظف ${emp.name} بنجاح.`);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', renderManageEmployeesTable);
     </script>
     <script>
         // تجاوز مؤقت لتسجيل الدخول للعمل مباشرة
@@ -947,4 +944,3 @@
 </div>
 </body>
 </html>
-```[cite: 1]
