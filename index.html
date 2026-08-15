@@ -1052,5 +1052,53 @@
     <script>
         localStorage.setItem('protech_logged_in', 'true');
     </script>
+    <!-- نافذة Modal الخاصة بالتقرير الشامل للموظف -->
+<div id="employeeReportModal" class="modal" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 2000;">
+    <div class="modal-content" style="background: #1e293b; color: #fff; padding: 25px; border-radius: 12px; width: 650px; max-width: 95%; direction: rtl; text-align: right;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 10px; margin-bottom: 15px;">
+            <h3 style="margin: 0; color: #38bdf8;"><i class="fas fa-file-invoice-dollar"></i> كشف حساب وراتب موظف</h3>
+            <button onclick="closeEmployeeReport()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #94a3b8;"><i class="fas fa-times"></i></button>
+        </div>
+        
+        <div id="printableReportArea" style="background: #0f172a; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+            <div style="text-align: center; border-bottom: 1px dashed #334155; padding-bottom: 10px; margin-bottom: 12px;">
+                <h2 style="margin: 0 0 5px 0; color: #38bdf8; font-size: 18px;">شركة برو تيك للأحبار وماكينات الطباعة</h2>
+                <p id="repEmployeeName" style="margin: 3px 0; font-size: 14px; color: #f8fafc;">اسم الموظف: --</p>
+                <p id="repEmployeeRole" style="margin: 3px 0; font-size: 13px; color: #94a3b8;">الوظيفة: --</p>
+            </div>
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;" border="1" bordercolor="#334155">
+                <tr>
+                    <td style="padding: 8px; color: #94a3b8;">أيام الحضور الفعلي</td>
+                    <td id="repPresentDays" style="padding: 8px; text-align: center; color: #34d399; font-weight: bold;">0 أيام</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; color: #94a3b8;">أيام الغياب</td>
+                    <td id="repAbsentDays" style="padding: 8px; text-align: center; color: #f87171; font-weight: bold;">0 أيام</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; color: #94a3b8;">إجمالي ساعات العمل</td>
+                    <td id="repTotalHours" style="padding: 8px; text-align: center; color: #38bdf8; font-weight: bold;">0 ساعة</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; color: #94a3b8;">إجمالي المستحق (الراتب)</td>
+                    <td id="repGrossSalary" style="padding: 8px; text-align: center; font-weight: bold;">0.00 ج.م</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; color: #94a3b8;">المستقطعات (سلف / جزاءات)</td>
+                    <td id="repDeductions" style="padding: 8px; text-align: center; color: #fbbf24; font-weight: bold;">0.00 ج.م</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; font-weight: bold; background: #1e293b; color: #38bdf8;">صافي المستحق للموظف</td>
+                    <td id="repNetSalary" style="padding: 8px; font-weight: bold; text-align: center; background: #1e293b; color: #34d399; font-size: 15px;">0.00 ج.م</td>
+                </tr>
+            </table>
+        </div>
+
+        <div style="display: flex; gap: 10px;">
+            <button onclick="printEmployeeReport()" style="flex: 2; background: #10b981; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;"><i class="fas fa-print"></i> طباعة التقرير</button>
+            <button onclick="closeEmployeeReport()" style="flex: 1; background: #64748b; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer;">إلغاء</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>
