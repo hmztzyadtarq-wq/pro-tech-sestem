@@ -285,7 +285,66 @@
                     </div>
                     <button class="btn-primary" onclick="openAddEmployeeModal()"><i class="fas fa-plus"></i> إضافة موظف جديد</button>
                 </div>
+                <!-- زر عرض وطباعة تقرير الموظف -->
+<button onclick="openEmployeeReport(employeeId)" class="btn-primary">
+    <i class="fas fa-file-invoice-dollar"></i> كشف حساب وتقرير شامل
+</button>
 
+<!-- نافذة Modal الخاصة بالتقرير الشامل (تكون مخفية افتراضياً وتظهر عند الضغط) -->
+<div id="employeeReportModal" class="modal" style="display:none;">
+    <div class="modal-content" style="max-width: 700px; background: #fff; padding: 20px; border-radius: 8px;">
+        <div id="printableReportArea">
+            <div class="report-header" style="text-align: center; border-bottom: 2px solid #ccc; padding-bottom: 10px; margin-bottom: 15px;">
+                <h2>شركة ProTech للطباعة</h2>
+                <h3>كشف حساب وراتب موظف</h3>
+                <p id="repEmployeeName">اسم الموظف: --</p>
+                <p id="repDateRange">الفترة: شهر أغسطس 2026</p>
+            </div>
+            
+            <div class="report-body">
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;" border="1">
+                    <tr>
+                        <th style="padding: 8px; background: #f5f5f5;">البيان</th>
+                        <th style="padding: 8px; background: #f5f5f5;">التفاصيل / القيمة</th>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px;">أيام الحضور الفعلي</td>
+                        <td id="repPresentDays" style="padding: 8px; text-align: center;">0 أيام</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px;">أيام الغياب وتواريخها</td>
+                        <td id="repAbsentDays" style="padding: 8px; text-align: center;">0 أيام</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px;">إجمالي ساعات العمل</td>
+                        <td id="repTotalHours" style="padding: 8px; text-align: center;">0 ساعة</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px;">إجمالي المستحق (الراتب الأساسي/الساعات)</td>
+                        <td id="repGrossSalary" style="padding: 8px; text-align: center;">0.00 ج.م</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px;">المستقطعات (سلف / جزاءات)</td>
+                        <td id="repDeductions" style="padding: 8px; text-align: center;">0.00 ج.م</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; font-weight: bold; background: #eef2f7;">صافي المستحق للعميل/الموظف</td>
+                        <td id="repNetSalary" style="padding: 8px; font-weight: bold; text-align: center; background: #eef2f7;">0.00 ج.م</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="modal-footer" style="display: flex; justify-content: space-between; margin-top: 15px;">
+            <button onclick="printEmployeeReport()" class="btn-success" style="background: #28a745; color: #fff; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">
+                <i class="fas fa-print"></i> طباعة التقرير
+            </button>
+            <button onclick="closeEmployeeReport()" class="btn-secondary" style="background: #6c757d; color: #fff; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">
+                إغلاق
+            </button>
+        </div>
+    </div>
+</div>
                 <!-- كروت عرض الموظفين التفاعلية (تفتح نافذة المصروفات والبيانات عند النقر) -->
                 <div id="employeesCardsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; margin-top: 20px; margin-bottom: 30px;">
                     <!-- يتم تعبئتها ديناميكياً -->
@@ -828,7 +887,6 @@
                         <td><span style="background: #991b1b; color: #fca5a5; padding: 3px 8px; border-radius: 4px; font-size: 12px;">${emp.checkOut}</span></td>
                         <td><small style="color: #94a3b8;">${emp.deviceBound}</small> <button onclick="resetEmpDevice('${emp.id}')" style="background: #d97706; color: white; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 11px; margin-right: 5px;">إعادة تعيين</button></td>
                         <td>
-                            <button onclick="openEmployeeReport('${emp.id}')" style="background: #0ea5e9; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 5px;"><i class="fas fa-file-invoice-dollar"></i> كشف حساب</button>
                             <button onclick="editEmployee('${emp.id}')" style="background: #0284c7; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 5px;">تعديل</button>
                             <button onclick="deleteEmployee('${emp.id}')" style="background: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">حذف</button>
                         </td>
