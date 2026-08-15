@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body { font-family: 'Cairo', sans-serif; background: #0f172a; color: #fff; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .checkin-card { background: #1e293b; padding: 30px; border-radius: 12px; width: 400px; max-width: 100%; box-shadow: 0 10px 25px rgba(0,0,0,0.5); text-align: center; border: 1px solid #334155; }
+        .checkin-card { background: #1e293b; padding: 30px; border-radius: 12px; width: 420px; max-width: 100%; box-shadow: 0 10px 25px rgba(0,0,0,0.5); text-align: center; border: 1px solid #334155; }
         .logo-circle { width: 60px; height: 60px; background: #0284c7; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; margin: 0 auto 15px; }
         h2 { color: #38bdf8; margin-bottom: 5px; }
         p { color: #94a3b8; font-size: 13px; margin-bottom: 20px; }
@@ -16,23 +16,31 @@
         input { width: 100%; padding: 10px; background: #0f172a; color: #fff; border: 1px solid #475569; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
         .btn-checkin { width: 100%; padding: 12px; background: #10b981; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 16px; margin-top: 10px; transition: 0.3s; }
         .btn-checkin:hover { background: #059669; }
-        #successMsg { display: none; background: #dcfce7; color: #166534; padding: 12px; border-radius: 6px; margin-top: 15px; font-weight: bold; font-size: 14px; }
+        #successMsg { display: none; background: #dcfce7; color: #166534; padding: 12px; border-radius: 6px; margin-top: 15px; font-weight: bold; font-size: 14px; text-align: right; }
         #errorMsg { display: none; background: #fee2e2; color: #991b1b; padding: 12px; border-radius: 6px; margin-top: 15px; font-weight: bold; font-size: 14px; }
+        .emp-preview { background: #334155; padding: 10px; border-radius: 6px; margin-bottom: 15px; display: none; text-align: right; font-size: 14px; }
     </style>
 </head>
 <body>
 
     <div class="checkin-card">
-        <div class="logo-circle"><i class="fas fa-map-marker-alt"></i></div>
-        <h2>تسجيل الحضور بالموقع</h2>
-        <p>يجب أن تكون داخل نطاق مقر الشركة (400 متر) لتسجيل الحضور بنجاح</p>
+        <div class="logo-circle"><i class="fas id-card"></i></div>
+        <h2>تسجيل الحضور بالباركود</h2>
+        <p>امسح باركود التعريف الخاص بك لتسجيل الحضور (نطاق الشركة)</p>
         
         <form onsubmit="verifyLocationAndCheckin(event)">
             <div class="form-group">
-                <label><i class="fas fa-barcode"></i> كود الموظف أو مسح الباركود:</label>
-                <input type="text" id="employeeBarcode" required placeholder="امسح الباركود هنا..." autofocus>
+                <label><i class="fas fa-barcode"></i> كود الموظف (ID):</label>
+                <input type="text" id="employeeBarcode" required placeholder="أدخل كود الموظف أو امسح الباركود..." oninput="searchEmployeeInfo()" autofocus>
             </div>
-            <button type="submit" class="btn-checkin"><i class="fas fa-check-circle"></i> التحقق وتسجيل الحضور</button>
+
+            <!-- بطاقة معاينة بيانات الموظف للتأكد من هويته -->
+            <div id="empPreview" class="emp-preview">
+                <div><strong>الموظف:</strong> <span id="previewName">-</span></div>
+                <div><strong>الوظيفة/القسم:</strong> <span id="previewRole">-</span></div>
+            </div>
+
+            <button type="submit" class="btn-checkin"><i class="fas fa-check-circle"></i> تأكيد وتسجيل الحضور</button>
         </form>
 
         <div id="successMsg"></div>
@@ -40,15 +48,38 @@
     </div>
 
     <script>
-        // إحداثيات مقر الشركة والنطاق المسموح (400 متر)
         const COMPANY_LAT = 30.139719; 
         const COMPANY_LNG = 31.390727; 
         const ALLOWED_DISTANCE_METERS = 400; 
 
-        // دالة لحساب المسافة بين نقطتين جغرافيتين (بالمتر)
+        // دالة لإظهار اسم الموظف بمجرد كتابة أو مسح الكود للتأكد من هويته
+        function searchEmployeeInfo() {
+            let code = document.getElementById('employeeBarcode').value.trim();
+            let previewBox = document.getElementById('empPreview');
+            let previewName = document.getElementById('previewName');
+            let previewRole = document.getElementById('previewRole');
+
+            if (code === "") {
+                previewBox.style.display = 'none';
+                return;
+            }
+
+            let employees = JSON.parse(localStorage.getItem('protech_employees')) || [];
+            // مطابقة دقيقة برقم الكود (ID) حصراً لتجنب تداخل الأسماء
+            let emp = employees.find(e => e.id.toString() === code);
+
+            if (emp) {
+                previewName.textContent = emp.name;
+                previewRole.textContent = emp.role || 'موظف';
+                previewBox.style.display = 'block';
+            } else {
+                previewBox.style.display = 'none';
+            }
+        }
+
         function calculateDistance(lat1, lon1, lat2, lon2) {
             function toRad(x) { return x * Math.PI / 180; }
-            let R = 6371000; // نصف قطر الأرض بالمتر
+            let R = 6371000;
             let dLat = toRad(lat2 - lat1);
             let dLon = toRad(lon2 - lon1);
             let a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
@@ -77,12 +108,12 @@
                 (position) => {
                     let userLat = position.coords.latitude;
                     let userLng = position.coords.longitude;
-
                     let distance = calculateDistance(userLat, userLng, COMPANY_LAT, COMPANY_LNG);
 
                     if (distance <= ALLOWED_DISTANCE_METERS) {
                         let employees = JSON.parse(localStorage.getItem('protech_employees')) || [];
-                        let emp = employees.find(emp => emp.name.toLowerCase().includes(code.toLowerCase()) || emp.id.toString() === code);
+                        // مطابقة دقيقة بالـ ID الخاص بالموظف
+                        let emp = employees.find(e => e.id.toString() === code);
 
                         if(emp) {
                             emp.status = 'حاضر';
@@ -92,11 +123,16 @@
                             localStorage.setItem('protech_employees', JSON.stringify(employees));
                             
                             successBox.style.display = 'block';
-                            successBox.innerHTML = `<i class="fas fa-check-circle"></i> أهلاً بك يا ${emp.name}، تم تسجيل حضورك بنجاح (على بعد ${Math.round(distance)} متر من الشركة).`;
+                            successBox.innerHTML = `<i class="fas fa-check-circle"></i> تم تسجيل الحضور بنجاح!<br>
+                                                    • الاسم: <b>${emp.name}</b><br>
+                                                    • الوقت: ${emp.arrivedAt}<br>
+                                                    • المسافة للشركة: ${Math.round(distance)} متر`;
+                            
                             document.getElementById('employeeBarcode').value = '';
+                            document.getElementById('empPreview').style.display = 'none';
                         } else {
                             errorBox.style.display = 'block';
-                            errorBox.innerHTML = 'عذراً، كود الموظف أو الباركود غير مسجل في النظام!';
+                            errorBox.innerHTML = 'عذراً، كود الموظف (ID) غير مسجل في قاعدة البيانات!';
                         }
                     } else {
                         errorBox.style.display = 'block';
