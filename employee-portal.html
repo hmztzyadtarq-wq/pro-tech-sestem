@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بوابة الموظفين - تسجيل الحضور والانصراف | برو تيك</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: #0f172a;
+            color: #fff;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .portal-card {
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 12px;
+            width: 420px;
+            max-width: 90%;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+            border: 1px solid #334155;
+            text-align: center;
+        }
+        .portal-card h2 {
+            color: #38bdf8;
+            margin-bottom: 5px;
+        }
+        .portal-card p {
+            color: #94a3b8;
+            font-size: 13px;
+            margin-bottom: 25px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+            text-align: right;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 13px;
+            color: #cbd5e1;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            background: #0f172a;
+            border: 1px solid #475569;
+            color: #fff;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+        .btn-action {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 15px;
+            cursor: pointer;
+            margin-top: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-checkin {
+            background: #10b981;
+            color: white;
+        }
+        .btn-checkout {
+            background: #ef4444;
+            color: white;
+        }
+        .status-msg {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="portal-card">
+        <h2><i class="fas fa-fingerprint"></i> بوابة الحضور والانصراف</h2>
+        <p>شركة برو تيك للأحبار وماكينات الطباعة</p>
+
+        <div class="form-group">
+            <label>اختر اسم الموظف:</label>
+            <select id="portalEmpSelect">
+                <option value="">-- اختر اسمك من القائمة --</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>كود التحقق / البصمة السرية:</label>
+            <input type="password" id="portalEmpPin" placeholder="أدخل الكود المخصص لك">
+        </div>
+
+        <button type="button" class="btn-action btn-checkin" onclick="registerAttendance('checkin')">
+            <i class="fas fa-sign-in-alt"></i> تسجيل حضور (بدء الوردية)
+        </button>
+
+        <button type="button" class="btn-action btn-checkout" onclick="registerAttendance('checkout')">
+            <i class="fas fa-sign-out-alt"></i> تسجيل انصراف (نهاء الوردية)
+        </button>
+
+        <div id="portalStatusMsg" class="status-msg"></div>
+    </div>
+
+    <script>
+        // تحميل الموظفين المسجلين في النظام (من نفس LocalStorage الخاص بلوحة التحكم)
+        document.addEventListener('DOMContentLoaded', () => {
+            let employees = JSON.parse(localStorage.getItem('broTechManagedEmployees')) || [];
+            let select = document.getElementById('portalEmpSelect');
+            
+            employees.forEach(emp => {
+                let opt = document.createElement('option');
+                opt.value = emp.id;
+                opt.textContent = `${emp.name} (${emp.role})`;
+                select.appendChild(opt);
+            });
+        });
+
+        function registerAttendance(type) {
+            let empId = document.getElementById('portalEmpSelect').value;
+            let pin = document.getElementById('portalEmpPin').value.trim();
+            let msgDiv = document.getElementById('portalStatusMsg');
+
+            if (!empId) {
+                showMsg('يرجى اختيار اسم الموظف أولاً.', 'error');
+                return;
+            }
+
+            let employees = JSON.parse(localStorage.getItem('broTechManagedEmployees')) || [];
+            let emp = employees.find(e => e.id === empId);
+
+            if (!emp) {
+                showMsg('الموظف غير موجود في النظام.', 'error');
+                return;
+            }
+
+            // التحقق من حالة الجهاز أو ربطه أول مرة
+            let currentDeviceToken = localStorage.getItem('device_token');
+            if (!currentDeviceToken) {
+                currentDeviceToken = 'DEV-' + Math.random().toString(36.substring(2, 9));
+                localStorage.setItem('device_token', currentDeviceToken);
+            }
+
+            if (emp.deviceBound === 'غير مسجل بعد' || !emp.deviceBound) {
+                emp.deviceBound = `مسجل (جهاز: ${currentDeviceToken.substring(0, 6)})`;
+                localStorage.setItem('broTechManagedEmployees', JSON.stringify(employees));
+            }
+
+            let now = new Date();
+            let timeString = now.toLocaleTimeString('ar-EG');
+            let dateString = now.toLocaleDateString('ar-EG');
+
+            // حفظ سجل الحضور في localStorage لمراجعته لاحقاً من لوحة التحكم
+            let attendanceLogs = JSON.parse(localStorage.getItem('broTechAttendanceLogs')) || [];
+            attendanceLogs.push({
+                empId: emp.id,
+                name: emp.name,
+                type: type === 'checkin' ? 'حضور' : 'انصراف',
+                date: dateString,
+                time: timeString
+            });
+            localStorage.setItem('broTechAttendanceLogs', JSON.stringify(attendanceLogs));
+
+            if (type === 'checkin') {
+                showMsg(`تم تسجيل الحضور بنجاح للموظف: ${emp.name} في تمام الساعة ${timeString}`, 'success');
+            } else {
+                showMsg(`تم تسجيل الانصراف بنجاح للموظف: ${emp.name} في تمام الساعة ${timeString}`, 'success');
+            }
+            
+            document.getElementById('portalEmpPin').value = '';
+        }
+
+        function showMsg(text, type) {
+            let msgDiv = document.getElementById('portalStatusMsg');
+            msgDiv.style.display = 'block';
+            msgDiv.textContent = text;
+            if (type === 'success') {
+                msgDiv.style.background = '#065f46';
+                msgDiv.style.color = '#34d399';
+            } else {
+                msgDiv.style.background = '#991b1b';
+                msgDiv.style.color = '#fca5a5';
+            }
+        }
+    </script>
+</body>
+</html>
