@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>بوابة الموظفين - تسجيل الحضور والانصراف | برو تيك</title>
+    <title>تسجيل الحضور والانصراف - برو تيك</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body {
@@ -37,52 +37,55 @@
             margin-bottom: 25px;
         }
         .form-group {
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             text-align: right;
         }
         .form-group label {
             display: block;
-            margin-bottom: 6px;
-            font-size: 13px;
+            margin-bottom: 8px;
+            font-size: 14px;
             color: #cbd5e1;
         }
-        .form-group input, .form-group select {
+        .form-group select {
             width: 100%;
-            padding: 10px;
+            padding: 12px;
             background: #0f172a;
             border: 1px solid #475569;
             color: #fff;
             border-radius: 6px;
             box-sizing: border-box;
-            font-size: 14px;
+            font-size: 15px;
         }
         .btn-action {
             width: 100%;
-            padding: 12px;
+            padding: 14px;
             border: none;
             border-radius: 6px;
             font-weight: bold;
-            font-size: 15px;
+            font-size: 16px;
             cursor: pointer;
             margin-top: 10px;
             display: flex;
             justify-content: center;
             align-items: center;
             gap: 8px;
+            transition: 0.3s;
         }
         .btn-checkin {
             background: #10b981;
             color: white;
         }
+        .btn-checkin:hover { background: #059669; }
         .btn-checkout {
             background: #ef4444;
             color: white;
         }
+        .btn-checkout:hover { background: #dc2626; }
         .status-msg {
-            margin-top: 15px;
-            padding: 10px;
+            margin-top: 20px;
+            padding: 12px;
             border-radius: 6px;
-            font-size: 13px;
+            font-size: 14px;
             display: none;
         }
     </style>
@@ -90,102 +93,154 @@
 <body>
 
     <div class="portal-card">
-        <h2><i class="fas fa-fingerprint"></i> بوابة الحضور والانصراف</h2>
+        <h2><i class="fas fa-fingerprint"></i> بوابة الحضور الذكية</h2>
         <p>شركة برو تيك للأحبار وماكينات الطباعة</p>
 
         <div class="form-group">
-            <label>اختر اسم الموظف:</label>
-            <select id="portalEmpSelect">
-                <option value="">-- اختر اسمك من القائمة --</option>
+            <label>اختر اسمك من القائمة:</label>
+            <select id="employeeSelect">
+                <option value="">-- اضغط لاختيار اسمك --</option>
             </select>
         </div>
 
-        <div class="form-group">
-            <label>كود التحقق / البصمة السرية:</label>
-            <input type="password" id="portalEmpPin" placeholder="أدخل الكود المخصص لك">
-        </div>
-
-        <button type="button" class="btn-action btn-checkin" onclick="registerAttendance('checkin')">
-            <i class="fas fa-sign-in-alt"></i> تسجيل حضور (بدء الوردية)
+        <button type="button" class="btn-action btn-checkin" onclick="recordAction('checkin')">
+            <i class="fas fa-sign-in-alt"></i> تسجيل حضور (بدء العمل)
         </button>
 
-        <button type="button" class="btn-action btn-checkout" onclick="registerAttendance('checkout')">
-            <i class="fas fa-sign-out-alt"></i> تسجيل انصراف (نهاء الوردية)
+        <button type="button" class="btn-action btn-checkout" onclick="recordAction('checkout')">
+            <i class="fas fa-sign-out-alt"></i> تسجيل انصراف (نهاية العمل)
         </button>
 
-        <div id="portalStatusMsg" class="status-msg"></div>
+        <div id="statusMsg" class="status-msg"></div>
     </div>
 
     <script>
-        // تحميل الموظفين المسجلين في النظام (من نفس LocalStorage الخاص بلوحة التحكم)
+        // قائمة الموظفين الأساسية والورديات الافتراضية
+        const defaultEmployees = [
+            { id: '1', name: 'أحمد محمد', role: 'فني صيانة', shiftStart: '09:00', shiftEnd: '17:00' },
+            { id: '2', name: 'محمود علي', role: 'مبيعات', shiftStart: '09:00', shiftEnd: '17:00' },
+            { id: '3', name: 'إبراهيم حسن', role: 'مشرف طباعة', shiftStart: '08:00', shiftEnd: '16:00' }
+        ];
+
         document.addEventListener('DOMContentLoaded', () => {
-            let employees = JSON.parse(localStorage.getItem('broTechManagedEmployees')) || [];
-            let select = document.getElementById('portalEmpSelect');
-            
+            let employees = JSON.parse(localStorage.getItem('broTechManagedEmployees'));
+            if (!employees || employees.length === 0) {
+                employees = defaultEmployees;
+                localStorage.setItem('broTechManagedEmployees', JSON.stringify(employees));
+            }
+
+            let select = document.getElementById('employeeSelect');
             employees.forEach(emp => {
                 let opt = document.createElement('option');
                 opt.value = emp.id;
-                opt.textContent = `${emp.name} (${emp.role})`;
+                opt.textContent = `${emp.name} - (${emp.role})`;
                 select.appendChild(opt);
             });
         });
 
-        function registerAttendance(type) {
-            let empId = document.getElementById('portalEmpSelect').value;
-            let pin = document.getElementById('portalEmpPin').value.trim();
-            let msgDiv = document.getElementById('portalStatusMsg');
-
+        function recordAction(type) {
+            let empId = document.getElementById('employeeSelect').value;
             if (!empId) {
-                showMsg('يرجى اختيار اسم الموظف أولاً.', 'error');
+                showMsg('من فضلك اختر اسمك أولاً من القائمة.', 'error');
                 return;
             }
 
             let employees = JSON.parse(localStorage.getItem('broTechManagedEmployees')) || [];
             let emp = employees.find(e => e.id === empId);
 
-            if (!emp) {
-                showMsg('الموظف غير موجود في النظام.', 'error');
-                return;
-            }
-
-            // التحقق من حالة الجهاز أو ربطه أول مرة
-            let currentDeviceToken = localStorage.getItem('device_token');
-            if (!currentDeviceToken) {
-                currentDeviceToken = 'DEV-' + Math.random().toString(36.substring(2, 9));
-                localStorage.setItem('device_token', currentDeviceToken);
-            }
-
-            if (emp.deviceBound === 'غير مسجل بعد' || !emp.deviceBound) {
-                emp.deviceBound = `مسجل (جهاز: ${currentDeviceToken.substring(0, 6)})`;
-                localStorage.setItem('broTechManagedEmployees', JSON.stringify(employees));
-            }
-
             let now = new Date();
-            let timeString = now.toLocaleTimeString('ar-EG');
-            let dateString = now.toLocaleDateString('ar-EG');
+            let timeString = now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', hour12: false });
+            let dateString = now.toLocaleDateString('en-CA'); // تنسيق التاريخ YYYY-MM-DD
 
-            // حفظ سجل الحضور في localStorage لمراجعته لاحقاً من لوحة التحكم
             let attendanceLogs = JSON.parse(localStorage.getItem('broTechAttendanceLogs')) || [];
-            attendanceLogs.push({
-                empId: emp.id,
-                name: emp.name,
-                type: type === 'checkin' ? 'حضور' : 'انصراف',
-                date: dateString,
-                time: timeString
-            });
-            localStorage.setItem('broTechAttendanceLogs', JSON.stringify(attendanceLogs));
+            
+            // التحقق من عدم تكرار تسجيل الحضور لنفس اليوم
+            let todayLog = attendanceLogs.find(l => l.empId === empId && l.date === dateString);
 
             if (type === 'checkin') {
-                showMsg(`تم تسجيل الحضور بنجاح للموظف: ${emp.name} في تمام الساعة ${timeString}`, 'success');
+                if (todayLog && todayLog.checkIn) {
+                    showMsg('لقد قُمست بتسجيل الحضور مسبقاً لهذا اليوم.', 'error');
+                    return;
+                }
+                
+                attendanceLogs.push({
+                    empId: emp.id,
+                    name: emp.name,
+                    date: dateString,
+                    checkIn: timeString,
+                    checkOut: null,
+                    status: 'متواجد بالعمل'
+                });
+                showMsg(`تم تسجيل حضورك بنجاح يا ${emp.name} في تمام الساعة ${timeString}`, 'success');
             } else {
-                showMsg(`تم تسجيل الانصراف بنجاح للموظف: ${emp.name} في تمام الساعة ${timeString}`, 'success');
+                if (!todayLog || !todayLog.checkIn) {
+                    showMsg('يجب تسجيل الحضور أولاً قبل تسجيل الانصراف.', 'error');
+                    return;
+                }
+                if (todayLog.checkOut) {
+                    showMsg('لقد تم تسجيل انصرافك مسبقاً اليوم.', 'error');
+                    return;
+                }
+
+                todayLog.checkOut = timeString;
+                todayLog.status = 'انصراف';
+                showMsg(`مع السلامة يا ${emp.name}، تم تسجيل انصرافك في تمام الساعة ${timeString}`, 'success');
             }
+
+            localStorage.setItem('broTechAttendanceLogs', JSON.stringify(attendanceLogs));
             
-            document.getElementById('portalEmpPin').value = '';
+            // تحديث حالة الموظف في اللوحة العامة
+            checkAutomaticRules(employees, attendanceLogs);
+        }
+
+        // محرك القواعد التلقائية (التأخير والغياب والانصراف التلقائي)
+        function checkAutomaticRules(employees, logs) {
+            let now = new Date();
+            let currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
+            let dateString = now.toLocaleDateString('en-CA');
+
+            employees.forEach(emp => {
+                let [shHour, shMin] = emp.shiftStart.split(':').map(Number);
+                let shiftStartMinutes = shHour * 60 + shMin;
+                
+                let [ehHour, ehMin] = emp.shiftEnd.split(':').map(Number);
+                let shiftEndMinutes = ehHour * 60 + ehMin;
+
+                let log = logs.find(l => l.empId === emp.id && l.date === dateString);
+
+                if (!log) {
+                    // لو عدى ساعتين على ميعاد الحضور الرسمي ولم يسجل -> غياب تلقائي
+                    if (currentTimeMinutes >= (shiftStartMinutes + 120)) {
+                        logs.push({
+                            empId: emp.id,
+                            name: emp.name,
+                            date: dateString,
+                            checkIn: '-',
+                            checkOut: '-',
+                            status: 'غائب (تلقائي)'
+                        });
+                    }
+                } else {
+                    // لو سجل حضور ومتأخر (بعد ميعاد الحضور بفترة سماح 15 دقيقة)
+                    let [inH, inM] = log.checkIn !== '-' ? log.checkIn.split(':').map(Number) : [0,0];
+                    let inMinutes = inH * 60 + inM;
+                    if (log.checkIn !== '-' && inMinutes > (shiftStartMinutes + 15) && log.status === 'متواجد بالعمل') {
+                        log.status = 'متأخر';
+                    }
+
+                    // انصراف تلقائي لو انتهى وقت الوردية والموظف نسي يسجيل انصراف
+                    if (log.checkIn !== '-' && !log.checkOut && currentTimeMinutes >= (shiftEndMinutes + 60)) {
+                        log.checkOut = emp.shiftEnd;
+                        log.status = 'انصراف (تلقائي)';
+                    }
+                }
+            });
+
+            localStorage.setItem('broTechAttendanceLogs', JSON.stringify(logs));
         }
 
         function showMsg(text, type) {
-            let msgDiv = document.getElementById('portalStatusMsg');
+            let msgDiv = document.getElementById('statusMsg');
             msgDiv.style.display = 'block';
             msgDiv.textContent = text;
             if (type === 'success') {
