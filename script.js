@@ -1308,3 +1308,234 @@ window.submitInvoicePaymentUpdate = function() {
 
     alert(`تم تسجيل سداد مبلغ ${payAmount} ج.م بنجاح وتحديث حساب العميل!`);
 };
+// دوال إدارة الموظفين والحضور والانصراف
+let html5QrCode = null;
+
+function openAddEmployeeModal() {
+    document.getElementById('addEmployeeModal').style.display = 'flex';
+}
+
+function closeAddEmployeeModal() {
+    document.getElementById('addEmployeeModal').style.display = 'none';
+}
+
+function addNewEmployee(e) {
+    e.preventDefault();
+    let name = document.getElementById('empName').value.trim();
+    let code = document.getElementById('empCode').value.trim();
+    let img = document.getElementById('empImg').value.trim() || 'https://via.placeholder.com/100';
+    let info = document.getElementById('empInfo').value.trim();
+
+    if(!window.employees) window.employees = [];
+    
+    window.employees.push({ id: Date.now(), name, code, img, info });
+    saveData();
+    renderEmployeesTab();
+    closeAddEmployeeModal();
+    
+    document.getElementById('empName').value = '';
+    document.getElementById('empCode').value = '';
+    document.getElementById('empImg').value = '';
+    document.getElementById('empInfo').value = '';
+    alert('تم إضافة الموظف بنجاح!');
+}
+
+function renderEmployeesTab() {
+    let grid = document.getElementById('employeesCardsGrid');
+    if(!grid) return;
+    
+    if(!window.employees) window.employees = [];
+    if(!window.attendanceLog) window.attendanceLog = [];
+
+    grid.innerHTML = '';
+    
+    let todayStr = new Date().toLocaleDateString('ar-EG');
+    let presentTodayIds = window.attendanceLog.filter(a => a.date === todayStr && a.status === 'حاضر').map(a => a.empId);
+
+    let presentCount = presentTodayIds.length;
+    let absentCount = window.employees.length - presentCount;
+
+    if(document.getElementById('presentCountBadge')) document.getElementById('presentCountBadge').innerText = presentCount;
+    if(document.getElementById('absentCountBadge')) document.getElementById('absentCountBadge').innerText = Math.max(0, absentCount);
+
+    window.employees.forEach(emp => {
+        let isPresent = presentTodayIds.includes(emp.id);
+        grid.innerHTML += `
+            <div style="background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 20px; text-align: center; color: #fff;">
+                <img src="${emp.img}" alt="${emp.name}" style="width: 70px; height: 70px; border-radius: 50%; object-fit: cover; margin-bottom: 10px; border: 2px solid #38bdf8;">
+                <h4 style="margin: 5px 0; color: #fff; font-size: 16px;">${emp.name}</h4>
+                <p style="margin: 0 0 8px 0; font-size: 12px; color: #94a3b8;">${emp.info || 'موظف بالشركة'}</p>
+                <p style="margin: 0 0 12px 0; font-size: 11px; color: #fbbf24; background: #0f172a; padding: 3px 6px; border-radius: 4px; display: inline-block;">كود الباركود: ${emp.code}</p>
+                <div style="display: flex; gap: 8px; justify-content: center; margin-bottom: 10px;">
+                    <button onclick="markAttendance(${emp.id}, 'حاضر')" style="flex: 1; padding: 6px; background: ${isPresent ? '#059669' : '#10b981'}; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; font-weight: bold;">
+                        ${isPresent ? '✓ تم الحضور' : 'تسجيل حضور'}
+                    </button>
+                    <button onclick="markAttendance(${emp.id}, 'غائب')" style="padding: 6px 10px; background: #ef4444; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">غياب</button>
+                </div>
+                <div style="display: flex; gap: 5px; justify-content: center;">
+                    <button onclick="openEmployeeExpenses(${emp.id})" style="background: #0ea5e9; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-size: 11px; cursor: pointer;"><i class="fas fa-wallet"></i> المصروفات</button>
+                    <button onclick="deleteEmployee(${emp.id})" style="background: #475569; color: white; border: none; padding: 5px 8px; border-radius: 4px; font-size: 11px; cursor: pointer;"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+        `;
+    });
+
+    let attTable = document.getElementById('attendanceTableBody');
+    if(attTable) {
+        attTable.innerHTML = '';
+        window.attendanceLog.slice(-15).reverse().forEach(log => {
+            let emp = window.employees.find(e => e.id === log.empId);
+            let empName = emp ? emp.name : 'موظف محذوف';
+            attTable.innerHTML += `
+                <tr>
+                    <td>${empName}</td>
+                    <td>${log.date} - ${log.time}</td>
+                    <td><span style="background: #0f172a; padding: 3px 8px; border-radius: 4px; font-size: 11px; color: #38bdf8;">${log.method || 'يدوي'}</span></td>
+                    <td><span style="color: ${log.status === 'حاضر' ? '#10b981' : '#f43f5e'}; font-weight: bold;">${log.status}</span></td>
+                    <td><button onclick="deleteAttendanceLog(${log.id})" style="background: none; border: none; color: #ef4444; cursor: pointer;"><i class="fas fa-times"></i></button></td>
+                </tr>
+            `;
+        });
+    }
+}
+
+function markAttendance(empId, status) {
+    if(!window.attendanceLog) window.attendanceLog = [];
+    let todayStr = new Date().toLocaleDateString('ar-EG');
+    let timeStr = new Date().toLocaleTimeString('ar-EG');
+
+    // منع التكرار لنفس اليوم إذا سجل مسبقاً
+    let existingIndex = window.attendanceLog.findIndex(a => a.empId === empId && a.date === todayStr);
+    if(existingIndex >= 0) {
+        window.attendanceLog[existingIndex].status = status;
+        window.attendanceLog[existingIndex].time = timeStr;
+        window.attendanceLog[existingIndex].method = 'يدوي / الإدارة';
+    } else {
+        window.attendanceLog.push({ id: Date.now(), empId, date: todayStr, time: timeStr, status, method: 'يدوي / الإدارة' });
+    }
+
+    saveData();
+    renderEmployeesTab();
+}
+
+function deleteEmployee(empId) {
+    if(confirm('هل أنت متأكد من حذف هذا الموظف؟')) {
+        window.employees = window.employees.filter(e => e.id !== empId);
+        saveData();
+        renderEmployeesTab();
+    }
+}
+
+function deleteAttendanceLog(logId) {
+    window.attendanceLog = window.attendanceLog.filter(l => l.id !== logId);
+    saveData();
+    renderEmployeesTab();
+}
+
+// تشغيل كاميرا الباركود
+function openBarcodeScannerModal() {
+    document.getElementById('barcodeScannerModal').style.display = 'flex';
+    setTimeout(() => {
+        if(!html5QrCode) {
+            html5QrCode = new Html5Qrcode("reader");
+        }
+        html5QrCode.start(
+            { facingMode: "environment" },
+            { fps: 10, qrbox: { width: 250, height: 150 } },
+            (decodedText, decodedResult) => {
+                processBarcode(decodedText);
+            },
+            (errorMessage) => {
+                // تجاهل أخطاء المسح المؤقتة حتى يلتقط الباركود
+            }
+        ).catch(err => {
+            console.warn("تعذر تشغيل الكاميرا مباشرة، استخدم الإدخال اليدوي بالكود:", err);
+        });
+    }, 300);
+}
+
+function closeBarcodeScannerModal() {
+    document.getElementById('barcodeScannerModal').style.display = 'none';
+    if(html5QrCode && html5QrCode.isScanning) {
+        html5QrCode.stop().catch(err => console.log(err));
+    }
+}
+
+function manualBarcodeSubmit() {
+    let code = document.getElementById('manualEmpCodeInput').value.trim();
+    if(code) {
+        processBarcode(code);
+        document.getElementById('manualEmpCodeInput').value = '';
+    }
+}
+
+function processBarcode(code) {
+    if(!window.employees) window.employees = [];
+    let emp = window.employees.find(e => e.code === code);
+    if(emp) {
+        markAttendance(emp.id, 'حاضر');
+        alert(`تم تسجيل حضور الموظف بنجاح: ${emp.name}`);
+        closeBarcodeScannerModal();
+    } else {
+        alert('كود الباركود غير مسجل لأي موظف في النظام!');
+    }
+}
+
+// نافذة المصروفات الخاصة بالموظف
+function openEmployeeExpenses(empId) {
+    let emp = window.employees.find(e => e.id === empId);
+    if(!emp) return;
+    
+    document.getElementById('modalEmployeeName').innerText = `مصروفات الموظف: ${emp.name}`;
+    document.getElementById('activeEmployeeId').value = empId;
+    
+    if(!window.employeeExpenses) window.employeeExpenses = [];
+    renderEmployeeExpensesTable(empId);
+    
+    document.getElementById('employeeExpenseModal').style.display = 'flex';
+}
+
+function closeEmployeeExpenseModal() {
+    document.getElementById('employeeExpenseModal').style.display = 'none';
+}
+
+function addEmployeeExpenseItem(e) {
+    e.preventDefault();
+    let empId = Number(document.getElementById('activeEmployeeId').value);
+    let amount = Number(document.getElementById('expenseAmount').value);
+    let note = document.getElementById('expenseNote').value.trim();
+    let dateStr = new Date().toLocaleDateString('ar-EG');
+
+    if(!window.employeeExpenses) window.employeeExpenses = [];
+    window.employeeExpenses.push({ id: Date.now(), empId, amount, note, date: dateStr });
+    
+    saveData();
+    renderEmployeeExpensesTable(empId);
+    
+    document.getElementById('expenseAmount').value = '';
+    document.getElementById('expenseNote').value = '';
+}
+
+function renderEmployeeExpensesTable(empId) {
+    let tbody = document.getElementById('employeeExpensesTableBody');
+    if(!tbody) return;
+    tbody.innerHTML = '';
+    
+    let items = (window.employeeExpenses || []).filter(ex => ex.empId === empId);
+    items.forEach(ex => {
+        tbody.innerHTML += `
+            <tr>
+                <td>${ex.amount} ج.م</td>
+                <td>${ex.note}</td>
+                <td style="text-align: center;">${ex.date}</td>
+                <td style="text-align: center;"><button onclick="deleteEmployeeExpense(${ex.id}, ${empId})" style="background: none; border: none; color: #ef4444; cursor: pointer;"><i class="fas fa-trash"></i></button></td>
+            </tr>
+        `;
+    });
+}
+
+function deleteEmployeeExpense(expenseId, empId) {
+    window.employeeExpenses = window.employeeExpenses.filter(ex => ex.id !== expenseId);
+    saveData();
+    renderEmployeeExpensesTable(empId);
+}
