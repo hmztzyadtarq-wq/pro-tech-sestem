@@ -1308,3 +1308,180 @@ window.submitInvoicePaymentUpdate = function() {
 
     alert(`تم تسجيل سداد مبلغ ${payAmount} ج.م بنجاح وتحديث حساب العميل!`);
 };
+// مصفوفة تخزين كروت الشغل (محلياً أو ترتبط بقاعدة البيانات لاحقاً)
+let jobCardsList = JSON.parse(localStorage.getItem('broTechJobCards')) || [];
+
+// فتح نافذة كارت جديد
+function openNewJobCardModal() {
+    document.getElementById('jobCardForm').reset();
+    document.getElementById('jobCardId').value = '';
+    document.getElementById('jobCardModalTitleinnerText', 'فتح كارت شغل جديد');
+    let myModal = new bootstrap.Modal(document.getElementById('jobCardModal'));
+    myModal.show();
+}
+
+// تطبيق عطل شائع في خانة الوصف تلقائياً
+function applyCommonFault(selectObj) {
+    if (selectObj.value) {
+        document.getElementById('jcReportedFault').value = selectObj.value;
+    }
+}
+
+// حفظ أو تحديث كارت الشغل
+function saveJobCard() {
+    const id = document.getElementById('jobCardId').value;
+    const customerName = document.getElementById('jcCustomerName').value;
+    const customerPhone = document.getElementById('jcCustomerPhone').value;
+    const machineModel = document.getElementById('jcMachineModel').value;
+    const serialNumber = document.getElementById('jcSerialNumber').value;
+    const reportedFault = document.getElementById('jcReportedFault').value;
+    const nozzleBefore = document.getElementById('jcNozzleBefore').value;
+    const nozzleAfter = document.getElementById('jcNozzleAfter').value;
+    const technician = document.getElementById('jcTechnician').value;
+    const status = document.getElementById('jcStatus').value;
+    const warranty = document.getElementById('jcWarranty').value;
+    const partsCost = parseFloat(document.getElementById('jcPartsCost').value) || 0;
+    const laborCost = parseFloat(document.getElementById('jcLaborCost').value) || 0;
+    const totalCost = partsCost + laborCost;
+
+    if (!customerName || !machineModel || !reportedFault) {
+        alert('يرجى ملء الحقول الأساسية (اسم العميل، الماكينة، والعطل)');
+        return;
+    }
+
+    if (id) {
+        // تعديل كارت موجود
+        let card = jobCardsList.find(c => c.id == id);
+        if (card) {
+            card.customerName = customerName;
+            card.customerPhone = customerPhone;
+            card.machineModel = machineModel;
+            card.serialNumber = serialNumber;
+            card.reportedFault = reportedFault;
+            card.nozzleBefore = nozzleBefore;
+            card.nozzleAfter = nozzleAfter;
+            card.technician = technician;
+            card.status = status;
+            card.warranty = warranty;
+            card.partsCost = partsCost;
+            card.laborCost = laborCost;
+            card.totalCost = totalCost;
+        }
+    } else {
+        // إضافة كارت جديد
+        const newCard = {
+            id: 'JC-' + Date.now().toString().slice(-4),
+            customerName,
+            customerPhone,
+            machineModel,
+            serialNumber,
+            reportedFault,
+            nozzleBefore,
+            nozzleAfter,
+            technician,
+            status,
+            warranty,
+            partsCost,
+            laborCost,
+            totalCost,
+            date: new Date().toLocaleDateString('ar-EG')
+        };
+        jobCardsList.push(newCard);
+    }
+
+    localStorage.setItem('broTechJobCards', JSON.stringify(jobCardsList));
+    
+    // إغلاق النافذة وتحديث الجدول
+    let modalEl = bootstrap.Modal.getInstance(document.getElementById('jobCardModal'));
+    modalEl.hide();
+    renderJobCardsTable();
+    alert('تم حفظ كارت الشغل بنجاح!');
+}
+
+// عرض الكروت في الجدول الرئيسي
+function renderJobCardsTable() {
+    const tbody = document.getElementById('jobCardsTableBody');
+    tbody.innerHTML = '';
+
+    if (jobCardsList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted py-4">لا توجد كروت صيانة مسجلة حتى الآن</td></tr>`;
+        return;
+    }
+
+    jobCardsList.forEach(card => {
+        // تلوين الحالة بناءً على نوعها
+        let badgeClass = 'bg-secondary';
+        if (card.status === 'تحت التشخيص') badgeClass = 'bg-info text-dark';
+        else if (card.status === 'في انتظار موافقة العميل') badgeClass = 'bg-warning text-dark';
+        else if (card.status === 'جارٍ الإصلاح') badgeClass = 'bg-primary';
+        else if (card.status === 'جاهز للاستلام') badgeClass = 'bg-success';
+        else if (card.status === 'تم التسليم') badgeClass = 'bg-dark';
+
+        tbody.innerHTML += `
+            <tr>
+                <td><strong>${card.id}</strong><br><small class="text-muted">${card.date}</small></td>
+                <td>${card.customerName}<br><small class="text-muted">${card.machineModel}</small><br><small class="text-primary">SN: ${card.serialNumber || 'غير محدد'}</small></td>
+                <td>${card.reportedFault}</td>
+                <td>${card.technician || 'غير محدد'}</td>
+                <td><span class="badge ${badgeClass}">${card.status}</span></td>
+                <td><span class="badge bg-light text-dark border">${card.warranty}</span></td>
+                <td><strong>${card.totalCost.toLocaleString()} ج.م</strong></td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary mb-1" onclick="editJobCard('${card.id}')">تعديل</button>
+                    <button class="btn btn-sm btn-outline-success mb-1" onclick="sendWhatsAppQuotation('${card.id}')">واتساب</button>
+                    <button class="btn btn-sm btn-outline-danger mb-1" onclick="deleteJobCard('${card.id}')">حذف</button>
+                </td>
+            </tr>
+        `;
+    });
+}
+
+// تعديل كارت شغل
+function editJobCard(id) {
+    let card = jobCardsList.find(c => c.id == id);
+    if (!card) return;
+
+    document.getElementById('jobCardId').value = card.id;
+    document.getElementById('jcCustomerName').value = card.customerName;
+    document.getElementById('jcCustomerPhone').value = card.customerPhone;
+    document.getElementById('jcMachineModel').value = card.machineModel;
+    document.getElementById('jcSerialNumber').value = card.serialNumber || '';
+    document.getElementById('jcReportedFault').value = card.reportedFault;
+    document.getElementById('jcNozzleBefore').value = card.nozzleBefore || '';
+    document.getElementById('jcNozzleAfter').value = card.nozzleAfter || '';
+    document.getElementById('jcTechnician').value = card.technician || '';
+    document.getElementById('jcStatus').value = card.status;
+    document.getElementById('jcWarranty').value = card.warranty || 'بدون ضمان';
+    document.getElementById('jcPartsCost').value = card.partsCost;
+    document.getElementById('jcLaborCost').value = card.laborCost;
+
+    let myModal = new bootstrap.Modal(document.getElementById('jobCardModal'));
+    myModal.show();
+}
+
+// حذف كارت الشغل
+function deleteJobCard(id) {
+    if (confirm('هل أنت متأكد من حذف كارت الصيانة هذا؟')) {
+        jobCardsList = jobCardsList.filter(c => c.id != id);
+        localStorage.setItem('broTechJobCards', JSON.stringify(jobCardsList));
+        renderJobCardsTable();
+    }
+}
+
+// ميزة ذكية: إرسال عرض السعر أو حالة الجهاز للعميل عبر الواتساب
+function sendWhatsAppQuotation(id) {
+    let card = jobCardsList.find(c => c.id == id);
+    if (!card) return;
+
+    let message = `مرحباً بك أ/ ${card.customerName}%0a` +
+                  `نحيطكم علماً بحالة ماكينة الطباعة (${card.machineModel}) الخاصة بكم:%0a` +
+                  `🔍 حالة الصيانة: *${card.status}*%0a` +
+                  `🛠️ التكلفة الإجمالية المقدرة: *${card.totalCost} ج.م*%0a` +
+                  `شكراً لتعاملكم مع Bro Tech للصيانة والتجارة.`;
+
+    let phone = card.customerPhone.replace(/[^0-9]/g, '');
+    window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+}
+
+// تحميل الجدول عند فتح الصفحة
+document.addEventListener('DOMContentLoaded', renderJobCardsTable);
