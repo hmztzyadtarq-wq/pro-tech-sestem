@@ -1485,3 +1485,45 @@ function sendWhatsAppQuotation(id) {
 
 // تحميل الجدول عند فتح الصفحة
 document.addEventListener('DOMContentLoaded', renderJobCardsTable);
+// فتح وتعبئة بيانات التقرير الشامل للموظف
+function openEmployeeReport(empId) {
+    // افترض أن لديك مصفوفة أو قاعدة بيانات للموظف تحتوي على بياناته (يمكنك ربطها ببيانات النظام الفعلي لديك)
+    // مثال لجلب بيانات افتراضية أو من النظام:
+    const employeeData = {
+        name: "أحمد محمد", // يتم جلبه ديناميكياً حسب empId
+        presentDays: 22,
+        absentDays: "يومان (2026-08-05, 2026-08-12)",
+        totalHours: 176,
+        grossSalary: 5500,
+        deductions: 200,
+        netSalary: 5300
+    };
+
+    // تعبئة عناصر النافذة بالبيانات
+    document.getElementById('repEmployeeName').innerText = `اسم الموظف: ${employeeData.name}`;
+    document.getElementById('repPresentDays').innerText = `${employeeData.presentDays} أيام`;
+    document.getElementById('repAbsentDays').innerText = employeeData.absentDays;
+    document.getElementById('repTotalHours').innerText = `${employeeData.totalHours} ساعة`;
+    document.getElementById('repGrossSalary').innerText = `${employeeData.grossSalary} ج.م`;
+    document.getElementById('repDeductions').innerText = `${employeeData.deductions} ج.م`;
+    document.getElementById('repNetSalary').innerText = `${employeeData.netSalary} ج.م`;
+
+    // إظهار نافذة التقرير
+    document.getElementById('employeeReportModal').style.display = 'flex';
+}
+
+// إغلاق النافذة
+function closeEmployeeReport() {
+    document.getElementById('employeeReportModal').style.display = 'none';
+}
+
+// دالة طباعة الجزء الخاص بالتقرير فقط دون باقي الصفحة
+function printEmployeeReport() {
+    const printContents = document.getElementById('printableReportArea').innerHTML;
+    const originalContents = document.body.innerHTML;
+
+    document.body.innerHTML = printContents;
+    window.print();
+    document.body.innerHTML = originalContents;
+    window.location.reload(); // إعادة تحميل الصفحة لاستعادة الحالة البرمجية واختصارات الأحداث
+}
