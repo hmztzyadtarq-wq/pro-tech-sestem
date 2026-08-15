@@ -19,6 +19,45 @@
             window.location.href = "login.html";
         }
     </script>
+    <style>
+        /* التعديلات المطلوبة لتصغير الكروت وجعلها بالأعلى */
+        .stats-grid-small {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .stats-grid-small .stat-card {
+            padding: 10px 15px !important;
+            min-height: unset !important;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+            cursor: pointer;
+        }
+        .stats-grid-small .stat-icon {
+            width: 40px;
+            height: 40px;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+        }
+        .stats-grid-small .stat-info h3 {
+            font-size: 12px;
+            color: #64748b;
+            margin: 0;
+        }
+        .stats-grid-small .stat-info span {
+            font-size: 16px;
+            font-weight: bold;
+            color: #1e293b;
+        }
+    </style>
 </head>
 <body>
     <!-- App Container -->
@@ -67,7 +106,7 @@
             <section id="tab-dashboard" class="tab-content active">
                 <div class="page-header-title">
                     <h1>لوحة المؤشرات والتحليلات الحية</h1>
-                    <p>متابعة حركة المخزون، المبيعات، والمشتريات بشكل لحظي وواقعي 100%</p>
+                    <p>متابعة حركة المخزون، المبيعات، والمشتريات بشكل لحظي وواقعي 100%[cite: 4]</p>
                 </div>
 
                 <!-- Quick Stat Cards -->
@@ -278,40 +317,41 @@
                 </div>
             </section>
 
-            <!-- Expenses & Attendance Tab (جدول الحضور والانصراف وإدارة الموظفين المطلوب بالكامل) -->
+            <!-- Expenses & Attendance Tab (تم تعديل الترتيب ليصبح الكروت مصغرة بالأعلى والجدول بالأسفل + إضافة كشف الغياب والتقرير الشامل) -->
             <section id="tab-expenses" class="tab-content">
                 <div class="page-header-title flex-header">
                     <div>
                         <h1>لوحة الأدمن: متابعة الحضور، الغياب، والمرتبات</h1>
-                        <p>متابعة حالات الحضور، مواعيد الدخول والخروج، وساعات الحضور الفعلية لكل موظف مع أزرار الإدارة وكشوفات الحساب</p>
+                        <p>متابعة حالات الحضور، الغياب، وساعات العمل، وصافي المرتبات لكل موظف بدقة تامة[cite: 4]</p>
                     </div>
                     <button class="btn-primary" onclick="openAddEmployeeModalCustom()"><i class="fas fa-user-plus"></i> إضافة موظف جديد</button>
                 </div>
                 
-                <!-- جدول الحضور والانصراف التفصيلي المطلوب -->
+                <!-- 1. الكروت المصغرة أصبحت في الأعلى كما طلبت تماماً -->
+                <div id="employeesCardsGrid" class="stats-grid-small" style="margin-top: 15px;">
+                    <!-- يتم تعبئتها ديناميكياً -->
+                </div>
+
+                <!-- 2. الجدول أصبح في الأسفل كما طلبت تماماً -->
                 <div class="card-table-wrapper" style="margin-top: 20px; background: #fff; padding: 15px; border-radius: 8px;">
-                    <div style="margin-bottom: 12px; font-weight: bold; color: #1e293b; font-size: 16px;">
-                        <i class="fas fa-clipboard-user" style="color: #0284c7;"></i> سجل الحضور والانصراف اليومي للموظفين
+                    <div style="margin-bottom: 12px; font-weight: bold; color: #1e293b; font-size: 16px; display: flex; justify-content: space-between; align-items: center;">
+                        <span><i class="fas fa-clipboard-user" style="color: #0284c7;"></i> سجل الحضور، الغياب، وكشف حساب الموظفين</span>
                     </div>
                     <table class="data-table" style="width: 100%; border-collapse: collapse;">
                         <thead>
                             <tr style="background: #f1f5f9; color: #334155;">
-                                <th style="padding: 10px; text-align: right;">اسم الموظف / العميل</th>
+                                <th style="padding: 10px; text-align: right;">اسم الموظف</th>
                                 <th style="padding: 10px; text-align: center;">الحالة (حضور / غياب)</th>
-                                <th style="padding: 10px; text-align: center;">مواعيد العمل (من - إلى)</th>
-                                <th style="padding: 10px; text-align: center;">جه النهاردة الساعة</th>
-                                <th style="padding: 10px; text-align: center;">الإجراءات (تعديل / حذف / كشف حساب)</th>
+                                <th style="padding: 10px; text-align: center;">مواعيد العمل</th>
+                                <th style="padding: 10px; text-align: center;">وقت الحضور</th>
+                                <th style="padding: 10px; text-align: center;">الراتب الأساسي</th>
+                                <th style="padding: 10px; text-align: center;">الإجراءات والتقرير الشهري</th>
                             </tr>
                         </thead>
                         <tbody id="attendanceTableBody">
                             <!-- يتم تعبئتها ديناميكياً من السكربت -->
                         </tbody>
                     </table>
-                </div>
-
-                <!-- كروت إضافية للموظفين لسرعة المتابعة -->
-                <div id="employeesCardsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; margin-top: 25px;">
-                    <!-- يتم تعبئتها ديناميكياً -->
                 </div>
             </section>
 
@@ -495,11 +535,11 @@
         </div>
     </div>
 
-    <!-- Modal تفاصيل سجلات وحسابات الموظف -->
+    <!-- Modal تفاصيل سجلات وحسابات الموظف والتقرير الشامل -->
     <div id="employeeExpenseModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 1000;">
         <div class="modal-content" style="background: #ffffff; padding: 25px; border-radius: 12px; width: 700px; max-width: 95%; direction: rtl; text-align: right; max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 15px;">
-                <h3 id="modalEmployeeName" style="margin: 0; color: #0284c7; font-size: 20px;"><i class="fas fa-id-card-alt"></i> سجلات وحساب الموظف</h3>
+                <h3 id="modalEmployeeName" style="margin: 0; color: #0284c7; font-size: 20px;"><i class="fas fa-id-card-alt"></i> التقرير الشهري الشامل للموظف</h3>
                 <button onclick="closeEmployeeExpenseModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #64748b; font-weight: bold;"><i class="fas fa-times"></i></button>
             </div>
             
@@ -509,23 +549,24 @@
                     <select id="expenseType" style="flex: 1; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;">
                         <option value="سلفة / مصروف">سلفة / مصروف (يخصم)</option>
                         <option value="مكافأة / حافز">مكافأة / حافز (يُضاف)</option>
+                        <option value="يوم غياب">يوم غياب (يُسجل للخصم)</option>
                     </select>
-                    <input type="number" id="expenseAmount" placeholder="المبلغ (ج.م)" required style="flex: 1; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;">
+                    <input type="number" id="expenseAmount" placeholder="المبلغ أو قيمة الخصم (ج.م)" required style="flex: 1; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;">
                 </div>
                 <div style="margin-bottom: 10px;">
-                    <input type="text" id="expenseNote" placeholder="بيان الصرف أو سبب الإضافة (مثال: سلفة نقدية، حافز تميز)..." required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 14px;">
+                    <input type="text" id="expenseNote" placeholder="بيان الحدث (مثال: غياب يوم الأحد، سلفة نقدية، حافز تميز)..." required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 14px;">
                 </div>
-                <button type="submit" style="width: 100%; padding: 10px; background: #0284c7; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;"><i class="fas fa-plus-circle"></i> إضافة البند لسجل الموظف</button>
+                <button type="submit" style="width: 100%; padding: 10px; background: #0284c7; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;"><i class="fas fa-plus-circle"></i> تسجيل حركة جديدة في الشهر</button>
             </form>
 
-            <div style="margin-bottom: 10px; font-weight: bold; color: #334155; font-size: 15px;">البنود والخصومات والسلف المسجلة:</div>
+            <div style="margin-bottom: 10px; font-weight: bold; color: #334155; font-size: 15px;">سجل الحركات والأيام (حضور، غياب، سلف، مكافآت):</div>
             <div style="overflow-x: auto; margin-bottom: 20px;">
                 <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
                     <thead>
                         <tr style="background: #f1f5f9; color: #334155;">
                             <th style="padding: 10px; text-align: right; border-bottom: 2px solid #cbd5e1;">النوع</th>
-                            <th style="padding: 10px; text-align: right; border-bottom: 2px solid #cbd5e1;">المبلغ</th>
-                            <th style="padding: 10px; text-align: right; border-bottom: 2px solid #cbd5e1;">البيان</th>
+                            <th style="padding: 10px; text-align: right; border-bottom: 2px solid #cbd5e1;">المبلغ / القيمة</th>
+                            <th style="padding: 10px; text-align: right; border-bottom: 2px solid #cbd5e1;">البيان والتفاصيل</th>
                             <th style="padding: 10px; text-align: center; border-bottom: 2px solid #cbd5e1;">التاريخ</th>
                             <th style="padding: 10px; text-align: center; border-bottom: 2px solid #cbd5e1;">إجراء</th>
                         </tr>
@@ -535,7 +576,7 @@
             </div>
 
             <div style="text-align: center; border-top: 1px solid #e2e8f0; padding-top: 15px;">
-                <button type="button" onclick="printEmployeeStatement()" style="background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px;"><i class="fas fa-print"></i> إصدار وطباعة كشف حساب الموظف</button>
+                <button type="button" onclick="printEmployeeStatement()" style="background: #10b981; color: white; border: none; padding: 12px 25px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 15px;"><i class="fas fa-file-alt"></i> تقرير شامل لكل ما حصل خلال الشهر (مع صافي المرتب)</button>
             </div>
         </div>
     </div>
@@ -549,11 +590,11 @@
             </div>
             <form onsubmit="addNewEmployeeCustom(event)">
                 <div style="margin-bottom: 12px;">
-                    <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: bold; color: #334155;">اسم الموظف / العميل:</label>
+                    <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: bold; color: #334155;">اسم الموظف:</label>
                     <input type="text" id="empName" required placeholder="الاسم الكامل..." style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
                 </div>
                 <div style="margin-bottom: 12px;">
-                    <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: bold; color: #334155;">حالة الحضور:</label>
+                    <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: bold; color: #334155;">حالة الحضور اليومي:</label>
                     <select id="empStatus" style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
                         <option value="حاضر">حاضر</option>
                         <option value="غياب">غياب</option>
@@ -796,7 +837,7 @@
             document.getElementById('editProductModal').style.display = 'none';
         }
 
-        // دوال إدارة الموظفين والحضور والانصراف وكشوفات الحساب
+        // دوال إدارة الموظفين والحضور والانصراف وكشوفات الحساب الشاملة
         let employees = JSON.parse(localStorage.getItem('protech_employees')) || [
             { id: 1, name: 'أحمد محمود', status: 'حاضر', timeFrom: '09:00 ص', timeTo: '05:00 م', arrivedAt: '09:05 ص', salary: 5000, items: [] },
             { id: 2, name: 'محمد إبراهيم', status: 'غياب', timeFrom: '09:00 ص', timeTo: '05:00 م', arrivedAt: '--', salary: 6500, items: [] }
@@ -812,36 +853,42 @@
 
             employees.forEach((emp, index) => {
                 let statusBadge = emp.status === 'حاضر' 
-                    ? `<span style="background: #dcfce7; color: #166534; padding: 4px 10px; border-radius: 20px; font-weight: bold; font-size: 12px;"><i class="fas fa-check-circle"></i> حاضر</span>`
-                    : `<span style="background: #fee2e2; color: #991b1b; padding: 4px 10px; border-radius: 20px; font-weight: bold; font-size: 12px;"><i class="fas fa-times-circle"></i> غياب</span>`;
+                    ? `<span style="background: #dcfce7; color: #166534; padding: 3px 8px; border-radius: 20px; font-weight: bold; font-size: 11px;"><i class="fas fa-check-circle"></i> حاضر</span>`
+                    : `<span style="background: #fee2e2; color: #991b1b; padding: 3px 8px; border-radius: 20px; font-weight: bold; font-size: 11px;"><i class="fas fa-times-circle"></i> غياب</span>`;
 
-                // تعبئة جدول الحضور والانصراف المطلوب بالاسم والحالة والمواعيد وساعة الحضور والتعديل والحذف وكشف الحساب
+                // تعبئة الجدول في الأسفل
                 tbody.innerHTML += `
                     <tr style="border-bottom: 1px solid #e2e8f0;">
                         <td style="padding: 12px; font-weight: bold; color: #1e293b;">${emp.name}</td>
                         <td style="padding: 12px; text-align: center;">${statusBadge}</td>
                         <td style="padding: 12px; text-align: center; color: #475569; font-size: 13px;">${emp.timeFrom} إلى ${emp.timeTo}</td>
                         <td style="padding: 12px; text-align: center; font-weight: bold; color: ${emp.arrivedAt === '--' ? '#ef4444' : '#0284c7'};">${emp.arrivedAt}</td>
+                        <td style="padding: 12px; text-align: center; font-weight: bold; color: #059669;">${emp.salary} ج.م</td>
                         <td style="padding: 12px; text-align: center;">
                             <div style="display: flex; gap: 6px; justify-content: center;">
-                                <button onclick="openEditEmployeeModal(${index})" style="background: #f59e0b; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;" title="تعديل"><i class="fas fa-edit"></i> تعديل</button>
-                                <button onclick="deleteEmployee(${index})" style="background: #ef4444; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;" title="حذف"><i class="fas fa-trash"></i> حذف</button>
-                                <button onclick="openEmployeeExpenseModal(${index})" style="background: #0284c7; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;" title="كشف حساب"><i class="fas fa-file-invoice-dollar"></i> كشف حساب</button>
+                                <button onclick="openEditEmployeeModal(${index})" style="background: #f59e0b; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;" title="تعديل"><i class="fas fa-edit"></i></button>
+                                <button onclick="deleteEmployee(${index})" style="background: #ef4444; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;" title="حذف"><i class="fas fa-trash"></i></button>
+                                <button onclick="openEmployeeExpenseModal(${index})" style="background: #0284c7; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;" title="تقرير شهري"><i class="fas fa-file-invoice-dollar"></i> تقرير الشهر وصافي المرتب</button>
                             </div>
                         </td>
                     </tr>
                 `;
 
-                // كروت سريعة
+                // الكروت المصغرة في الأعلى كما طلبت تماماً
                 grid.innerHTML += `
-                    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 15px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); text-align: right;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                            <h4 style="margin: 0; color: #1e293b; font-size: 16px;"><i class="fas fa-user-tie" style="color: #0284c7;"></i> ${emp.name}</h4>
+                    <div class="stat-card" onclick="openEmployeeExpenseModal(${index})" style="padding: 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div style="width: 38px; height: 38px; background: #e0f2fe; color: #0284c7; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 16px;">
+                                <i class="fas fa-user-tie"></i>
+                            </div>
+                            <div>
+                                <h4 style="margin: 0; font-size: 14px; color: #1e293b;">${emp.name}</h4>
+                                <span style="font-size: 11px; color: #64748b;">الراتب: ${emp.salary} ج.م</span>
+                            </div>
+                        </div>
+                        <div>
                             ${statusBadge}
                         </div>
-                        <p style="margin: 0 0 5px 0; color: #64748b; font-size: 13px;"><strong>المواعيد:</strong> ${emp.timeFrom} - ${emp.timeTo}</p>
-                        <p style="margin: 0 0 10px 0; color: #64748b; font-size: 13px;"><strong>حضر الساعة:</strong> ${emp.arrivedAt}</p>
-                        <button onclick="openEmployeeExpenseModal(${index})" style="background: #0284c7; color: white; border: none; padding: 7px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px; width: 100%;"><i class="fas fa-file-invoice"></i> عرض كشف الحساب والراتب</button>
                     </div>
                 `;
             });
@@ -927,7 +974,7 @@
         function openEmployeeExpenseModal(index) {
             currentActiveEmpIndex = index;
             let emp = employees[index];
-            document.getElementById('modalEmployeeName').innerHTML = `<i class="fas fa-id-card-alt"></i> كشف حساب وسجلات: ${emp.name}`;
+            document.getElementById('modalEmployeeName').innerHTML = `<i class="fas fa-id-card-alt"></i> التقرير الشهري الشامل للموظف: ${emp.name}`;
             document.getElementById('activeEmployeeId').value = index;
             renderEmployeeExpensesTable();
             document.getElementById('employeeExpenseModal').style.display = 'flex';
@@ -966,15 +1013,16 @@
             tbody.innerHTML = '';
 
             if(!emp.items || emp.items.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 15px; color: #64748b;">لا توجد سجلات سابقة لهذا الموظف</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 15px; color: #64748b;">لا توجد سجلات أو غياب مسجل لهذا الموظف خلال الشهر</td></tr>`;
                 return;
             }
 
             emp.items.forEach((item, itemIndex) => {
+                let badgeColor = item.type.includes('مكافأة') ? '#10b981' : (item.type.includes('غياب') ? '#d97706' : '#ef4444');
                 tbody.innerHTML += `
                     <tr>
-                        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${item.type}</td>
-                        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: ${item.type.includes('مكافأة') ? '#10b981' : '#ef4444'};">${item.amount} ج.م</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: ${badgeColor};">${item.type}</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold;">${item.amount} ج.م</td>
                         <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${item.note}</td>
                         <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center;">${item.date}</td>
                         <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center;">
@@ -992,10 +1040,12 @@
             renderEmployeeExpensesTable();
         }
 
+        // زر التقرير الشامل لكل ما حدث خلال الشهر لكل موظف لوحده مع حساب صافي المرتب
         function printEmployeeStatement() {
             let emp = employees[currentActiveEmpIndex];
             let totalDeductions = 0;
             let totalAdditions = 0;
+            let totalAbsences = 0;
             let rowsHtml = '';
 
             if(emp.items) {
@@ -1004,61 +1054,73 @@
                         totalDeductions += Number(item.amount);
                     } else if(item.type.includes('مكافأة')) {
                         totalAdditions += Number(item.amount);
+                    } else if(item.type.includes('غياب')) {
+                        totalAbsences += Number(item.amount);
                     }
                     rowsHtml += `
                         <tr>
-                            <td style="padding: 8px; border: 1px solid #cbd5e1;">${item.date}</td>
+                            <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${item.date}</td>
                             <td style="padding: 8px; border: 1px solid #cbd5e1;">${item.type}</td>
                             <td style="padding: 8px; border: 1px solid #cbd5e1;">${item.note}</td>
-                            <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${item.amount} ج.م</td>
+                            <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold;">${item.amount} ج.م</td>
                         </tr>
                     `;
                 });
             }
 
-            let netSalary = emp.salary - totalDeductions + totalAdditions;
+            // حساب صافي المرتب بدقة
+            let netSalary = emp.salary - totalDeductions - totalAbsences + totalAdditions;
 
             let printWindow = window.open('', '_blank');
             printWindow.document.write(`
                 <html lang="ar" dir="rtl">
                 <head>
-                    <title>كشف حساب الموظف - ${emp.name}</title>
+                    <title>التقرير الشهري الشامل للموظف - ${emp.name}</title>
                     <style>
-                        body { font-family: 'Cairo', Tahoma, sans-serif; padding: 20px; color: #000; direction: rtl; }
-                        .header { text-align: center; border-bottom: 2px solid #0284c7; padding-bottom: 10px; margin-bottom: 20px; }
-                        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; }
+                        body { font-family: 'Cairo', Tahoma, sans-serif; padding: 25px; color: #000; direction: rtl; }
+                        .header { text-align: center; border-bottom: 2px solid #0284c7; padding-bottom: 15px; margin-bottom: 20px; }
+                        .summary-box { background: #f8fafc; border: 1px solid #cbd5e1; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; font-size: 14px; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
                         th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: right; }
                         th { background: #f1f5f9; }
                     </style>
                 </head>
                 <body>
                     <div class="header">
-                        <h2>شركة برو تيك للأحبار وماكينات الطباعة</h2>
-                        <h3>كشف حساب وراتب الموظف: ${emp.name}</h3>
-                        <p>تاريخ الطباعة: ${new Date().toLocaleDateString('ar-EG')}</p>
+                        <h2>شركة برو تيك للأحبار وماكينات الطباعة - ProTech</h2>
+                        <h3>التقرير الشهري الشامل (حضور، غياب، سلف، صافي المرتب)</h3>
+                        <p><strong>اسم الموظف:</strong> ${emp.name} | <strong>تاريخ الإصدار:</strong> ${new Date().toLocaleDateString('ar-EG')}</p>
                     </div>
-                    <div>
-                        <p><strong>الراتب الأساسي:</strong> ${emp.salary} ج.م</p>
-                        <p><strong>إجمالي الخصومات والسلف:</strong> ${totalDeductions} ج.م</p>
-                        <p><strong>إجمالي المكافآت:</strong> ${totalAdditions} ج.م</p>
-                        <h3 style="color: #0284c7;">صافي الراتب المستحق: ${netSalary} ج.م</h3>
+                    
+                    <div class="summary-box">
+                        <div><strong>الراتب الأساسي:</strong> ${emp.salary} ج.م</div>
+                        <div><strong>إجمالي السلف والخصومات:</strong> ${totalDeductions} ج.م</div>
+                        <div><strong>إجمالي خصومات الغياب:</strong> ${totalAbsences} ج.م</div>
+                        <div><strong>إجمالي المكافآت والحوافز:</strong> ${totalAdditions} ج.م</div>
                     </div>
+
+                    <div style="background: #e0f2fe; padding: 12px; border-radius: 6px; text-align: center; margin-bottom: 20px; border: 1px solid #7dd3fc;">
+                        <h3 style="margin: 0; color: #0369a1; font-size: 18px;">صافي الراتب المستحق للشهر: ${netSalary} ج.م</h3>
+                    </div>
+
+                    <h4>تفاصيل حركات الشهر حرفياً (حضر، غياب، استلف، إلخ):</h4>
                     <table>
                         <thead>
                             <tr>
-                                <th>التاريخ</th>
-                                <th>النوع</th>
-                                <th>البيان</th>
-                                <th>المبلغ</th>
+                                <th style="text-align: center;">التاريخ</th>
+                                <th>نوع الحدث</th>
+                                <th>البيان والتفاصيل</th>
+                                <th style="text-align: center;">المبلغ / القيمة</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${rowsHtml || '<tr><td colspan="4" style="text-align:center;">لا توجد بنود وسجلات سابقة</td></tr>'}
+                            ${rowsHtml || '<tr><td colspan="4" style="text-align:center; padding: 15px; color: #666;">لا توجد حركات أو غياب مسجل خلال هذا الشهر</td></tr>'}
                         </tbody>
                     </table>
-                    <div style="margin-top: 40px; display: flex; justify-content: space-between;">
-                        <div>توقيع المسؤول: ........................</div>
-                        <div>توقيع الموظف: ........................</div>
+
+                    <div style="margin-top: 50px; display: flex; justify-content: space-between; font-size: 14px;">
+                        <div>توقيع المدير المسؤول: ........................</div>
+                        <div>توقيع الموظف المستلم: ........................</div>
                     </div>
                     <script>
                         window.onload = function() { window.print(); }
