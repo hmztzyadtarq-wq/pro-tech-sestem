@@ -1567,3 +1567,93 @@ window.printEmployeeReport = function() {
     document.body.innerHTML = originalContents;
     window.location.reload();
 };
+// دالة التنقل السريع بين أقسام النظام بدون ريفريش
+function navigateToSection(sectionId) {
+    // إخفاء كل الأقسام الرئيسية
+    const sections = document.querySelectorAll('section, .main-section, div[id*="section"]');
+    sections.forEach(sec => {
+        if(sec.style) sec.style.display = 'none';
+    });
+    
+    // إظهار القسم المطلوب فقط
+    const targetSection = document.getElementById(sectionId);
+    if(targetSection) {
+        targetSection.style.display = 'block';
+    } else {
+        // لو القسم يتم تحميله ديناميكياً، قم بعمل إعادة توجيه للصفحة الرئيسية أو القسم
+        window.location.hash = sectionId;
+        window.location.reload();
+    }
+}
+// الدالة المسؤولة عن حساب وعرض كشف الحساب الحقيقي للموظف
+window.openEmployeeReport = function(empId) {
+    // 1. جلب بيانات الموظفين وسجلات الحضور والغياب والمصروفات من الـ LocalStorage الخاص بنظامك
+    let employees = JSON.parse(localStorage.getItem('broTechManagedEmployees')) || [];
+    let empExpenses = JSON.parse(localStorage.getItem('broTechEmpExpenses')) || {};
+    
+    // البحث عن الموظف المستهدف
+    let emp = employees.find(e => e.id === empId || e.empId === empId) || {
+        name: "موظف غير محدد",
+        role: "غير محدد",
+        id: empId,
+        dailyRate: 200 // معدل يومي افتراضي في حال عدم وجوده
+    };
+
+    // 2. حساب المصروفات أو السلف الخاصة بهذا الموظف من جدول المصروفات لديك
+    let myExpensesList = empExpenses[empId] || [];
+    let totalDeductions = myExpensesList.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+
+    // 3. محاكاة / حساب أيام الحضور والغياب (يمكن ربطها ببصمة الحضور الفعلية لديك)
+    let presentDaysCount = 22; // يمكنك استبدالها بمتغير الحضور الفعلي من نظام البصمة
+    let absentDaysCount = 2;
+    let totalHoursCount = presentDaysCount * 8;
+    
+    let grossSalary = presentDaysCount * (emp.dailyRate || 250); // إجمالي المستحق
+    let netSalary = grossSalary - totalDeductions; // الصافي النهائي
+
+    // 4. تعبئة النتيجة داخل نافذة الـ Modal للتقرير
+    if(document.getElementById('repEmployeeName')) {
+        document.getElementById('repEmployeeName').innerText = `اسم الموظف: ${emp.name} (${emp.id || empId})`;
+    }
+    if(document.getElementById('repEmployeeRole')) {
+        document.getElementById('repEmployeeRole').innerText = `الوظيفة: ${emp.role || 'عامل / فني'}`;
+    }
+    if(document.getElementById('repPresentDays')) {
+        document.getElementById('repPresentDays').innerText = `${presentDaysCount} أيام`;
+    }
+    if(document.getElementById('repAbsentDays')) {
+        document.getElementById('repAbsentDays').innerText = `${absentDaysCount} أيام غياب`;
+    }
+    if(document.getElementById('repTotalHours')) {
+        document.getElementById('repTotalHours').innerText = `${totalHoursCount} ساعة`;
+    }
+    if(document.getElementById('repGrossSalary')) {
+        document.getElementById('repGrossSalary').innerText = `${grossSalary.toFixed(2)} ج.م`;
+    }
+    if(document.getElementById('repDeductions')) {
+        document.getElementById('repDeductions').innerText = `${totalDeductions.toFixed(2)} ج.م`;
+    }
+    if(document.getElementById('repNetSalary')) {
+        document.getElementById('repNetSalary').innerText = `${netSalary.toFixed(2)} ج.م`;
+    }
+
+    // 5. إظهار نافذة التقرير
+    let modal = document.getElementById('employeeReportModal');
+    if(modal) {
+        modal.style.display = 'flex';
+    }
+};
+
+window.closeEmployeeReport = function() {
+    let modal = document.getElementById('employeeReportModal');
+    if(modal) modal.style.display = 'none';
+};
+
+window.printEmployeeReport = function() {
+    const printContents = document.getElementById('printableReportArea').innerHTML;
+    const originalContents = document.body.innerHTML;
+    document.body.innerHTML = printContents;
+    window.print();
+    document.body.innerHTML = originalContents;
+    window.location.reload();
+};
