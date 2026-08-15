@@ -37,7 +37,8 @@
                 <li onclick="switchTab('sales')"><i class="fas fa-cash-register"></i> المبيعات والفواتير</li>
                 <li onclick="switchTab('purchases')"><i class="fas fa-shopping-cart"></i> المشتريات والتوريد</li>
                 <li onclick="switchTab('customers')"><i class="fas fa-users"></i> دليل العملاء</li>
-                <li onclick="switchTab('expenses')"><i class="fas fa-id-badge"></i> الموظفين والإدارة</li>
+                <!-- زرار إدارة الموظفين والمرتبات في القائمة الجانبية -->
+                <li onclick="switchTab('expenses')"><i class="fas fa-id-badge"></i> الموظفين وإدارة المرتبات</li>
                 <li onclick="switchTab('settings')"><i class="fas fa-cogs"></i> الإعدادات والربط</li>
             </ul>
             <div class="sidebar-footer">
@@ -278,17 +279,19 @@
                 </div>
             </section>
 
-            <!-- Expenses Tab (صفحة الموظفين والإدارة المحدثة بالكامل وبأعلى دقة) -->
+            <!-- Expenses & Employees Tab (قسم الموظفين والمرتبات الجديد) -->
             <section id="tab-expenses" class="tab-content">
                 <div class="page-header-title flex-header">
                     <div>
-                        <h1>إدارة الموظفين والمصروفات</h1>
-                        <p>متابعة بيانات الموظفين، سجلات الصرف، ومصروفات الإدارة بشكل تفصيلي ومنظم</p>
+                        <h1>إدارة الموظفين والمرتبات وخصومات الغياب</h1>
+                        <p>متابعة بيانات الموظفين، الرواتب الأساسية، خصومات الغياب، وسجلات الصرف والكشوفات</p>
                     </div>
-                    <button class="btn-primary" onclick="openAddEmployeeModal()"><i class="fas fa-user-plus"></i> إضافة موظف جديد</button>
+                    <button class="btn-primary" onclick="openAddEmployeeModalCustom()"><i class="fas fa-user-plus"></i> إضافة موظف جديد وتحديد الراتب</button>
                 </div>
-                <div id="employeesCardsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; margin-top: 20px;">
-                    <!-- سيتم تعبئة كروت الموظفين برمجياً -->
+                
+                <!-- كروت الموظفين -->
+                <div id="employeesCardsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-top: 20px;">
+                    <!-- يتم تعبئتها ديناميكياً -->
                 </div>
             </section>
 
@@ -331,7 +334,6 @@
                 <span class="close-btn" onclick="closeInvoiceModal()">&times;</span>
             </div>
             <div class="modal-body" id="printableInvoiceArea">
-                <!-- Exact Arabic Professional Invoice Template -->
                 <div class="invoice-box" style="background: #fff; color: #000; padding: 20px; font-family: 'Cairo', sans-serif; direction: rtl; text-align: right; border-radius: 8px;">
                     <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #0284c7; padding-bottom: 15px; margin-bottom: 15px;">
                         <div>
@@ -473,30 +475,39 @@
         </div>
     </div>
 
-    <!-- Modal تفاصيل مصروفات وسجلات الموظف (تم تحسينه وتنسيقه بالكامل) -->
+    <!-- Modal تفاصيل مصروفات وسجلات وساعات/أيام غياب الموظف -->
     <div id="employeeExpenseModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 1000;">
-        <div class="modal-content" style="background: #ffffff; padding: 25px; border-radius: 12px; width: 650px; max-width: 92%; direction: rtl; text-align: right; max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
+        <div class="modal-content" style="background: #ffffff; padding: 25px; border-radius: 12px; width: 700px; max-width: 95%; direction: rtl; text-align: right; max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 15px;">
-                <h3 id="modalEmployeeName" style="margin: 0; color: #0284c7; font-size: 20px;"><i class="fas fa-id-card-alt"></i> مصروفات الموظف</h3>
+                <h3 id="modalEmployeeName" style="margin: 0; color: #0284c7; font-size: 20px;"><i class="fas fa-id-card-alt"></i> سجلات الموظف والخصومات</h3>
                 <button onclick="closeEmployeeExpenseModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #64748b; font-weight: bold;"><i class="fas fa-times"></i></button>
             </div>
             
             <form onsubmit="addEmployeeExpenseItem(event)" style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e2e8f0;">
                 <input type="hidden" id="activeEmployeeId">
                 <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <select id="expenseType" style="flex: 1; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;">
+                        <option value="سلفة / مصروف">سلفة / مصروف (يخصم)</option>
+                        <option value="غياب (يوم)">غياب (يخصم بناءً على قاعدة الموظف)</option>
+                        <option value="غياب (يومين)">غياب (يومين)</option>
+                        <option value="مكافأة / حافز">مكافأة / حافز (يُضاف)</option>
+                    </select>
                     <input type="number" id="expenseAmount" placeholder="المبلغ (ج.م)" required style="flex: 1; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;">
-                    <input type="text" id="expenseNote" placeholder="بيان الصرف أو الغرض (مثال: سلفة، مكافأة، عهدة)..." required style="flex: 2; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;">
                 </div>
-                <button type="submit" class="btn-primary" style="width: 100%; padding: 10px; background: #0284c7; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;"><i class="fas fa-plus-circle"></i> إضافة بند الصرف للموظف</button>
+                <div style="margin-bottom: 10px;">
+                    <input type="text" id="expenseNote" placeholder="بيان الصرف أو سبب الخصم (مثال: سلفة نقدية، غياب يوم)..." required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 14px;">
+                </div>
+                <button type="submit" style="width: 100%; padding: 10px; background: #0284c7; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;"><i class="fas fa-plus-circle"></i> إضافة البند لسجل الموظف</button>
             </form>
 
-            <div style="margin-bottom: 10px; font-weight: bold; color: #334155; font-size: 15px;">سجل المصروفات والبنود السابقة:</div>
-            <div style="overflow-x: auto;">
+            <div style="margin-bottom: 10px; font-weight: bold; color: #334155; font-size: 15px;">البنود والخصومات والسلف المسجلة:</div>
+            <div style="overflow-x: auto; margin-bottom: 20px;">
                 <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
                     <thead>
                         <tr style="background: #f1f5f9; color: #334155;">
+                            <th style="padding: 10px; text-align: right; border-bottom: 2px solid #cbd5e1;">النوع</th>
                             <th style="padding: 10px; text-align: right; border-bottom: 2px solid #cbd5e1;">المبلغ</th>
-                            <th style="padding: 10px; text-align: right; border-bottom: 2px solid #cbd5e1;">البيان (الملحوظة)</th>
+                            <th style="padding: 10px; text-align: right; border-bottom: 2px solid #cbd5e1;">البيان</th>
                             <th style="padding: 10px; text-align: center; border-bottom: 2px solid #cbd5e1;">التاريخ</th>
                             <th style="padding: 10px; text-align: center; border-bottom: 2px solid #cbd5e1;">إجراء</th>
                         </tr>
@@ -504,28 +515,36 @@
                     <tbody id="employeeExpensesTableBody"></tbody>
                 </table>
             </div>
+
+            <div style="text-align: center; border-top: 1px solid #e2e8f0; padding-top: 15px;">
+                <button type="button" onclick="printEmployeeStatement()" style="background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px;"><i class="fas fa-print"></i> إصدار وطباعة كشف حساب الموظف</button>
+            </div>
         </div>
     </div>
 
-    <!-- Modal إضافة موظف جديد (تم تحسينه وتنسيقه بالكامل) -->
+    <!-- Modal إضافة موظف جديد بالراتب وقاعدة الخصم -->
     <div id="addEmployeeModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 1000;">
-        <div class="modal-content" style="background: #ffffff; padding: 25px; border-radius: 12px; width: 420px; max-width: 92%; direction: rtl; text-align: right; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
+        <div class="modal-content" style="background: #ffffff; padding: 25px; border-radius: 12px; width: 450px; max-width: 92%; direction: rtl; text-align: right; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 15px;">
-                <h3 style="margin: 0; color: #0284c7; font-size: 18px;"><i class="fas fa-user-plus"></i> إضافة موظف جديد للإدارة</h3>
+                <h3 style="margin: 0; color: #0284c7; font-size: 18px;"><i class="fas fa-user-plus"></i> إضافة موظف جديد وتحديد الراتب</h3>
                 <button onclick="closeAddEmployeeModal()" style="background: none; border: none; font-size: 18px; cursor: pointer; color: #64748b;"><i class="fas fa-times"></i></button>
             </div>
-            <form onsubmit="addNewEmployee(event)">
+            <form onsubmit="addNewEmployeeCustom(event)">
                 <div style="margin-bottom: 12px;">
                     <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: bold; color: #334155;">اسم الموظف:</label>
-                    <input type="text" id="empName" required placeholder="الاسم الكامل..." style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+                    <input type="text" id="empName" required placeholder="الاسم الكامل..." style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
                 </div>
                 <div style="margin-bottom: 12px;">
-                    <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: bold; color: #334155;">رابط الصورة الشخصية (URL) أو اتركها فارغة:</label>
-                    <input type="text" id="empImg" placeholder="https://..." style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+                    <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: bold; color: #334155;">المسمى الوظيفي / تفاصيل:</label>
+                    <input type="text" id="empInfo" placeholder="مثال: مسؤول طباعة ومبيعات" style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: bold; color: #334155;">الراتب الأساسي (ج.م):</label>
+                    <input type="number" id="empSalary" required min="0" placeholder="مثال: 5000" style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
                 </div>
                 <div style="margin-bottom: 20px;">
-                    <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: bold; color: #334155;">معلومات / المسمى الوظيفي:</label>
-                    <input type="text" id="empInfo" placeholder="مثال: مسؤول مبيعات وتوصيل" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+                    <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: bold; color: #334155;">قيمة خصم الغياب (عن اليوم الواحد):</label>
+                    <input type="number" id="empAbsenceDeduction" required min="0" placeholder="مثال: 200 ج.م" style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
                 </div>
                 <div style="display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid #e2e8f0; padding-top: 15px;">
                     <button type="button" onclick="closeAddEmployeeModal()" style="padding: 9px 16px; background: #64748b; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">إلغاء</button>
@@ -662,16 +681,14 @@
         </div>
     </div>
 
-    <!-- ربط السكربت البرمجي -->
+    <!-- ربط السكربت البرمجي والدوال البرمجية الإضافية للموظفين -->
     <script type="module" src="script.js"></script>
     <script>
-        // دوال التحكم المساعدة المدمجة واختصار الخروج
         function logoutSystem() {
             localStorage.removeItem('protech_logged_in');
             window.location.href = "login.html";
         }
 
-        // دالة حفظ العميل المباشر لمنع ريفريش الصفحة وضمان إضافته للقائمة
         function addNewCustomerDirect(e) {
             e.preventDefault();
             let name = document.getElementById('custName').value.trim();
@@ -698,10 +715,253 @@
             alert('تم حفظ العميل بنجاح!');
         }
 
-        // دوال فتح وإغلاق نافذة تعديل صنف المخزون
         function closeEditProductModal() {
             document.getElementById('editProductModal').style.display = 'none';
         }
+
+        // دوال إدارة الموظفين والرواتب والخصومات وكشوفات الحساب
+        let employees = JSON.parse(localStorage.getItem('protech_employees')) || [
+            { id: 1, name: 'أحمد محمود', info: 'مسؤول مبيعات وتوصيل', salary: 5000, deductionPerDay: 200, items: [] },
+            { id: 2, name: 'محمد إبراهيم', info: 'فني تشغيل ماكينات الطباعة', salary: 6500, deductionPerDay: 250, items: [] }
+        ];
+
+        function renderEmployees() {
+            let grid = document.getElementById('employeesCardsGrid');
+            if(!grid) return;
+            grid.innerHTML = '';
+            employees.forEach((emp, index) => {
+                let totalDeductions = 0;
+                let totalAdditions = 0;
+                if(emp.items) {
+                    emp.items.forEach(item => {
+                        if(item.type.includes('يخصم') || item.type.includes('غياب') || item.type.includes('سلفة')) {
+                            totalDeductions += Number(item.amount);
+                        } else if(item.type.includes('مكافأة')) {
+                            totalAdditions += Number(item.amount);
+                        }
+                    });
+                }
+                let netSalary = emp.salary - totalDeductions + totalAdditions;
+
+                grid.innerHTML += `
+                    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: space-between; color: #334155; text-align: right;">
+                        <div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <h3 style="margin: 0; color: #1e293b; font-size: 17px;"><i class="fas fa-user-tie" style="color: #0284c7; margin-left: 6px;"></i> ${emp.name}</h3>
+                                <button onclick="deleteEmployee(${index})" style="background: #fee2e2; color: #991b1b; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;"><i class="fas fa-trash"></i></button>
+                            </div>
+                            <p style="margin: 0 0 8px 0; color: #64748b; font-size: 13px;"><strong>الوظيفة:</strong> ${emp.info}</p>
+                            <p style="margin: 0 0 5px 0; color: #334155; font-size: 13px;"><strong>الراتب الأساسي:</strong> <span style="color: #0284c7; font-weight: bold;">${emp.salary} ج.م</span></p>
+                            <p style="margin: 0 0 5px 0; color: #334155; font-size: 13px;"><strong>خصم الغياب لليوم:</strong> ${emp.deductionPerDay} ج.م</p>
+                            <p style="margin: 0 0 15px 0; color: #10b981; font-size: 14px; font-weight: bold;">الصافي المتوقع: ${netSalary} ج.م</p>
+                        </div>
+                        <button onclick="openEmployeeExpenseModal(${index})" style="background: #0284c7; color: white; border: none; padding: 9px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; width: 100%;"><i class="fas fa-file-invoice-dollar"></i> سجلات الصرف وكشف الحساب</button>
+                    </div>
+                `;
+            });
+            localStorage.setItem('protech_employees', JSON.stringify(employees));
+        }
+
+        function openAddEmployeeModalCustom() {
+            document.getElementById('addEmployeeModal').style.display = 'flex';
+        }
+        function closeAddEmployeeModal() {
+            document.getElementById('addEmployeeModal').style.display = 'none';
+        }
+
+        function addNewEmployeeCustom(e) {
+            e.preventDefault();
+            let name = document.getElementById('empName').value.trim();
+            let info = document.getElementById('empInfo').value.trim();
+            let salary = Number(document.getElementById('empSalary').value);
+            let deductionPerDay = Number(document.getElementById('empAbsenceDeduction').value);
+
+            if(!name) return;
+
+            employees.push({
+                id: Date.now(),
+                name,
+                info: info || 'موظف بالشركة',
+                salary,
+                deductionPerDay,
+                items: []
+            });
+
+            renderEmployees();
+            closeAddEmployeeModal();
+            document.getElementById('empName').value = '';
+            document.getElementById('empInfo').value = '';
+            document.getElementById('empSalary').value = '';
+            document.getElementById('empAbsenceDeduction').value = '';
+            alert('تم إضافة الموظف بنجاح!');
+        }
+
+        function deleteEmployee(index) {
+            if(confirm('هل أنت متأكد من حذف هذا الموظف نهائياً؟')) {
+                employees.splice(index, 1);
+                renderEmployees();
+            }
+        }
+
+        let currentActiveEmpIndex = null;
+        function openEmployeeExpenseModal(index) {
+            currentActiveEmpIndex = index;
+            let emp = employees[index];
+            document.getElementById('modalEmployeeName').innerHTML = `<i class="fas fa-id-card-alt"></i> سجلات: ${emp.name}`;
+            document.getElementById('activeEmployeeId').value = index;
+            renderEmployeeExpensesTable();
+            document.getElementById('employeeExpenseModal').style.display = 'flex';
+        }
+        function closeEmployeeExpenseModal() {
+            document.getElementById('employeeExpenseModal').style.display = 'none';
+        }
+
+        function addEmployeeExpenseItem(e) {
+            e.preventDefault();
+            let index = document.getElementById('activeEmployeeId').value;
+            let type = document.getElementById('expenseType').value;
+            let amountInput = Number(document.getElementById('expenseAmount').value);
+            let note = document.getElementById('expenseNote').value.trim();
+
+            let emp = employees[index];
+            let actualAmount = amountInput;
+
+            if(type.includes('غياب (يوم)')) {
+                actualAmount = emp.deductionPerDay;
+                note = `غياب يوم - ${note}`;
+            } else if(type.includes('غياب (يومين)')) {
+                actualAmount = emp.deductionPerDay * 2;
+                note = `غياب يومين - ${note}`;
+            }
+
+            if(!emp.items) emp.items = [];
+            emp.items.push({
+                type,
+                amount: actualAmount,
+                note,
+                date: new Date().toLocaleDateString('ar-EG')
+            });
+
+            renderEmployees();
+            renderEmployeeExpensesTable();
+            document.getElementById('expenseAmount').value = '';
+            document.getElementById('expenseNote').value = '';
+        }
+
+        function renderEmployeeExpensesTable() {
+            let index = currentActiveEmpIndex;
+            let emp = employees[index];
+            let tbody = document.getElementById('employeeExpensesTableBody');
+            if(!tbody) return;
+            tbody.innerHTML = '';
+
+            if(!emp.items || emp.items.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 15px; color: #64748b;">لا توجد سجلات سابقة لهذا الموظف</td></tr>`;
+                return;
+            }
+
+            emp.items.forEach((item, itemIndex) => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${item.type}</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: ${item.type.includes('مكافأة') ? '#10b981' : '#ef4444'};">${item.amount} ج.م</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${item.note}</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center;">${item.date}</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center;">
+                            <button onclick="deleteEmpItem(${itemIndex})" style="background: #fee2e2; color: #991b1b; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function deleteEmpItem(itemIndex) {
+            let emp = employees[currentActiveEmpIndex];
+            emp.items.splice(itemIndex, 1);
+            renderEmployees();
+            renderEmployeeExpensesTable();
+        }
+
+        function printEmployeeStatement() {
+            let emp = employees[currentActiveEmpIndex];
+            let totalDeductions = 0;
+            let totalAdditions = 0;
+            let rowsHtml = '';
+
+            if(emp.items) {
+                emp.items.forEach(item => {
+                    if(item.type.includes('يخصم') || item.type.includes('غياب') || item.type.includes('سلفة')) {
+                        totalDeductions += Number(item.amount);
+                    } else if(item.type.includes('مكافأة')) {
+                        totalAdditions += Number(item.amount);
+                    }
+                    rowsHtml += `
+                        <tr>
+                            <td style="padding: 8px; border: 1px solid #cbd5e1;">${item.date}</td>
+                            <td style="padding: 8px; border: 1px solid #cbd5e1;">${item.type}</td>
+                            <td style="padding: 8px; border: 1px solid #cbd5e1;">${item.note}</td>
+                            <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${item.amount} ج.م</td>
+                        </tr>
+                    `;
+                });
+            }
+
+            let netSalary = emp.salary - totalDeductions + totalAdditions;
+
+            let printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <html lang="ar" dir="rtl">
+                <head>
+                    <title>كشف حساب الموظف - ${emp.name}</title>
+                    <style>
+                        body { font-family: 'Cairo', Tahoma, sans-serif; padding: 20px; color: #000; direction: rtl; }
+                        .header { text-align: center; border-bottom: 2px solid #0284c7; padding-bottom: 10px; margin-bottom: 20px; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; }
+                        th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: right; }
+                        th { background: #f1f5f9; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h2>شركة برو تيك للأحبار وماكينات الطباعة</h2>
+                        <h3>كشف حساب وراتب الموظف: ${emp.name}</h3>
+                        <p>المسمى الوظيفي: ${emp.info} | تاريخ الطباعة: ${new Date().toLocaleDateString('ar-EG')}</p>
+                    </div>
+                    <div>
+                        <p><strong>الراتب الأساسي:</strong> ${emp.salary} ج.م</p>
+                        <p><strong>إجمالي الخصومات والسلف:</strong> ${totalDeductions} ج.م</p>
+                        <p><strong>إجمالي المكافآت:</strong> ${totalAdditions} ج.م</p>
+                        <h3 style="color: #0284c7;">صافي الراتب المستحق: ${netSalary} ج.م</h3>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>التاريخ</th>
+                                <th>النوع</th>
+                                <th>البيان</th>
+                                <th>المبلغ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rowsHtml || '<tr><td colspan="4" style="text-align:center;">لا توجد بنود ومصروفات مسجلة</td></tr>'}
+                        </tbody>
+                    </table>
+                    <div style="margin-top: 40px; display: flex; justify-content: space-between;">
+                        <div>توقيع المسؤول: ........................</div>
+                        <div>توقيع المستلم (الموظف): ........................</div>
+                    </div>
+                    <script>
+                        window.onload = function() { window.print(); }
+                    <\/script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            renderEmployees();
+        });
     </script>
     <script>
         // تجاوز مؤقت لتسجيل الدخول للعمل مباشرة
