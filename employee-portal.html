@@ -3,8 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تسجيل الحضور بالاسم - برو تيك</title>
+    <title>تسجيل الحضور السحابي - برو تيك</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- استيراد مكتبة قاعدة البيانات السحابية (مثال لـ Firebase SDK إذا كنت تستخدمها) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
     <style>
         body { font-family: 'Cairo', sans-serif; background: #0f172a; color: #fff; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
         .checkin-card { background: #1e293b; padding: 30px; border-radius: 12px; width: 420px; max-width: 100%; box-shadow: 0 10px 25px rgba(0,0,0,0.5); text-align: center; border: 1px solid #334155; }
@@ -13,29 +18,29 @@
         p { color: #94a3b8; font-size: 13px; margin-bottom: 20px; }
         .form-group { margin-bottom: 15px; text-align: right; }
         label { display: block; margin-bottom: 5px; font-size: 13px; color: #cbd5e1; }
-        select, input { width: 100%; padding: 10px; background: #0f172a; color: #fff; border: 1px solid #475569; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
+        select { width: 100%; padding: 10px; background: #0f172a; color: #fff; border: 1px solid #475569; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
         select option { background: #0f172a; color: #fff; }
         .btn-checkin { width: 100%; padding: 12px; background: #10b981; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 16px; margin-top: 10px; transition: 0.3s; }
         .btn-checkin:hover { background: #059669; }
         #successMsg { display: none; background: #dcfce7; color: #166534; padding: 12px; border-radius: 6px; margin-top: 15px; font-weight: bold; font-size: 14px; text-align: right; }
-        #errorMsg { display: none; background: #fee2e2; color: #991b1b; padding: 12px; border-radius: 6px; margin-top: 15px; font-weight: bold; font-size: 14px; }
+        #errorMsg { display: none; background: #fee2e2; color: #991b1b; padding: 12px; border-radius: 6px; margin-top: 15px; font-weight: bold; font-size: 14px; text-align: right; }
     </style>
 </head>
 <body>
 
     <div class="checkin-card">
-        <div class="logo-circle"><i class="fas fa-user-check"></i></div>
-        <h2>تسجيل الحضور بالاسم</h2>
-        <p>اختر اسمك من القائمة لتسجيل الحضور (داخل نطاق الشركة)</p>
+        <div class="logo-circle"><i class="fas fa-cloud-upload-alt"></i></div>
+        <h2>تسجيل الحضور السحابي</h2>
+        <p>سجل حضورك من هاتفك الشخصي داخل نطاق الشركة (400 متر)</p>
         
-        <form onsubmit="verifyLocationAndCheckin(event)">
+        <form onsubmit="verifyAndCheckin(event)">
             <div class="form-group">
                 <label><i class="fas fa-user"></i> اسم الموظف:</label>
                 <select id="employeeSelect" required>
-                    <option value="">-- اختر اسمك من القائمة --</option>
+                    <option value="">-- جاري تحميل أسماء الموظفين من القاعدة --</option>
                 </select>
             </div>
-            <button type="submit" class="btn-checkin"><i class="fas fa-check-circle"></i> تأكيد الحضور الآن</button>
+            <button type="submit" class="btn-checkin"><i class="fas fa-check-circle"></i> تأكيد وحفظ الحضور</button>
         </form>
 
         <div id="successMsg"></div>
@@ -43,20 +48,55 @@
     </div>
 
     <script>
+        // إعدادات اتصال قاعدة البيانات الخاصة بك (نفس الإعدادات المستخدمة في صفحة الآدمن)
+        const firebaseConfig = {
+            apiKey: "ضع_مفتاح_الـ_API_هنا",
+            authDomain: "projectId.firebaseapp.com",
+            databaseURL: "رابط_قاعدة_البيانات_السحابية_هنا",
+            projectId: "projectId",
+            storageBucket: "projectId.appspot.com",
+            messagingSenderId: "senderId",
+            appId: "appId"
+        };
+
+        // تهيئة الاتصال
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.database();
+
         const COMPANY_LAT = 30.139719; 
         const COMPANY_LNG = 31.390727; 
         const ALLOWED_DISTANCE_METERS = 400; 
 
-        // تحميل أسماء الموظفين تلقائياً في القائمة عند فتح الصفحة من النظام
+        // بصمة الهاتف لمنع التسجيل من أجهزة متعددة
+        function getDeviceToken() {
+            let deviceId = localStorage.getItem('protech_device_unique_id');
+            if (!deviceId) {
+                deviceId = 'device_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
+                localStorage.setItem('protech_device_unique_id', deviceId);
+            }
+            return deviceId;
+        }
+
+        // جلب أسماء الموظفين لحظياً من قاعدة البيانات السحابية لتعمل القائمة على أي هاتف
         window.onload = function() {
-            let employees = JSON.parse(localStorage.getItem('protech_employees')) || [];
             let select = document.getElementById('employeeSelect');
             
-            employees.forEach(emp => {
-                let opt = document.createElement('option');
-                opt.value = emp.name;
-                opt.textContent = emp.name + (emp.role ? ` (${emp.role})` : '');
-                select.appendChild(opt);
+            db.ref('protech_employees').on('value', (snapshot) => {
+                select.innerHTML = '<option value="">-- اختر اسمك من القائمة --</option>';
+                const data = snapshot.val();
+                
+                if (data) {
+                    // إذا كانت البيانات مخزنة كمصفوفة أو ككائنات (Objects)
+                    Object.keys(data).forEach(key => {
+                        let emp = data[key];
+                        let opt = document.createElement('option');
+                        opt.value = key; // استخدام مفتاح القاعدة الأساسي لضمان الدقة
+                        opt.textContent = emp.name + (emp.role ? ` (${emp.role})` : '');
+                        select.appendChild(opt);
+                    });
+                }
             });
         };
 
@@ -72,9 +112,9 @@
             return R * c;
         }
 
-        function verifyLocationAndCheckin(e) {
+        function verifyAndCheckin(e) {
             e.preventDefault();
-            let selectedName = document.getElementById('employeeSelect').value;
+            let empKey = document.getElementById('employeeSelect').value;
             let successBox = document.getElementById('successMsg');
             let errorBox = document.getElementById('errorMsg');
             
@@ -94,24 +134,41 @@
                     let distance = calculateDistance(userLat, userLng, COMPANY_LAT, COMPANY_LNG);
 
                     if (distance <= ALLOWED_DISTANCE_METERS) {
-                        let employees = JSON.parse(localStorage.getItem('protech_employees')) || [];
-                        let emp = employees.find(e => e.name === selectedName);
+                        let currentDevice = getDeviceToken();
+                        let empRef = db.ref('protech_employees/' + empKey);
 
-                        if(emp) {
-                            emp.status = 'حاضر';
-                            let now = new Date();
-                            emp.arrivedAt = now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+                        empRef.once('value', (snapshot) => {
+                            let emp = snapshot.val();
                             
-                            localStorage.setItem('protech_employees', JSON.stringify(employees));
-                            
-                            successBox.style.display = 'block';
-                            successBox.innerHTML = `<i class="fas fa-check-circle"></i> أهلاً بك يا <b>${emp.name}</b>، تم تسجيل حضورك بنجاح في تمام الساعة ${emp.arrivedAt} (المسافة: ${Math.round(distance)}م).`;
-                            
-                            document.getElementById('employeeSelect').value = '';
-                        } else {
-                            errorBox.style.display = 'block';
-                            errorBox.innerHTML = 'عذراً، هذا الاسم غير مسجل في قاعدة بيانات النظام!';
-                        }
+                            if (emp) {
+                                // التحقق من قفل الجهاز
+                                if (emp.deviceId && emp.deviceId !== currentDevice) {
+                                    errorBox.style.display = 'block';
+                                    errorBox.innerHTML = 'عذراً، هذا الحساب مسجل بالفعل على هاتف شخصي آخر ولا يمكن تسجيل الحضور من هذا الهاتف!';
+                                    return;
+                                }
+
+                                let updateData = {};
+                                if (!emp.deviceId) {
+                                    updateData.deviceId = currentDevice;
+                                }
+
+                                let now = new Date();
+                                updateData.status = 'حاضر';
+                                updateData.arrivedAt = now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+
+                                // تحديث الحالة مباشرة على السحابة لتظهر فوراً في لوحة تحكم الآدمن
+                                empRef.update(updateData).then(() => {
+                                    successBox.style.display = 'block';
+                                    successBox.innerHTML = `<i class="fas fa-check-circle"></i> أهلاً بك يا <b>${emp.name}</b>، تم تسجيل حضورك وربطه بهاتفك بنجاح!`;
+                                });
+
+                            } else {
+                                errorBox.style.display = 'block';
+                                errorBox.innerHTML = 'عذراً، الموظف غير موجود في قاعدة البيانات.';
+                            }
+                        });
+
                     } else {
                         errorBox.style.display = 'block';
                         errorBox.innerHTML = `عذراً، أنت خارج نطاق الشركة! مسافتك الحالية تقريباً ${Math.round(distance)} متر (الحد المسموح 400 متر).`;
