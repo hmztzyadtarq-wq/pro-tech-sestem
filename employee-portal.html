@@ -6,9 +6,157 @@
     <title>تسجيل الحضور السحابي - برو تيك</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- استيراد مكتبة قاعدة البيانات السحابية (مثال لـ Firebase SDK إذا كنت تستخدمها) -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <!-- مكتبات Firebase Firestore الإصدار 12 -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
+        import { getFirestore, collection, getDocs, doc, updatedoc, getDoc } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDLD-Y6d7LcyqB0rf3YYbJLTFHDXUsWQNM",
+            authDomain: "protech-system.firebaseapp.com",
+            projectId: "protech-system",
+            storageBucket: "protech-system.firebasestorage.app",
+            messagingSenderId: "184422532312",
+            appId: "1:184422532312:web:76df7769c281c66fca43ad",
+            measurementId: "G-1RRP97BPJC"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const COMPANY_LAT = 30.139719; 
+        const COMPANY_LNG = 31.390727; 
+        const ALLOWED_DISTANCE_METERS = 400; 
+
+        // بصمة الهاتف لمنع التسجيل من أجهزة متعددة
+        function getDeviceToken() {
+            let deviceId = localStorage.getItem('protech_device_unique_id');
+            if (!deviceId) {
+                deviceId = 'device_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
+                localStorage.setItem('protech_device_unique_id', deviceId);
+            }
+            return deviceId;
+        }
+
+        // جلب أسماء الموظفين من Firestore عند فتح الصفحة
+        window.loadEmployees = async function() {
+            let select = document.getElementById('employeeSelect');
+            try {
+                // افترضنا أن الموظفين مخزنين في مجموعة باسم 'employees' أو حسب طريقة تخزينك في الآدمن
+                // يمكنك تعديل اسم الـ collection إذا كان مختلفاً لديك
+                const querySnapshot = await getDocs(collection(db, "employees"));
+                select.innerHTML = '<option value="">-- اختر اسمك من القائمة --</option>';
+                
+                querySnapshot.forEach((docSnap) => {
+                    let emp = docSnap.data();
+                    let opt = document.createElement('option');
+                    opt.value = docSnap.id; // تخزين معرف الوثيقة (Document ID)
+                    opt.textContent = emp.name + (emp.role ? ` (${emp.role})` : '');
+                    select.appendChild(opt);
+                });
+            } catch (error) {
+                console.error("خطأ في جلب الموظفين: ", error);
+                select.innerHTML = '<option value="">خطأ في الاتصال بقاعدة البيانات</option>';
+            }
+        };
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            function toRad(x) { return x * Math.PI / 180; }
+            let R = 6371000;
+            let dLat = toRad(lat2 - lat1);
+            let dLon = toRad(lon2 - lon1);
+            let a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+                    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+
+        window.verifyAndCheckin = async function(e) {
+            e.preventDefault();
+            let empId = document.getElementById('employeeSelect').value;
+            let successBox = document.getElementById('successMsg');
+            let errorBox = document.getElementById('errorMsg');
+            
+            successBox.style.display = 'none';
+            errorBox.style.display = 'none';
+
+            if (!empId) {
+                errorBox.style.display = 'block';
+                errorBox.innerHTML = 'يرجى اختيار اسم الموظف أولاً.';
+                return;
+            }
+
+            if (!navigator.geolocation) {
+                errorBox.style.display = 'block';
+                errorBox.innerHTML = 'متصفحك لا يدعم خاصية تحديد الموقع الجغرافي.';
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    let userLat = position.coords.latitude;
+                    let userLng = position.coords.longitude;
+                    let distance = calculateDistance(userLat, userLng, COMPANY_LAT, COMPANY_LNG);
+
+                    if (distance <= ALLOWED_DISTANCE_METERS) {
+                        let currentDevice = getDeviceToken();
+                        
+                        try {
+                            const empRef = doc(db, "employees", empId);
+                            const empSnap = await getDoc(empRef);
+
+                            if (empSnap.exists()) {
+                                let emp = empSnap.data();
+
+                                // التحقق من قفل الجهاز
+                                if (emp.deviceId && emp.deviceId !== currentDevice) {
+                                    errorBox.style.display = 'block';
+                                    errorBox.innerHTML = 'عذراً، هذا الحساب مسجل بالفعل على هاتف شخصي آخر ولا يمكن تسجيل الحضور من هذا الهاتف!';
+                                    return;
+                                }
+
+                                let updateData = {
+                                    status: 'حاضر',
+                                    arrivedAt: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+                                };
+
+                                if (!emp.deviceId) {
+                                    updateData.deviceId = currentDevice;
+                                }
+
+                                // تحديث الحضور في Firestore لتتحدث الآدمن فوراً
+                                await updateDoc(empRef, updateData);
+
+                                successBox.style.display = 'block';
+                                successBox.innerHTML = `<i class="fas fa-check-circle"></i> أهلاً بك يا <b>${emp.name}</b>، تم تسجيل حضورك بنجاح!`;
+                            } else {
+                                errorBox.style.display = 'block';
+                                errorBox.innerHTML = 'الموظف غير موجود في قاعدة البيانات.';
+                            }
+                        } catch (err) {
+                            console.error(err);
+                            errorBox.style.display = 'block';
+                            errorBox.innerHTML = 'حدث خطأ أثناء الاتصال بقاعدة البيانات لتسجيل الحضور.';
+                        }
+
+                    } else {
+                        errorBox.style.display = 'block';
+                        errorBox.innerHTML = `عذراً، أنت خارج نطاق الشركة! مسافتك الحالية تقريباً ${Math.round(distance)} متر (الحد المسموح 400 متر).`;
+                    }
+                },
+                (error) => {
+                    errorBox.style.display = 'block';
+                    errorBox.innerHTML = 'فشل في تحديد موقعك. يرجى تفعيل الـ GPS والسماح للمتصفح بالوصول لموقعك.';
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        };
+
+        window.onload = function() {
+            loadEmployees();
+        };
+    </script>
 
     <style>
         body { font-family: 'Cairo', sans-serif; background: #0f172a; color: #fff; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
@@ -46,141 +194,5 @@
         <div id="successMsg"></div>
         <div id="errorMsg"></div>
     </div>
-
-    <script>
-        // إعدادات اتصال قاعدة البيانات الخاصة بك (نفس الإعدادات المستخدمة في صفحة الآدمن)
-        const firebaseConfig = {
-            apiKey: "ضع_مفتاح_الـ_API_هنا",
-            authDomain: "projectId.firebaseapp.com",
-            databaseURL: "رابط_قاعدة_البيانات_السحابية_هنا",
-            projectId: "projectId",
-            storageBucket: "projectId.appspot.com",
-            messagingSenderId: "senderId",
-            appId: "appId"
-        };
-
-        // تهيئة الاتصال
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
-        const db = firebase.database();
-
-        const COMPANY_LAT = 30.139719; 
-        const COMPANY_LNG = 31.390727; 
-        const ALLOWED_DISTANCE_METERS = 400; 
-
-        // بصمة الهاتف لمنع التسجيل من أجهزة متعددة
-        function getDeviceToken() {
-            let deviceId = localStorage.getItem('protech_device_unique_id');
-            if (!deviceId) {
-                deviceId = 'device_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
-                localStorage.setItem('protech_device_unique_id', deviceId);
-            }
-            return deviceId;
-        }
-
-        // جلب أسماء الموظفين لحظياً من قاعدة البيانات السحابية لتعمل القائمة على أي هاتف
-        window.onload = function() {
-            let select = document.getElementById('employeeSelect');
-            
-            db.ref('protech_employees').on('value', (snapshot) => {
-                select.innerHTML = '<option value="">-- اختر اسمك من القائمة --</option>';
-                const data = snapshot.val();
-                
-                if (data) {
-                    // إذا كانت البيانات مخزنة كمصفوفة أو ككائنات (Objects)
-                    Object.keys(data).forEach(key => {
-                        let emp = data[key];
-                        let opt = document.createElement('option');
-                        opt.value = key; // استخدام مفتاح القاعدة الأساسي لضمان الدقة
-                        opt.textContent = emp.name + (emp.role ? ` (${emp.role})` : '');
-                        select.appendChild(opt);
-                    });
-                }
-            });
-        };
-
-        function calculateDistance(lat1, lon1, lat2, lon2) {
-            function toRad(x) { return x * Math.PI / 180; }
-            let R = 6371000;
-            let dLat = toRad(lat2 - lat1);
-            let dLon = toRad(lon2 - lon1);
-            let a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-                    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-            let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            return R * c;
-        }
-
-        function verifyAndCheckin(e) {
-            e.preventDefault();
-            let empKey = document.getElementById('employeeSelect').value;
-            let successBox = document.getElementById('successMsg');
-            let errorBox = document.getElementById('errorMsg');
-            
-            successBox.style.display = 'none';
-            errorBox.style.display = 'none';
-
-            if (!navigator.geolocation) {
-                errorBox.style.display = 'block';
-                errorBox.innerHTML = 'متصفحك لا يدعم خاصية تحديد الموقع الجغرافي.';
-                return;
-            }
-
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    let userLat = position.coords.latitude;
-                    let userLng = position.coords.longitude;
-                    let distance = calculateDistance(userLat, userLng, COMPANY_LAT, COMPANY_LNG);
-
-                    if (distance <= ALLOWED_DISTANCE_METERS) {
-                        let currentDevice = getDeviceToken();
-                        let empRef = db.ref('protech_employees/' + empKey);
-
-                        empRef.once('value', (snapshot) => {
-                            let emp = snapshot.val();
-                            
-                            if (emp) {
-                                // التحقق من قفل الجهاز
-                                if (emp.deviceId && emp.deviceId !== currentDevice) {
-                                    errorBox.style.display = 'block';
-                                    errorBox.innerHTML = 'عذراً، هذا الحساب مسجل بالفعل على هاتف شخصي آخر ولا يمكن تسجيل الحضور من هذا الهاتف!';
-                                    return;
-                                }
-
-                                let updateData = {};
-                                if (!emp.deviceId) {
-                                    updateData.deviceId = currentDevice;
-                                }
-
-                                let now = new Date();
-                                updateData.status = 'حاضر';
-                                updateData.arrivedAt = now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
-
-                                // تحديث الحالة مباشرة على السحابة لتظهر فوراً في لوحة تحكم الآدمن
-                                empRef.update(updateData).then(() => {
-                                    successBox.style.display = 'block';
-                                    successBox.innerHTML = `<i class="fas fa-check-circle"></i> أهلاً بك يا <b>${emp.name}</b>، تم تسجيل حضورك وربطه بهاتفك بنجاح!`;
-                                });
-
-                            } else {
-                                errorBox.style.display = 'block';
-                                errorBox.innerHTML = 'عذراً، الموظف غير موجود في قاعدة البيانات.';
-                            }
-                        });
-
-                    } else {
-                        errorBox.style.display = 'block';
-                        errorBox.innerHTML = `عذراً، أنت خارج نطاق الشركة! مسافتك الحالية تقريباً ${Math.round(distance)} متر (الحد المسموح 400 متر).`;
-                    }
-                },
-                (error) => {
-                    errorBox.style.display = 'block';
-                    errorBox.innerHTML = 'فشل في تحديد موقعك. يرجى تفعيل الـ GPS والسماح للمتصفح بالوصول لموقعك.';
-                },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-            );
-        }
-    </script>
 </body>
 </html>
