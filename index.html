@@ -21,6 +21,46 @@
         }
     </script>
     <style>
+        /* إخفاء الزر افتراضياً على الشاشات الكبيرة (الكمبيوتر) */
+.menu-toggle-btn {
+    display: none;
+}
+
+/* التنسيقات الخاصة بالموبايل والتابلت فقط */
+@media screen and (max-width: 992px) {
+    .menu-toggle-btn {
+        display: block !important;
+        position: fixed;
+        top: 15px;
+        right: 15px;
+        z-index: 99999;
+        background: #1e293b;
+        color: #38bdf8;
+        border: 1px solid #334155;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 20px;
+        cursor: pointer;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+    }
+
+    /* إخفاء القائمة الجانبية تماماً خارج الشاشة من اليمين بشكل افتراضي للموبايل */
+    .app-layout .sidebar {
+        position: fixed !important;
+        right: -280px !important;
+        top: 0 !important;
+        width: 260px !important;
+        height: 100vh !important;
+        z-index: 99998 !important;
+        transition: right 0.4s ease-in-out !important;
+        box-shadow: -5px 0 20px rgba(0,0,0,0.6);
+    }
+
+    /* عندما تتפعل القائمة عبر الجافاسكريبت تظهر داخل الشاشة */
+    .app-layout .sidebar.active {
+        right: 0 !important;
+    }
+}
         /* التعديلات المطلوبة لتصغير الكروت وجعلها بالأعلى */
         .stats-grid-small {
             display: grid;
@@ -61,6 +101,11 @@
     </style>
 </head>
 <body>
+             <!-- زر الثلاث خطوط -->
+<button class="menu-toggle-btn" onclick="toggleMobileMenu()">
+    <i class="fas fa-bars" id="menuIcon"></i>
+</button>
+        </aside>
     <!-- App Container -->
     <div class="app-layout">
         <!-- Sidebar Navigation -->
@@ -87,11 +132,7 @@
                     <i class="fas fa-sign-out-alt"></i> تسجيل الخروج
                 </button>
             </div>
-            <!-- زر الثلاث خطوط -->
-<button class="menu-toggle-btn" onclick="toggleMobileMenu()">
-    <i class="fas fa-bars" id="menuIcon"></i>
-</button>
-        </aside>
+   
 
         <!-- Main Content Area -->
         <main class="main-content">
