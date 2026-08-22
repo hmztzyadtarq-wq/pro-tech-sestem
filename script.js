@@ -1539,3 +1539,21 @@ function deleteEmployeeExpense(expenseId, empId) {
     saveData();
     renderEmployeeExpensesTable(empId);
 }
+function toggleMobileMenu() {
+    // استبدل .sidebar-nav باسم الـ Class الخاص بشريط التنقل أو القائمة الجانبية لديك
+    const navMenu = document.querySelector('.sidebar-nav') || document.querySelector('.nav-menu');
+    const menuIcon = document.getElementById('menuIcon');
+
+    if (navMenu) {
+        navMenu.classList.toggle('active');
+        
+        // تغيير شكل الأيقونة من 3 خطوط (bars) إلى علامة إغلاق (X) والعكس بحركة لطيفة
+        if (navMenu.classList.contains('active')) {
+            menuIcon.classList.remove('fa-bars');
+            menuIcon.classList.add('fa-times');
+        } else {
+            menuIcon.classList.remove('fa-times');
+            menuIcon.classList.add('fa-bars');
+        }
+    }
+}
