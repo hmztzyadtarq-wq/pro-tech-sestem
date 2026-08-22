@@ -1540,20 +1540,24 @@ function deleteEmployeeExpense(expenseId, empId) {
     renderEmployeeExpensesTable(empId);
 }
 function toggleMobileMenu() {
-    // استبدل .sidebar-nav باسم الـ Class الخاص بشريط التنقل أو القائمة الجانبية لديك
-    const navMenu = document.querySelector('.sidebar-nav') || document.querySelector('.nav-menu');
+    // هذا الكود سيبحث عن أي عنصر <nav> أو عنصر يحمل اسم class يحتوي على كلمة menu أو sidebar
+    const navMenu = document.querySelector('nav') || document.querySelector('.sidebar') || document.querySelector('[class*="menu"]') || document.querySelector('[class*="nav"]');
     const menuIcon = document.getElementById('menuIcon');
 
     if (navMenu) {
         navMenu.classList.toggle('active');
         
-        // تغيير شكل الأيقونة من 3 خطوط (bars) إلى علامة إغلاق (X) والعكس بحركة لطيفة
-        if (navMenu.classList.contains('active')) {
-            menuIcon.classList.remove('fa-bars');
-            menuIcon.classList.add('fa-times');
-        } else {
-            menuIcon.classList.remove('fa-times');
-            menuIcon.classList.add('fa-bars');
+        // تغيير شكل الأيقونة من 3 خطوط إلى (X) والعكس
+        if (menuIcon) {
+            if (navMenu.classList.contains('active')) {
+                menuIcon.classList.remove('fa-bars');
+                menuIcon.classList.add('fa-times');
+            } else {
+                menuIcon.classList.remove('fa-times');
+                menuIcon.classList.add('fa-bars');
+            }
         }
+    } else {
+        alert("تأكد من وجود عنصر القائمة في الصفحة");
     }
 }
