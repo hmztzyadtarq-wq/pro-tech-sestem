@@ -1561,3 +1561,19 @@ function toggleMobileMenu() {
         alert("تأكد من وجود عنصر القائمة في الصفحة");
     }
 }
+// ربط الزر مباشرة بالحدث عند تحميل الصفحة لضمان عمله
+document.addEventListener("DOMContentLoaded", function() {
+    const btn = document.querySelector('.menu-toggle-btn');
+    if (btn) {
+        btn.addEventListener('click', function() {
+            // ابحث عن القائمة الجانبية أو الهيدر لديك وضع الـ ID أو الـ Class الخاص بها هنا
+            // كمثال، سنستهدف الحاوية الرئيسية للقائمة أو السايدبار باسمها الحقيقي لديك
+            let sidebar = document.querySelector('aside') || document.querySelector('.sidebar') || document.querySelector('nav');
+            if (sidebar) {
+                sidebar.style.display = (sidebar.style.display === 'none' ? 'block' : 'none');
+            } else {
+                alert("تم الضغط بنجاح، ولكن يجدر تحديد العنصر المراد إخفاؤه");
+            }
+        });
+    }
+});
