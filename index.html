@@ -322,7 +322,7 @@
                 </div>
             </section>
 
-            <!-- Expenses & Attendance Tab -->
+            <!-- Expenses & Attendance Tab (تم تعديل الترتيب ليصبح الكروت مصغرة بالأعلى والجدول بالأسفل + إضافة كشف الغياب والتقرير الشامل) -->
             <section id="tab-expenses" class="tab-content">
                 <div class="page-header-title flex-header">
                     <div>
@@ -332,12 +332,12 @@
                     <button class="btn-primary" onclick="openAddEmployeeModalCustom()"><i class="fas fa-user-plus"></i> إضافة موظف جديد</button>
                 </div>
                 
-                <!-- الكروت المصغرة في الأعلى -->
+                <!-- 1. الكروت المصغرة أصبحت في الأعلى كما طلبت تماماً -->
                 <div id="employeesCardsGrid" class="stats-grid-small" style="margin-top: 15px;">
                     <!-- يتم تعبئتها ديناميكياً -->
                 </div>
 
-                <!-- الجدول في الأسفل -->
+                <!-- 2. الجدول أصبح في الأسفل كما طلبت تماماً -->
                 <div class="card-table-wrapper" style="margin-top: 20px; background: #fff; padding: 15px; border-radius: 8px;">
                     <div style="margin-bottom: 12px; font-weight: bold; color: #1e293b; font-size: 16px; display: flex; justify-content: space-between; align-items: center;">
                         <span><i class="fas fa-clipboard-user" style="color: #0284c7;"></i> سجل الحضور، الغياب، وكشف حساب الموظفين</span>
@@ -879,7 +879,7 @@
                     </tr>
                 `;
 
-                // الكروت المصغرة في الأعلى
+                // الكروت المصغرة في الأعلى كما طلبت تماماً
                 grid.innerHTML += `
                     <div class="stat-card" onclick="openEmployeeExpenseModal(${index})" style="padding: 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
                         <div style="display: flex; align-items: center; gap: 10px;">
