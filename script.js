@@ -1577,3 +1577,99 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 });
+// مصفوفة المنتجات الحالية داخل الفاتورة المفتوحة
+let currentInvoiceItems = [];
+
+function handleBarcodeScan(event) {
+    // عندما يضغط مسدس الباركود Enter (لأن المسدس يرسل أمر Enter تلقائياً بعد قراءة الكود)
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        
+        let inputField = document.getElementById('barcodeInput');
+        let code = inputField.value.trim();
+        inputField.value = ''; // تفريغ الحقل فوراً لقراءة الباركود التالي
+
+        if (!code) return;
+
+        // 1. البحث عن المنتج في المخزون الأساسي لديك (تأكد أن مصفوفة المخزون اسمها inventory وأن الكود مخزون في خاصية code أو SKU)
+        let product = inventory.find(item => item.code === code || item.barcode === code);
+
+        if (!product) {
+            alert("عذراً، هذا الباركود غير مسجل في المخزون!");
+            return;
+        }
+
+        // 2. التحقق هل المنتج موجود مسبقاً في الفاتورة الحالية؟
+        let existingItem = currentInvoiceItems.find(item => item.code === product.code);
+
+        if (existingItem) {
+            // لو المنتج متكرر: زود العدد (الكمية) واحد
+            existingItem.qty += 1;
+        } else {
+            // لو منتج جديد: انزل على السطر الجديد وأضفه بكمية 1
+            currentInvoiceItems.push({
+                code: product.code,
+                name: product.name,
+                price: product.price,
+                qty: 1
+            });
+        }
+
+        // 3. تحديث جدول الفاتورة على الشاشة لعرض المنتجات
+        renderInvoiceTable();
+    }
+}
+
+// دالة رسم الجدول وتحديث الشاشة والأسعار
+function renderInvoiceTable() {
+    // استبدل 'invoiceTableBody' بالـ ID الخاص بالـ tbody في جدول الفواتير عندك
+    let tableBody = document.getElementById('invoiceTableBody');
+    if (!tableBody) return;
+
+    tableBody.innerHTML = '';
+    let totalGeneral = 0;
+
+    currentInvoiceItems.forEach((item, index) => {
+        let itemTotal = item.price * item.qty;
+        totalGeneral += itemTotal;
+
+        let row = `<tr>
+            <td>${index + 1}</td>
+            <td>${item.name}</td>
+            <td>${item.price} جنيه</td>
+            <td>
+                <button onclick="changeQty('${item.code}', -1)">-</button>
+                <span style="padding: 0 10px; font-weight: bold;">${item.qty}</span>
+                <button onclick="changeQty('${item.code}', 1)">+</button>
+            </td>
+            <td>${itemTotal} جنيه</td>
+            <td><button onclick="removeItem('${item.code}')" style="color:red; background:none; border:none; cursor:pointer;"><i class="fas fa-trash"></i></button></td>
+        </tr>`;
+        tableBody.innerHTML += row;
+    });
+
+    // تحديث إجمالي الفاتورة لو عندك عنصر يعرض الإجمالي
+    let totalElement = document.getElementById('generalTotal');
+    if (totalElement) {
+        totalElement.textContent = totalGeneral + ' جنيه';
+    }
+}
+
+// دالة لتعديل الكمية يدوياً بالزرار (+ أو -) داخل الجدول
+function changeQty(code, val) {
+    let item = currentInvoiceItems.find(i => i.code === code);
+    if (item) {
+        item.qty += val;
+        if (item.qty <= 0) {
+            removeItem(code);
+        } else {
+            renderInvoiceTable();
+        }
+    }
+}
+
+// دالة لحذف منتج من الفاتورة
+function removeItem(code) {
+    currentInvoiceItems = currentInvoiceItems.filter(i => i.code !== code);
+    renderInvoiceTable();
+}
