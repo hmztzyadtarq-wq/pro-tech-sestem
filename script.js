@@ -1686,3 +1686,32 @@ function removeItem(code) {
     currentInvoiceItems = currentInvoiceItems.filter(i => String(i.code) !== String(code));
     renderInvoiceTable();
 }
+// جعل المؤشر يقف في خانة الباركود فور فتح النافذة
+function openNewInvoiceModal() {
+    // كود فتح النافذة الخاص بك...
+    document.getElementById('barcodeInput').focus();
+}
+
+// التعامل مع مسدس الباركود (عند الضغط على زر Enter)
+document.getElementById('barcodeInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        let barcode = this.value.trim();
+        
+        if (barcode === '') return;
+
+        // البحث عن المنتج في المخزون (بناءً على الباركود)
+        let product = inventory.find(p => p.barcode === barcode); // استبدل inventory بمتغير المنتجات عندك
+
+        if (product) {
+            // المنتج موجود: إضافته للفاتورة أو زيادة الكمية لو مضاف قبل كده
+            addProductToInvoice(product);
+            // تفريغ خانة الباركود للضربة التالية
+            this.value = '';
+        } else {
+            // الكود مش موجود أو خطأ: إظهار رسالة تنبيه
+            alert('عفواً، هذا الباركود غير مسجل بالنظام!');
+            this.select5 ? this.select() : this.focus(); // تحديد النص لسهولة إعادة الإدخال أو المسح
+        }
+    }
+});
