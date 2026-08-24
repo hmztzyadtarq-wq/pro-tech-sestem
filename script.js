@@ -1580,63 +1580,77 @@ document.addEventListener("DOMContentLoaded", function() {
 // مصفوفة المنتجات الحالية داخل الفاتورة المفتوحة
 let currentInvoiceItems = [];
 
-// دالة تفتح المودال وتفعل مسدس الباركود وتخلي المؤشر جوه خانة الباركود فوراً
+// دالة تفتح نافذة الفاتورة الجديدة وتفعل التقاط الباركود على مستوى النافذة كلها
 function openNewInvoiceModal() {
     let modal = document.getElementById('newInvoiceModal');
     if (modal) {
         modal.style.display = 'flex';
-        currentInvoiceItems = []; // تفريغ الفاتورة عند الفتح الجديد
+        currentInvoiceItems = []; 
         renderInvoiceTable();
         
-        // تركيز المؤشر تلقائياً داخل خانة مسدس الباركود أول ما تفتح النافذة
-        setTimeout(() => {
-            let barcodeInput = document.getElementById('barcodeInput');
-            if (barcodeInput) {
-                barcodeInput.focus();
-            }
+        // تفعيل الاستماع للباركد على مستوى المستند أو النافذة بالكامل فور فتح المودال
+        document.removeEventListener('keydown', globalBarcodeHandler); // لمنع التكرار
+        document.addEventListener('keydown', globalBarcodeHandler);
+    }
+}
+
+// متغير مؤقت لتجميع حروف الباركود السريعة التي يرسلها المسدس
+let barcodeBuffer = '';
+let barcodeTimeout = null;
+
+function globalBarcodeHandler(event) {
+    // التأكد أن نافذة الفاتورة مفتوحة فعلاً
+    let modal = document.getElementById('newInvoiceModal');
+    if (!modal || modal.style.display === 'none') return;
+
+    // مسدس الباركود يرسل الأحداث بسرعة جداً وينتهي بـ Enter
+    if (event.key === 'Enter') {
+        if (barcodeBuffer.trim().length > 0) {
+            event.preventDefault();
+            let code = barcodeBuffer.trim();
+            barcodeBuffer = ''; // تفريغ المؤقت
+            
+            processScannedCode(code);
+        }
+    } else if (event.key.length === 1) {
+        // تجميع الحروف القادمة من المسدس السريع
+        barcodeBuffer += event.key;
+        
+        // مسح المؤقت لو تأخر الحرف لكي لا يتداخل مع الكتابة العادية
+        clearTimeout(barcodeTimeout);
+        barcodeTimeout = setTimeout(() => {
+            barcodeBuffer = '';
         }, 100);
     }
 }
 
-// دالة استقبال قراءة مسدس الباركود
-function handleBarcodeScan(event) {
-    // مسدس الباركود بيرسل مفتاح Enter تلقائياً بعد قراءة الكود
-    if (event.key === 'Enter') {
-        event.preventDefault();
-        
-        let inputField = document.getElementById('barcodeInput');
-        let code = inputField.value.trim();
-        inputField.value = ''; // تفريغ الحقل فوراً عشان يستعد لقراءة الباركود اللي بعده
+// دالة معالجة الكود المقروء بعد اكتماله
+function processScannedCode(code) {
+    // 1. البحث في المخزون (نتأكد من مطابقة الكود أو الباركود بصرف النظر عن نوع البيانات نص أو رقم)
+    let product = inventory.find(item => String(item.code) === String(code) || String(item.barcode) === String(code));
 
-        if (!code) return;
-
-        // 1. البحث عن المنتج في المخزون (تأكد أن مصفوفة المخزون اسمها inventory وأن الكود مخزون في code أو sku)
-        let product = inventory.find(item => item.code === code || item.barcode === code);
-
-        if (!product) {
-            alert("عذراً، هذا المنتج غير موجود بالمخزن!");
-            return;
-        }
-
-        // 2. التحقق هل المنتج موجود مسبقاً في جدول الفاتورة؟
-        let existingItem = currentInvoiceItems.find(item => item.code === product.code);
-
-        if (existingItem) {
-            // لو متكرر، زود الكمية 1 تلقائياً
-            existingItem.qty += 1;
-        } else {
-            // لو مش موجود، أضفه كمنتج جديد في الفاتورة بكمية 1
-            currentInvoiceItems.push({
-                code: product.code,
-                name: product.name,
-                price: product.price,
-                qty: 1
-            });
-        }
-
-        // 3. تحديث جدول الفاتورة والإجمالي على الشاشة فوراً
-        renderInvoiceTable();
+    if (!product) {
+        alert("عذراً، هذا المنتج غير موجود بالمخزن!");
+        return;
     }
+
+    // 2. التحقق هل المنتج موجود مسبقاً في جدول الفاتورة
+    let existingItem = currentInvoiceItems.find(item => String(item.code) === String(product.code));
+
+    if (existingItem) {
+        existingItem.qty += 1; // زيادة الكمية لو متكرر
+    } else {
+        // إضافة منتج جديد بسطر جديد
+        currentInvoiceItems.push({
+            code: product.code,
+            name: product.name,
+            price: product.price,
+            qty: 1
+        });
+    }
+
+    // 3. تحديث الجدول فوراً
+    renderInvoiceTable();
 }
 
 // دالة رسم الجدول وتحديث الشاشة والأسعار داخل المودال
@@ -1666,16 +1680,14 @@ function renderInvoiceTable() {
         tableBody.innerHTML += row;
     });
 
-    // تحديث عرض الإجمالي النهائي للفاتورة في الواجهة
     let totalElement = document.getElementById('invoiceFinalTotalDisplay');
     if (totalElement) {
         totalElement.textContent = totalGeneral + ' ج.م';
     }
 }
 
-// دالة تعديل الكمية يدوياً بالزرار (+ أو -) داخل جدول الفاتورة
 function changeQty(code, val) {
-    let item = currentInvoiceItems.find(i => i.code === code);
+    let item = currentInvoiceItems.find(i => String(i.code) === String(code));
     if (item) {
         item.qty += val;
         if (item.qty <= 0) {
@@ -1686,8 +1698,7 @@ function changeQty(code, val) {
     }
 }
 
-// دالة لحذف منتج معين من الفاتورة
 function removeItem(code) {
-    currentInvoiceItems = currentInvoiceItems.filter(i => i.code !== code);
+    currentInvoiceItems = currentInvoiceItems.filter(i => String(i.code) !== String(code));
     renderInvoiceTable();
 }
