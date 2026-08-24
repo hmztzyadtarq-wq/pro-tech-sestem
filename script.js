@@ -1673,3 +1673,117 @@ function removeItem(code) {
     currentInvoiceItems = currentInvoiceItems.filter(i => i.code !== code);
     renderInvoiceTable();
 }
+// مصفوفة المنتجات الحالية داخل الفاتورة المفتوحة
+let currentInvoiceItems = [];
+
+// دالة تفتح المودال وتفعل مسدس الباركود وتخلي المؤشر جوه خانة الباركود فوراً
+function openNewInvoiceModal() {
+    let modal = document.getElementById('newInvoiceModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        currentInvoiceItems = []; // تفريغ الفاتورة عند الفتح الجديد
+        renderInvoiceTable();
+        
+        // تركيز المؤشر تلقائياً داخل خانة مسدس الباركود أول ما تفتح النافذة
+        setTimeout(() => {
+            let barcodeInput = document.getElementById('barcodeInput');
+            if (barcodeInput) {
+                barcodeInput.focus();
+            }
+        }, 100);
+    }
+}
+
+// دالة استقبال قراءة مسدس الباركود
+function handleBarcodeScan(event) {
+    // مسدس الباركود بيرسل مفتاح Enter تلقائياً بعد قراءة الكود
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        
+        let inputField = document.getElementById('barcodeInput');
+        let code = inputField.value.trim();
+        inputField.value = ''; // تفريغ الحقل فوراً عشان يستعد لقراءة الباركود اللي بعده
+
+        if (!code) return;
+
+        // 1. البحث عن المنتج في المخزون (تأكد أن مصفوفة المخزون اسمها inventory وأن الكود مخزون في code أو sku)
+        let product = inventory.find(item => item.code === code || item.barcode === code);
+
+        if (!product) {
+            alert("عذراً، هذا المنتج غير موجود بالمخزن!");
+            return;
+        }
+
+        // 2. التحقق هل المنتج موجود مسبقاً في جدول الفاتورة؟
+        let existingItem = currentInvoiceItems.find(item => item.code === product.code);
+
+        if (existingItem) {
+            // لو متكرر، زود الكمية 1 تلقائياً
+            existingItem.qty += 1;
+        } else {
+            // لو مش موجود، أضفه كمنتج جديد في الفاتورة بكمية 1
+            currentInvoiceItems.push({
+                code: product.code,
+                name: product.name,
+                price: product.price,
+                qty: 1
+            });
+        }
+
+        // 3. تحديث جدول الفاتورة والإجمالي على الشاشة فوراً
+        renderInvoiceTable();
+    }
+}
+
+// دالة رسم الجدول وتحديث الشاشة والأسعار داخل المودال
+function renderInvoiceTable() {
+    let tableBody = document.getElementById('invoiceItemsBody');
+    if (!tableBody) return;
+
+    tableBody.innerHTML = '';
+    let totalGeneral = 0;
+
+    currentInvoiceItems.forEach((item, index) => {
+        let itemTotal = item.price * item.qty;
+        totalGeneral += itemTotal;
+
+        let row = `<tr style="border-bottom: 1px solid #334155; font-size: 13px;">
+            <td style="padding: 8px; color: #fff;">${item.name}</td>
+            <td style="padding: 8px; text-align: center;">
+                <button type="button" onclick="changeQty('${item.code}', -1)" style="background: #ef4444; color: white; border: none; width: 22px; height: 22px; border-radius: 4px; cursor: pointer;">-</button>
+                <span style="padding: 0 8px; font-weight: bold; color: #38bdf8;">${item.qty}</span>
+                <button type="button" onclick="changeQty('${item.code}', 1)" style="background: #10b981; color: white; border: none; width: 22px; height: 22px; border-radius: 4px; cursor: pointer;">+</button>
+            </td>
+            <td style="padding: 8px; text-align: center; color: #fbbf24;">${item.price} ج.م</td>
+            <td style="padding: 8px; text-align: center;">
+                <button type="button" onclick="removeItem('${item.code}')" style="color: #f43f5e; background: none; border: none; cursor: pointer; font-size: 14px;"><i class="fas fa-trash"></i></button>
+            </td>
+        </tr>`;
+        tableBody.innerHTML += row;
+    });
+
+    // تحديث عرض الإجمالي النهائي للفاتورة في الواجهة
+    let totalElement = document.getElementById('invoiceFinalTotalDisplay');
+    if (totalElement) {
+        totalElement.textContent = totalGeneral + ' ج.م';
+    }
+}
+
+// دالة تعديل الكمية يدوياً بالزرار (+ أو -) داخل جدول الفاتورة
+function changeQty(code, val) {
+    let item = currentInvoiceItems.find(i => i.code === code);
+    if (item) {
+        item.qty += val;
+        if (item.qty <= 0) {
+            removeItem(code);
+        } else {
+            renderInvoiceTable();
+        }
+    }
+}
+
+// دالة لحذف منتج معين من الفاتورة
+function removeItem(code) {
+    currentInvoiceItems = currentInvoiceItems.filter(i => i.code !== code);
+    renderInvoiceTable();
+}
