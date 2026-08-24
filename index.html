@@ -111,7 +111,7 @@
             <section id="tab-dashboard" class="tab-content active">
                 <div class="page-header-title">
                     <h1>لوحة المؤشرات والتحليلات الحية</h1>
-                    <p>متابعة حركة المخزون، المبيعات، والمشتريات بشكل لحظي وواقعي 100%</p>
+                    <p>متابعة حركة المخزون، المبيعات، والمشتريات بشكل لحظي وواقعي 100%[cite: 4]</p>
                 </div>
 
                 <!-- Quick Stat Cards -->
@@ -322,22 +322,22 @@
                 </div>
             </section>
 
-            <!-- Expenses & Attendance Tab (تم تعديل الترتيب ليصبح الكروت مصغرة بالأعلى والجدول بالأسفل + إضافة كشف الغياب والتقرير الشامل) -->
+            <!-- Expenses & Attendance Tab -->
             <section id="tab-expenses" class="tab-content">
                 <div class="page-header-title flex-header">
                     <div>
                         <h1>لوحة الأدمن: متابعة الحضور، الغياب، والمرتبات</h1>
-                        <p>متابعة حالات الحضور، الغياب، وساعات العمل، وصافي المرتبات لكل موظف بدقة تامة</p>
+                        <p>متابعة حالات الحضور، الغياب، وساعات العمل، وصافي المرتبات لكل موظف بدقة تامة[cite: 4]</p>
                     </div>
                     <button class="btn-primary" onclick="openAddEmployeeModalCustom()"><i class="fas fa-user-plus"></i> إضافة موظف جديد</button>
                 </div>
                 
-                <!-- 1. الكروت المصغرة أصبحت في الأعلى كما طلبت تماماً -->
+                <!-- الكروت المصغرة في الأعلى -->
                 <div id="employeesCardsGrid" class="stats-grid-small" style="margin-top: 15px;">
                     <!-- يتم تعبئتها ديناميكياً -->
                 </div>
 
-                <!-- 2. الجدول أصبح في الأسفل كما طلبت تماماً -->
+                <!-- الجدول في الأسفل -->
                 <div class="card-table-wrapper" style="margin-top: 20px; background: #fff; padding: 15px; border-radius: 8px;">
                     <div style="margin-bottom: 12px; font-weight: bold; color: #1e293b; font-size: 16px; display: flex; justify-content: space-between; align-items: center;">
                         <span><i class="fas fa-clipboard-user" style="color: #0284c7;"></i> سجل الحضور، الغياب، وكشف حساب الموظفين</span>
@@ -482,13 +482,6 @@
                     <input type="text" id="newCustomerPhone" placeholder="رقم الهاتف" style="width: 100%; padding: 6px; margin-bottom: 6px; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 4px;">
                     <input type="text" id="newCustomerAddress" placeholder="العنوان" style="width: 100%; padding: 6px; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 4px;">
                 </div>
-                
-                <!-- خانة مسدس الباركود المضافة -->
-                <div style="margin-bottom: 10px;">
-                    <label style="color: #fff; font-size: 12px; display: block; margin-bottom: 5px;">مرر مسدس الباركود هنا:</label>
-                    <input type="text" id="barcodeInput" placeholder="اقرأ الباركود هنا..." style="width: 100%; padding: 8px; background: #1e293b; border: 1px solid #475569; color: #fff; border-radius: 4px;" autofocus>
-                </div>
-
                 <div style="margin-bottom: 15px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
                         <label style="font-size: 13px; font-weight: bold; color: #38bdf8;">أصناف الفاتورة:</label>
@@ -886,7 +879,7 @@
                     </tr>
                 `;
 
-                // الكروت المصغرة في الأعلى كما طلبت تماماً
+                // الكروت المصغرة في الأعلى
                 grid.innerHTML += `
                     <div class="stat-card" onclick="openEmployeeExpenseModal(${index})" style="padding: 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
                         <div style="display: flex; align-items: center; gap: 10px;">
