@@ -111,7 +111,7 @@
             <section id="tab-dashboard" class="tab-content active">
                 <div class="page-header-title">
                     <h1>لوحة المؤشرات والتحليلات الحية</h1>
-                    <p>متابعة حركة المخزون، المبيعات، والمشتريات بشكل لحظي وواقعي 100%[cite: 4]</p>
+                    <p>متابعة حركة المخزون، المبيعات، والمشتريات بشكل لحظي وواقعي 100%[cite: 1]</p>
                 </div>
 
                 <!-- Quick Stat Cards -->
@@ -327,7 +327,7 @@
                 <div class="page-header-title flex-header">
                     <div>
                         <h1>لوحة الأدمن: متابعة الحضور، الغياب، والمرتبات</h1>
-                        <p>متابعة حالات الحضور، الغياب، وساعات العمل، وصافي المرتبات لكل موظف بدقة تامة[cite: 4]</p>
+                        <p>متابعة حالات الحضور، الغياب، وساعات العمل، وصافي المرتبات لكل موظف بدقة تامة[cite: 1]</p>
                     </div>
                     <button class="btn-primary" onclick="openAddEmployeeModalCustom()"><i class="fas fa-user-plus"></i> إضافة موظف جديد</button>
                 </div>
@@ -482,6 +482,13 @@
                     <input type="text" id="newCustomerPhone" placeholder="رقم الهاتف" style="width: 100%; padding: 6px; margin-bottom: 6px; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 4px;">
                     <input type="text" id="newCustomerAddress" placeholder="العنوان" style="width: 100%; padding: 6px; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 4px;">
                 </div>
+
+                <!-- خانة مسدس الباركود المضافة حديثاً في المكان الصحيح -->
+                <div class="barcode-scanner-box" style="margin-bottom: 20px;">
+                    <label><i class="fas fa-barcode"></i> مرر مسدس الباركود هنا:</label>
+                    <input type="text" id="barcodeInput" placeholder="اقرأ الباركود أو اكتب الكود هنا..." autofocus style="width: 100%; padding: 12px; background: #0f172a; color: #fff; border: 1px solid #475569; border-radius: 6px; font-size: 16px;" onkeypress="handleBarcodeScan(event)">
+                </div>
+
                 <div style="margin-bottom: 15px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
                         <label style="font-size: 13px; font-weight: bold; color: #38bdf8;">أصناف الفاتورة:</label>
