@@ -1,233 +1,298 @@
-
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة الموظف - ProTech</title>
-    <link rel="stylesheet" href="style.css">
+    <title>إدارة حضور وموظفي الشركة - ProTech</title>
+    <!-- مكتبة الأيقونات Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            min-height: 100vh;
+        }
+        /* القائمة الجانبية المتوافقة مع التعديلات الأخيرة */
+        .sidebar {
+            width: 260px;
+            background: #0f172a;
+            color: #fff;
+            position: fixed;
+            top: 0;
+            right: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+        }
+        .sidebar .brand-header {
+            padding: 12px 15px;
+            text-align: center;
+            border-bottom: 1px solid #1e293b;
+            flex-shrink: 0;
+        }
+        .sidebar .brand-header .logo-circle {
+            width: 38px;
+            height: 38px;
+            background: #3b82f6;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 5px auto;
+            font-size: 16px;
+        }
+        .sidebar .brand-header h1 {
+            font-size: 18px;
+            margin: 2px 0;
+        }
+        .sidebar .brand-header span {
+            font-size: 11px;
+            color: #94a3b8;
+        }
+        .sidebar .nav-links {
+            flex: 1;
+            overflow-y: auto;
+            list-style: none;
+            padding: 0 10px;
+            margin: 0;
+        }
+        .sidebar .nav-links::-webkit-scrollbar {
+            width: 5px;
+        }
+        .sidebar .nav-links::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 10px;
+        }
+        .sidebar .nav-links li {
+            padding: 12px 15px;
+            margin: 5px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #cbd5e1;
+            transition: 0.3s;
+        }
+        .sidebar .nav-links li:hover, .sidebar .nav-links li.active {
+            background: #1e293b;
+            color: #fff;
+        }
+        .sidebar .sidebar-footer {
+            padding: 10px 15px;
+            border-top: 1px solid #1e293b;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .sidebar .sidebar-footer p {
+            margin: 0 0 5px 0;
+            font-size: 13px;
+        }
+        .sidebar .sidebar-footer small {
+            font-size: 10px;
+            color: #94a3b8;
+        }
+        
+        /* محتوى الصفحة الرئيسي */
+        .main-content {
+            margin-right: 260px;
+            flex: 1;
+            padding: 30px;
+        }
+        .header-title {
+            margin-bottom: 25px;
+        }
+        .header-title h2 {
+            font-size: 24px;
+            color: #1e293b;
+        }
+        .card {
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 25px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #475569;
+        }
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.3s;
+        }
+        .btn:hover {
+            background: #2563eb;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        table th, table td {
+            padding: 12px;
+            text-align: right;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        table th {
+            background: #f8fafc;
+            color: #475569;
+        }
+    </style>
 </head>
-<body style="margin: 0; padding: 0; background: #f8fafc; font-family: Tahoma, sans-serif; direction: rtl; text-align: right;">
+<body>
 
-    <!-- شاشة تسجيل الدخول الخاصة بالموظف -->
-    <div id="loginModal" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.95); justify-content: center; align-items: center; z-index: 2000;">
-        <div style="background: white; padding: 35px; border-radius: 12px; width: 380px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
-            <div style="text-align: center; margin-bottom: 20px;">
-                <h2 style="color: #0284c7; margin: 0 0 5px 0; font-size: 22px;">ProTech System</h2>
-                <p style="color: #64748b; font-size: 13px; margin: 0;">تسجيل دخول الموظف</p>
+    <!-- القائمة الجانبية المحدثة -->
+    <aside class="sidebar">
+        <div class="brand-header">
+            <div class="logo-circle"><i class="fas fa-print"></i></div>
+            <h1>Bro Tech</h1>
+            <span>ProTech ERP v2.0</span>
+        </div>
+        <ul class="nav-links">
+            <li onclick="window.location.href='index.html'"><i class="fas fa-chart-pie"></i> لوحة المؤشرات</li>
+            <li onclick="window.location.href='index.html'"><i class="fas fa-boxes"></i> إدارة المخزون</li>
+            <li class="active"><i class="fas fa-id-badge"></i> حضور وموظفي الشركة</li>
+            <li onclick="window.location.href='https://hmztzyadtarq-wq.github.io/pro-tech1.com/admin-videos.html'"><i class="fas fa-tachometer-alt"></i> ادارة الموقع الالكتروني</li>
+            <li onclick="window.location.href='https://hmztzyadtarq-wq.github.io/pro-tech1.com'"><i class="fas fa-eye"></i> نظره عامه للموقع الالكتروني</li>
+        </ul>
+        <div class="sidebar-footer">
+            <p><i class="fas fa-phone-alt"></i> 01020008299</p>
+            <small>الحالة: متصل بالواتساب والحسابات</small>
+        </div>
+    </aside>
+
+    <!-- المحتوى الرئيسي لصفحة الموظفين والحضور -->
+    <main class="main-content">
+        <div class="header-title">
+            <h2>إدارة الموظفين وتسجيل الحضور والانصراف</h2>
+        </div>
+
+        <!-- نموذج إضافة موظف أو تسجيل حضور -->
+        <div class="card">
+            <h3>إضافة موظف جديد</h3>
+            <div class="form-group" style="margin-top: 15px;">
+                <label>اسم الموظف</label>
+                <input type="text" id="employeeName" class="form-control" placeholder="أدخل اسم الموظف الثنائي أو الثلاثي">
             </div>
-            <form onsubmit="handleEmployeeLogin(event)">
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; font-size: 13px; margin-bottom: 6px; font-weight: bold; color: #334155;">اسم المستخدم:</label>
-                    <input type="text" id="loginUser" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; box-sizing: border-box;">
-                </div>
-                <div style="margin-bottom: 20px;">
-                    <label style="display: block; font-size: 13px; margin-bottom: 6px; font-weight: bold; color: #334155;">كلمة المرور:</label>
-                    <input type="password" id="loginPass" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; box-sizing: border-box;">
-                </div>
-                <button type="submit" style="width: 100%; background: #0284c7; color: white; border: none; padding: 11px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px;">دخول للنظام</button>
-            </form>
-        </div>
-    </div>
-
-    <!-- لوحة الموظف الأساسية (نفس واجهة المدير تماماً) -->
-    <div id="employeeDashboard" style="display: none; min-height: 100vh;">
-        <div style="display: flex; min-height: 100vh;">
-            
-            <!-- القائمة الجانبية -->
-            <div style="width: 260px; background: #0f172a; color: #fff; padding: 20px; display: flex; flex-direction: column; box-sizing: border-box;">
-                <h2 id="sidebarCompanyName" style="font-size: 18px; margin-bottom: 30px; color: #0284c7; line-height: 1.4;">ProTech System</h2>
-                <ul style="list-style: none; padding: 0; margin: 0; flex: 1;" class="nav-links">
-                    <li style="margin-bottom: 8px;">
-                        <a href="#" onclick="switchTab('invoices')" id="nav-invoices" style="display: flex; align-items: center; gap: 10px; color: #fff; background: #0284c7; text-decoration: none; padding: 12px 15px; border-radius: 8px; font-size: 14px;"><i class="fas fa-file-invoice-dollar" style="width: 20px;"></i> الفواتير والمبيعات</a>
-                    </li>
-                    <li style="margin-bottom: 8px;">
-                        <a href="#" onclick="switchTab('customers')" id="nav-customers" style="display: flex; align-items: center; gap: 10px; color: #cbd5e1; text-decoration: none; padding: 12px 15px; border-radius: 8px; font-size: 14px;"><i class="fas fa-users" style="width: 20px;"></i> العملاء</a>
-                    </li>
-                </ul>
-                <div>
-                    <a href="#" onclick="logoutSystem()" style="display: flex; align-items: center; gap: 10px; color: #f43f5e; text-decoration: none; padding: 12px 15px; border-radius: 8px; font-size: 14px; background: rgba(244, 63, 94, 0.1);"><i class="fas fa-sign-out-alt" style="width: 20px;"></i> تسجيل خروج</a>
-                </div>
+            <div class="form-group">
+                <label>الوظيفة / القسم</label>
+                <input type="text" id="employeeRole" class="form-control" placeholder="مثال: مسؤول مبيعات، فني طباعة">
             </div>
-
-            <!-- المحتوى الرئيسي -->
-            <div style="flex: 1; padding: 30px; background: #f8fafc; overflow-y: auto; box-sizing: border-box;">
-                
-                <!-- تبويب الفواتير والمبيعات -->
-                <div id="tab-invoices" class="tab-content active" style="display: block;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                        <h1 style="margin: 0; font-size: 22px; color: #1e293b; font-weight: bold;">إدارة الفواتير والمبيعات</h1>
-                        <button onclick="openNewInvoiceModal()" style="background: #0284c7; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; box-shadow: 0 2px 4px rgba(2,132,199,0.2);"><i class="fas fa-plus" style="margin-left: 5px;"></i> إنشاء فاتورة جديدة</button>
-                    </div>
-                    <div style="background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                        <div style="margin-bottom: 20px;">
-                            <input type="text" id="searchInvoices" placeholder="بحث برقم الفاتورة أو اسم العميل..." onkeyup="filterInvoices()" style="width: 100%; padding: 11px 15px; border: 1px solid #cbd5e1; border-radius: 8px; outline: none; font-size: 14px; box-sizing: border-box;">
-                        </div>
-                        <div style="overflow-x: auto;">
-                            <table style="width: 100%; border-collapse: collapse; text-align: right; font-size: 14px;">
-                                <thead>
-                                    <tr style="background: #f1f5f9; color: #475569;">
-                                        <th style="padding: 12px 15px; border-bottom: 2px solid #e2e8f0;">رقم الفاتورة</th>
-                                        <th style="padding: 12px 15px; border-bottom: 2px solid #e2e8f0;">العميل</th>
-                                        <th style="padding: 12px 15px; border-bottom: 2px solid #e2e8f0;">التاريخ</th>
-                                        <th style="padding: 12px 15px; border-bottom: 2px solid #e2e8f0;">الإجمالي</th>
-                                        <th style="padding: 12px 15px; border-bottom: 2px solid #e2e8f0;">الحالة</th>
-                                        <th style="padding: 12px 15px; border-bottom: 2px solid #e2e8f0;">الإجراءات والطباعة</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="invoicesTableBody"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- تبويب العملاء -->
-                <div id="tab-customers" class="tab-content" style="display: none;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                        <h1 style="margin: 0; font-size: 22px; color: #1e293b; font-weight: bold;">دليل العملاء</h1>
-                        <button onclick="openAddCustomerModal()" style="background: #0284c7; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; box-shadow: 0 2px 4px rgba(2,132,199,0.2);"><i class="fas fa-user-plus" style="margin-left: 5px;"></i> إضافة عميل جديد</button>
-                    </div>
-                    <div style="background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                        <div style="overflow-x: auto;">
-                            <table style="width: 100%; border-collapse: collapse; text-align: right; font-size: 14px;">
-                                <thead>
-                                    <tr style="background: #f1f5f9; color: #475569;">
-                                        <th style="padding: 12px 15px; border-bottom: 2px solid #e2e8f0;">اسم العميل</th>
-                                        <th style="padding: 12px 15px; border-bottom: 2px solid #e2e8f0;">الهاتف</th>
-                                        <th style="padding: 12px 15px; border-bottom: 2px solid #e2e8f0;">حالة الحساب</th>
-                                        <th style="padding: 12px 15px; border-bottom: 2px solid #e2e8f0;">عدد الفواتير</th>
-                                        <th style="padding: 12px 15px; border-bottom: 2px solid #e2e8f0;">الإجمالي والتحكم</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="customersTableBody"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
+            <button class="btn" onclick="addEmployee()">حفظ الموظف</button>
         </div>
-    </div>
 
-    <!-- نافذة معاينة وطباعة الفاتورة (مطابقة تماماً لشكل المدير) -->
-    <div id="invoiceModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
-        <div style="background: white; width: 650px; max-width: 95%; padding: 25px; border-radius: 10px; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
-            <div id="printableInvoiceArea"></div>
-            <div style="text-align: left; margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 15px;">
-                <button onclick="downloadPDF()" style="background: #0284c7; color: white; border: none; padding: 9px 18px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px;"><i class="fas fa-file-pdf" style="margin-left: 5px;"></i> تحميل PDF</button>
-                <button onclick="closeInvoiceModal()" style="background: #64748b; color: white; border: none; padding: 9px 18px; border-radius: 6px; cursor: pointer; font-size: 13px; margin-right: 8px;">إغلاق</button>
-            </div>
+        <!-- جدول عرض الموظفين المسجلين -->
+        <div class="card">
+            <h3>قائمة موظفي شركة برو تيك</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>الاسم</th>
+                        <th>الوظيفة</th>
+                        <th>حالة الحضور اليوم</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="employeesTableBody">
+                    <!-- يتم جلب البيانات وتعبئتها من فايربيز تلقائياً -->
+                </tbody>
+            </table>
         </div>
-    </div>
+    </main>
 
-    <!-- نافذة إنشاء فاتورة جديدة -->
-    <div id="newInvoiceModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
-        <div style="background: white; width: 500px; max-width: 95%; padding: 25px; border-radius: 10px; max-height: 90vh; overflow-y: auto; box-sizing: border-box;">
-            <h3 style="margin-top: 0; color: #0284c7; font-size: 18px; margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">إنشاء فاتورة مبيعات جديدة</h3>
-            <form onsubmit="createNewInvoice(event)">
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; font-size: 13px; margin-bottom: 6px; font-weight: bold; color: #334155;">العميل:</label>
-                    <select id="invoiceCustomerSelect" onchange="handleCustomerSelectChange()" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; background: #fff; box-sizing: border-box;"></select>
-                </div>
-                
-                <div id="newCustomerDiv" style="display: none; background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e2e8f0;">
-                    <div style="margin-bottom: 10px;"><input type="text" id="newCustomerName" placeholder="اسم العميل الجديد" style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;"></div>
-                    <div style="margin-bottom: 10px;"><input type="text" id="newCustomerPhone" placeholder="رقم الهاتف" style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;"></div>
-                    <div><input type="text" id="newCustomerAddress" placeholder="العنوان" style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;"></div>
-                </div>
-
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; font-size: 13px; margin-bottom: 6px; font-weight: bold; color: #334155;">الصنف:</label>
-                    <select id="invoiceProductSelect" onchange="updateMaxQuantity()" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; background: #fff; box-sizing: border-box;"></select>
-                    <small id="maxQtyHint" style="color: #64748b; display: block; margin-top: 5px; font-size: 12px;"></small>
-                </div>
-
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; font-size: 13px; margin-bottom: 6px; font-weight: bold; color: #334155;">الكمية المطلوبة:</label>
-                    <input type="number" id="invoiceQty" min="1" value="1" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
-                </div>
-
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; font-size: 13px; margin-bottom: 6px; font-weight: bold; color: #334155;">حالة الدفع:</label>
-                    <select id="invoicePaymentStatus" onchange="togglePaidInput()" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; background: #fff; box-sizing: border-box;">
-                        <option value="تم الدفع بالكامل">تم الدفع بالكامل</option>
-                        <option value="لم يدفع">لم يدفع (أو آجل)</option>
-                    </select>
-                </div>
-
-                <div id="remainingInputContainer" style="display: none; margin-bottom: 15px;">
-                    <label style="display: block; font-size: 13px; margin-bottom: 6px; font-weight: bold; color: #334155;">المبلغ المتبقي (آجل):</label>
-                    <input type="number" id="invoiceRemainingInput" min="0" value="0" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
-                </div>
-
-                <div style="text-align: left; border-top: 1px solid #e2e8f0; padding-top: 15px;">
-                    <button type="submit" style="background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px;">حفظ الفاتورة وعرضها</button>
-                    <button type="button" onclick="closeNewInvoiceModal()" style="background: #64748b; color: white; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-size: 14px; margin-right: 8px;">إلغاء</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- نافذة إضافة عميل جديد -->
-    <div id="addCustomerModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
-        <div style="background: white; width: 400px; max-width: 95%; padding: 25px; border-radius: 10px; box-sizing: border-box;">
-            <h3 style="margin-top: 0; color: #0284c7; font-size: 18px; margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">إضافة عميل جديد</h3>
-            <form onsubmit="addNewCustomerDirect(event)">
-                <div style="margin-bottom: 15px;"><input type="text" id="custName" placeholder="اسم العميل" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;"></div>
-                <div style="margin-bottom: 15px;"><input type="text" id="custPhone" placeholder="رقم الهاتف" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;"></div>
-                <div style="margin-bottom: 20px;"><input type="text" id="custAddress" placeholder="العنوان" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;"></div>
-                <div style="text-align: left; border-top: 1px solid #e2e8f0; padding-top: 15px;">
-                    <button type="submit" style="background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px;">حفظ</button>
-                    <button type="button" onclick="closeAddCustomerModal()" style="background: #64748b; color: white; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-size: 14px; margin-right: 8px;">إلغاء</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- المكتبات وملف الجافاسكريبت الأساسي -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script type="module" src="script.js"></script>
-    
+    <!-- ربط السكريبت وقاعدة البيانات فايربيز -->
     <script>
-        // دالة التحقق من تسجيل دخول الموظف
-        async function handleEmployeeLogin(e) {
-            e.preventDefault();
-            let user = document.getElementById('loginUser').value.trim();
-            let pass = document.getElementById('loginPass').value.trim();
-            
-            if((user === 'employee' || user === 'موظف') && pass === '606060') {
-                document.getElementById('loginModal').style.display = 'none';
-                document.getElementById('employeeDashboard').style.display = 'block';
-                
-                // جلب البيانات وعرضها فوراً بناءً على الدوال الموجودة في script.js
-                if(typeof loadDataFromFirebase === 'function') {
-                    await loadDataFromFirebase();
-                }
-                if(typeof refreshAllData === 'function') {
-                    refreshAllData();
-                }
-            } else if(user === 'admin' && pass === 'admin123') {
-                window.location.href = 'index.html';
-            } else {
-                alert('اسم المستخدم أو كلمة المرور غير صحيحة!');
+        // إعدادات اتصال فايربيز الخاصة بمشروعك
+        const firebaseConfig = {
+            databaseURL: "https://pro-tech-sestem-default-rtdb.firebaseio.com/" // استبدلها برابط قاعدتك لو مختلف
+        };
+        
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const database = firebase.database();
+
+        // دالة إضافة موظف جديد لـ Firebase
+        function addEmployee() {
+            const name = document.getElementById('employeeName').value;
+            const role = document.getElementById('employeeRole').value;
+
+            if(!name || !role) {
+                alert('الرجاء إدخال اسم الموظف ووظيفته أولاً!');
+                return;
             }
+
+            const empRef = database.ref('employees').push();
+            empRef.set({
+                name: name,
+                role: role,
+                status: 'حاضر'
+            }, (error) => {
+                if (error) {
+                    alert('حدث خطأ أثناء الحفظ!');
+                } else {
+                    alert('تم إضافة الموظف بنجاح!');
+                    document.getElementById('employeeName').value = '';
+                    document.getElementById('employeeRole').value = '';
+                }
+            });
         }
 
-        function logoutSystem() {
-            document.getElementById('loginModal').style.display = 'flex';
-            document.getElementById('employeeDashboard').style.display = 'none';
-            document.getElementById('loginUser').value = '';
-            document.getElementById('loginPass').value = '';
-        }
+        // جلب وعرض الموظفين من Firebase بصورة حية
+        database.ref('employees').on('value', (snapshot) => {
+            const tbody = document.getElementById('employeesTableBody');
+            tbody.innerHTML = '';
+            
+            snapshot.forEach((childSnapshot) => {
+                const emp = childSnapshot.val();
+                const empId = childSnapshot.key;
 
-        function togglePaidInput() {
-            let status = document.getElementById('invoicePaymentStatus').value;
-            let container = document.getElementById('remainingInputContainer');
-            if(container) {
-                container.style.display = (status === 'لم يدفع') ? 'block' : 'none';
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${emp.name}</td>
+                        <td>${emp.role}</td>
+                        <td><span style="color: green; font-weight: bold;">${emp.status || 'حاضر'}</span></td>
+                        <td><button class="btn" style="padding: 5px 10px; background: #ef4444;" onclick="deleteEmployee('${empId}')">حذف</button></td>
+                    </tr>
+                `;
+            });
+        });
+
+        // دالة حذف موظف
+        function deleteEmployee(id) {
+            if(confirm('هل أنت متأكد من حذف هذا الموظف؟')) {
+                database.ref('employees/' + id).remove();
             }
         }
     </script>
