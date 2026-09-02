@@ -61,6 +61,42 @@
     padding: 0;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
+/* تصغير مساحة اللوجو في الأعلى لتوفير مساحة للأزرار */
+.sidebar .brand-header {
+    padding: 12px 15px !important; /* تقليل المسافات الداخلية */
+    margin-bottom: 5px;
+}
+
+.sidebar .brand-header .logo-circle {
+    width: 38px !important;
+    height: 38px !important;
+    font-size: 16px !important;
+    margin-bottom: 5px;
+}
+
+.sidebar .brand-header h1 {
+    font-size: 18px !important;
+    margin: 2px 0 !important;
+}
+
+.sidebar .brand-header span {
+    font-size: 11px !important;
+}
+
+/* تصغير مساحة الفوتر (رقم الهاتف وزر الخروج) في الأسفل */
+.sidebar .sidebar-footer {
+    padding: 10px 15px !important; /* تقليل الحشوة الداخلية */
+    margin-top: 5px;
+}
+
+.sidebar .sidebar-footer p {
+    margin: 0 0 5px 0 !important;
+    font-size: 13px !important;
+}
+
+.sidebar .sidebar-footer small {
+    font-size: 10px !important;
+}
 
 body {
     background-color: var(--light-bg);
