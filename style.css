@@ -74,16 +74,44 @@ body {
     min-height: 100vh;
 }
 
-/* Sidebar */
 .sidebar {
-    width: 260px;
-    background-color: var(--dark);
-    color: white;
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 260px; /* أو العرض الموجود عندك */
+    height: 100vh;
     display: flex;
     flex-direction: column;
-    position: fixed;
-    height: 100vh;
-    box-shadow: 4px 0 10px rgba(0,0,0,0.05);
+    background: #0f172a; /* لون الخلفية */
+    z-index: 100;
+}
+
+/* هنا الفكرة: نخلي قايمة الأزرار وحدها هي اللي تقبل السكرول */
+.sidebar .nav-links {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0 10px;
+    margin: 0;
+    list-style: none;
+}
+
+/* تحسين شكل السكرول بار عشان يكون شكله شيك وصغير */
+.sidebar .nav-links::-webkit-scrollbar {
+    width: 5px;
+}
+.sidebar .nav-links::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 10px;
+}
+
+/* تثبيت الهيدر (اللوجو) والفوتر (الرقم وزر الخروج) في مكانهم */
+.sidebar .brand-header {
+    flex-shrink: 0;
+}
+
+.sidebar .sidebar-footer {
+    flex-shrink: 0;
 }
 
 .brand-header {
