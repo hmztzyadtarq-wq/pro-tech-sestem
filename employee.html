@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>بوابة الموظف - إنشاء الفواتير والعملاء | ProTech</title>
+    <title>بوابة الموظف - ProTech ERP</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
@@ -16,30 +16,110 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         body {
-            background-color: #f8fafc;
+            background-color: #f4f7f6;
             color: #333;
-            padding: 20px;
-        }
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-        }
-        .top-bar {
-            background: #0f172a;
-            color: white;
-            padding: 15px 25px;
-            border-radius: 10px;
             display: flex;
-            justify-content: space-between;
+            min-height: 100vh;
+        }
+        /* نفس تصميم القائمة الجانبية للأدمن بالضبط */
+        .sidebar {
+            width: 260px;
+            background: #0f172a;
+            color: #fff;
+            position: fixed;
+            top: 0;
+            right: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+        }
+        .sidebar .brand-header {
+            padding: 12px 15px;
+            text-align: center;
+            border-bottom: 1px solid #1e293b;
+            flex-shrink: 0;
+        }
+        .sidebar .brand-header .logo-circle {
+            width: 38px;
+            height: 38px;
+            background: #3b82f6;
+            color: white;
+            border-radius: 50%;
+            display: flex;
             align-items: center;
+            justify-content: center;
+            margin: 0 auto 5px auto;
+            font-size: 16px;
+        }
+        .sidebar .brand-header h1 {
+            font-size: 18px;
+            margin: 2px 0;
+        }
+        .sidebar .brand-header span {
+            font-size: 11px;
+            color: #94a3b8;
+        }
+        .sidebar .nav-links {
+            flex: 1;
+            overflow-y: auto;
+            list-style: none;
+            padding: 0 10px;
+            margin: 0;
+        }
+        .sidebar .nav-links::-webkit-scrollbar {
+            width: 5px;
+        }
+        .sidebar .nav-links::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 10px;
+        }
+        .sidebar .nav-links li {
+            padding: 12px 15px;
+            margin: 5px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #cbd5e1;
+            transition: 0.3s;
+        }
+        .sidebar .nav-links li:hover, .sidebar .nav-links li.active {
+            background: #1e293b;
+            color: #fff;
+        }
+        .sidebar .sidebar-footer {
+            padding: 10px 15px;
+            border-top: 1px solid #1e293b;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .sidebar .sidebar-footer p {
+            margin: 0 0 5px 0;
+            font-size: 13px;
+        }
+        .sidebar .sidebar-footer small {
+            font-size: 10px;
+            color: #94a3b8;
+        }
+        
+        /* محتوى الصفحة الرئيسي نفس استايل الأدمن */
+        .main-content {
+            margin-right: 260px;
+            flex: 1;
+            padding: 30px;
+        }
+        .header-title {
             margin-bottom: 25px;
         }
-        .top-bar h2 {
-            font-size: 20px;
+        .header-title h2 {
+            font-size: 24px;
+            color: #1e293b;
         }
         .card {
             background: #fff;
-            padding: 25px;
+            padding: 20px;
             border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
             margin-bottom: 25px;
@@ -47,6 +127,7 @@
         .card h3 {
             margin-bottom: 15px;
             color: #1e293b;
+            font-size: 18px;
             border-bottom: 2px solid #f1f5f9;
             padding-bottom: 8px;
         }
@@ -85,7 +166,7 @@
             margin-top: 15px;
         }
         table th, table td {
-            padding: 10px;
+            padding: 12px;
             text-align: right;
             border-bottom: 1px solid #e2e8f0;
             font-size: 14px;
@@ -94,70 +175,110 @@
             background: #f8fafc;
             color: #475569;
         }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <!-- شريط علوي يوضح أن هذه صفحة الموظف -->
-        <div class="top-bar">
-            <h2><i class="fas fa-cash-register"></i> نظام الموظف - برو تيك</h2>
-            <span>صلاحية: إدخال فواتير وعملاء فقط</span>
+    <!-- القائمة الجانبية بنفس تصميم الأدمن ولكن بزرين أساسيين فقط للموظف -->
+    <aside class="sidebar">
+        <div class="brand-header">
+            <div class="logo-circle"><i class="fas fa-print"></i></div>
+            <h1>Bro Tech</h1>
+            <span>ProTech ERP v2.0 (بوابة الموظف)</span>
+        </div>
+        <ul class="nav-links">
+            <li class="active" id="nav-sales" onclick="switchEmployeeTab('sales')"><i class="fas fa-cash-register"></i> إدارة الفواتير والمبيعات</li>
+            <li id="nav-customers" onclick="switchEmployeeTab('customers')"><i class="fas fa-users"></i> دليل العملاء</li>
+        </ul>
+        <div class="sidebar-footer">
+            <p><i class="fas fa-phone-alt"></i> 01020008299</p>
+            <small>حالة النظام: موظف مبيعات</small>
+        </div>
+    </aside>
+
+    <!-- المحتوى الرئيسي -->
+    <main class="main-content">
+        
+        <!-- تبويب إدارة الفواتير والمبيعات -->
+        <div id="tab-sales" class="tab-content active">
+            <div class="header-title">
+                <h2>إصدار وتسجيل الفواتير</h2>
+            </div>
+            <div class="card">
+                <h3>إضافة فاتورة جديدة</h3>
+                <div class="form-group">
+                    <label>اسم العميل والتفاصيل</label>
+                    <input type="text" id="invoiceCustomer" class="form-control" placeholder="مثال: ايهاب سالم ( حبر indoor اسود )">
+                </div>
+                <div class="form-group">
+                    <label>إجمالي المبلغ (ج.م)</label>
+                    <input type="text" id="invoiceAmount" class="form-control" placeholder="مثال: 3,500 ج.م">
+                </div>
+                <button class="btn" onclick="addNewInvoice()">حفظ الفاتورة وإرسالها للأدمن</button>
+            </div>
+
+            <div class="card">
+                <h3>الفواتير الصادرة</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>رقم الفاتورة</th>
+                            <th>العميل والمنتج</th>
+                            <th>المبلغ</th>
+                            <th>التاريخ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="invoicesTableBody">
+                        <!-- يتم جلب البيانات من فايربيز -->
+                    </tbody>
+                </table>
+            </div>
         </div>
 
-        <!-- قسم إنشاء فاتورة جديدة -->
-        <div class="card">
-            <h3><i class="fas fa-file-invoice-dollar"></i> إصدار فاتورة جديدة للمبيعات</h3>
-            <div class="form-group">
-                <label>اسم العميل</label>
-                <input type="text" id="invoiceCustomer" class="form-control" placeholder="مثال: ايهاب سالم">
+        <!-- تبويب دليل العملاء -->
+        <div id="tab-customers" class="tab-content">
+            <div class="header-title">
+                <h2>دليل العملاء</h2>
             </div>
-            <div class="form-group">
-                <label>تفاصيل الفاتورة / المنتج (مثال: حبر indoor اسود)</label>
-                <input type="text" id="invoiceDetails" class="form-control" placeholder="اكتب تفاصيل المنتجات المباعة">
+            <div class="card">
+                <h3>إضافة عميل جديد</h3>
+                <div class="form-group">
+                    <label>اسم العميل</label>
+                    <input type="text" id="clientName" class="form-control" placeholder="اسم العميل">
+                </div>
+                <div class="form-group">
+                    <label>تفاصيل التواصل / العنوان</label>
+                    <input type="text" id="clientDetails" class="form-control" placeholder="العنوان ورقم الهاتف">
+                </div>
+                <button class="btn" onclick="addNewClient()" style="background: #10b981;">حفظ العميل</button>
             </div>
-            <div class="form-group">
-                <label>إجمالي المبلغ (ج.م)</label>
-                <input type="number" id="invoiceAmount" class="form-control" placeholder="مثال: 3500">
+
+            <div class="card">
+                <h3>قائمة العملاء المسجلين</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>اسم العميل</th>
+                            <th>التفاصيل والعنوان</th>
+                        </tr>
+                    </thead>
+                    <tbody id="customersTableBody">
+                        <!-- يتم جلب البيانات من فايربيز -->
+                    </tbody>
+                </table>
             </div>
-            <button class="btn" onclick="addNewInvoice()">حفظ وإرسال الفاتورة للأدمن</button>
         </div>
 
-        <!-- قسم إضافة عميل جديد لدليل العملاء -->
-        <div class="card">
-            <h3><i class="fas fa-user-plus"></i> إضافة عميل جديد لدليل العملاء</h3>
-            <div class="form-group">
-                <label>اسم العميل</label>
-                <input type="text" id="clientName" class="form-control" placeholder="اسم العميل الكامل">
-            </div>
-            <div class="form-group">
-                <label>رقم الهاتف / العنوان</label>
-                <input type="text" id="clientDetails" class="form-control" placeholder="مثال: شارع فيصل - 010xxxxxxxx">
-            </div>
-            <button class="btn" onclick="addNewClient()" style="background: #10b981;">حفظ العميل</button>
-        </div>
+    </main>
 
-        <!-- عرض الفواتير المسجلة حديثاً من قِبل هذا الموظف -->
-        <div class="card">
-            <h3><i class="fas fa-list"></i> الفواتير المسجلة اليوم</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>رقم الفاتورة</th>
-                        <th>اسم العميل</th>
-                        <th>التفاصيل والمبلغ</th>
-                        <th>التاريخ</th>
-                    </tr>
-                </thead>
-                <tbody id="employeeInvoicesList">
-                    <!-- يتم جلبها من فايربيز تلقائياً -->
-                </tbody>
-            </table>
-        </div>
-    </div>
-
+    <!-- السكريبت والربط بقاعدة البيانات -->
     <script>
-        // إعدادات اتصال فايربيز (نفس قاعدة البيانات المستخدمة في لوحة الأدمن)
         const firebaseConfig = {
             databaseURL: "https://pro-tech-sestem-default-rtdb.firebaseio.com/"
         };
@@ -167,81 +288,101 @@
         }
         const database = firebase.database();
 
-        // دالة إنشاء وإرسال الفاتورة لـ Firebase (تظهر فوراً في لوحة الأدمن)
+        // التنقل بين القسمين (الفواتير والعملاء) داخل نفس الصفحة بنظام السحب المماثل للأدمن
+        function switchEmployeeTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.sidebar .nav-links li').forEach(el => el.classList.remove('active'));
+
+            if(tabName === 'sales') {
+                document.getElementById('tab-sales').classList.add('active');
+                document.getElementById('nav-sales').classList.add('active');
+            } else if(tabName === 'customers') {
+                document.getElementById('tab-customers').classList.add('active');
+                document.getElementById('nav-customers').classList.add('active');
+            }
+        }
+
+        // إضافة فاتورة جديدة وتحديثها في فايربيز (تظهر مباشرة في صفحة الأدمن)
         function addNewInvoice() {
             const customer = document.getElementById('invoiceCustomer').value;
-            const details = document.getElementById('invoiceDetails').value;
             const amount = document.getElementById('invoiceAmount').value;
 
-            if(!customer || !details || !amount) {
-                alert('الرجاء إكمال كافة بيانات الفاتورة!');
+            if(!customer || !amount) {
+                alert('الرجاء إدخال بيانات الفاتورة كاملة!');
                 return;
             }
 
-            // توليد رقم فاتورة عشوائي زي النظام عندك
             const invNumber = 'INV-' + Math.floor(1000 + Math.random() * 9000);
-            
-            // الحصول على تاريخ اليوم وتنسيقه زي الواجهة الرئيسية عندك
             const today = new Date();
             const dateStr = today.getFullYear() + '/' + (today.getMonth() + 1) + '/' + today.getDate();
 
-            // حفظ الفاتورة في مسار مخصص يقرأه الأدمن في لوحته
-            const invoicesRef = database.ref('invoices').push();
-            invoicesRef.set({
+            database.ref('invoices').push().set({
                 invNumber: invNumber,
-                customer: customer + ' ( ' + details + ' )',
-                amount: amount + ' ج.م',
+                customer: customer,
+                amount: amount,
                 date: dateStr
             }, (error) => {
                 if(error) {
-                    alert('حدث خطأ أثناء حفظ الفاتورة!');
+                    alert('خطأ أثناء الحفظ');
                 } else {
-                    alert('تم إصدار الفاتورة وإرسالها للوحة الإدارة بنجاح!');
+                    alert('تم حفظ الفاتورة بنجاح وتحديثها في نظام الأدمن!');
                     document.getElementById('invoiceCustomer').value = '';
-                    document.getElementById('invoiceDetails').value = '';
                     document.getElementById('invoiceAmount').value = '';
                 }
             });
         }
 
-        // دالة إضافة عميل جديد لدليل العملاء ليظهر عند الأدمن
+        // إضافة عميل جديد لـ فايربيز
         function addNewClient() {
             const name = document.getElementById('clientName').value;
             const details = document.getElementById('clientDetails').value;
 
             if(!name) {
-                alert('الرجاء إدخال اسم العميل على الأقل!');
+                alert('الرجاء إدخال اسم العميل!');
                 return;
             }
 
-            const clientsRef = database.ref('customers').push();
-            clientsRef.set({
+            database.ref('customers').push().set({
                 name: name,
                 details: details || 'لا يوجد تفاصيل'
             }, (error) => {
                 if(error) {
-                    alert('حدث خطأ أثناء حفظ العميل!');
+                    alert('خطأ أثناء الحفظ');
                 } else {
-                    alert('تم إضافة العميل بنجاح لدليل العملاء!');
+                    alert('تم إضافة العميل لدليل العملاء بنجاح!');
                     document.getElementById('clientName').value = '';
                     document.getElementById('clientDetails').value = '';
                 }
             });
         }
 
-        // متابعة الفواتير وعرضها أول بأول في صفحة الموظف
+        // الاستماع لجداول الفواتير لحظياً
         database.ref('invoices').on('value', (snapshot) => {
-            const tbody = document.getElementById('employeeInvoicesList');
+            const tbody = document.getElementById('invoicesTableBody');
             tbody.innerHTML = '';
-            
-            snapshot.forEach((childSnapshot) => {
-                const inv = childSnapshot.val();
+            snapshot.forEach((child) => {
+                const inv = child.val();
                 tbody.innerHTML += `
                     <tr>
                         <td><b>${inv.invNumber}</b></td>
                         <td>${inv.customer}</td>
                         <td>${inv.amount}</td>
                         <td>${inv.date}</td>
+                    </tr>
+                `;
+            });
+        });
+
+        // الاستماع لجداول العملاء لحظياً
+        database.ref('customers').on('value', (snapshot) => {
+            const tbody = document.getElementById('customersTableBody');
+            tbody.innerHTML = '';
+            snapshot.forEach((child) => {
+                const client = child.val();
+                tbody.innerHTML += `
+                    <tr>
+                        <td><b>${client.name}</b></td>
+                        <td>${client.details}</td>
                     </tr>
                 `;
             });
