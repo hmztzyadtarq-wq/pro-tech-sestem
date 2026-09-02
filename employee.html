@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>إدارة حضور وموظفي الشركة - ProTech</title>
-    <!-- مكتبة الأيقونات Font Awesome -->
+    <title>بوابة الموظف - إنشاء الفواتير والعملاء | ProTech</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
@@ -17,113 +16,39 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         body {
-            background-color: #f4f7f6;
+            background-color: #f8fafc;
             color: #333;
-            display: flex;
-            min-height: 100vh;
+            padding: 20px;
         }
-        /* القائمة الجانبية المتوافقة مع التعديلات الأخيرة */
-        .sidebar {
-            width: 260px;
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .top-bar {
             background: #0f172a;
-            color: #fff;
-            position: fixed;
-            top: 0;
-            right: 0;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            z-index: 100;
-        }
-        .sidebar .brand-header {
-            padding: 12px 15px;
-            text-align: center;
-            border-bottom: 1px solid #1e293b;
-            flex-shrink: 0;
-        }
-        .sidebar .brand-header .logo-circle {
-            width: 38px;
-            height: 38px;
-            background: #3b82f6;
             color: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 5px auto;
-            font-size: 16px;
-        }
-        .sidebar .brand-header h1 {
-            font-size: 18px;
-            margin: 2px 0;
-        }
-        .sidebar .brand-header span {
-            font-size: 11px;
-            color: #94a3b8;
-        }
-        .sidebar .nav-links {
-            flex: 1;
-            overflow-y: auto;
-            list-style: none;
-            padding: 0 10px;
-            margin: 0;
-        }
-        .sidebar .nav-links::-webkit-scrollbar {
-            width: 5px;
-        }
-        .sidebar .nav-links::-webkit-scrollbar-thumb {
-            background: #334155;
+            padding: 15px 25px;
             border-radius: 10px;
-        }
-        .sidebar .nav-links li {
-            padding: 12px 15px;
-            margin: 5px 0;
-            border-radius: 8px;
-            cursor: pointer;
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 12px;
-            color: #cbd5e1;
-            transition: 0.3s;
-        }
-        .sidebar .nav-links li:hover, .sidebar .nav-links li.active {
-            background: #1e293b;
-            color: #fff;
-        }
-        .sidebar .sidebar-footer {
-            padding: 10px 15px;
-            border-top: 1px solid #1e293b;
-            text-align: center;
-            flex-shrink: 0;
-        }
-        .sidebar .sidebar-footer p {
-            margin: 0 0 5px 0;
-            font-size: 13px;
-        }
-        .sidebar .sidebar-footer small {
-            font-size: 10px;
-            color: #94a3b8;
-        }
-        
-        /* محتوى الصفحة الرئيسي */
-        .main-content {
-            margin-right: 260px;
-            flex: 1;
-            padding: 30px;
-        }
-        .header-title {
             margin-bottom: 25px;
         }
-        .header-title h2 {
-            font-size: 24px;
-            color: #1e293b;
+        .top-bar h2 {
+            font-size: 20px;
         }
         .card {
             background: #fff;
-            padding: 20px;
+            padding: 25px;
             border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
             margin-bottom: 25px;
+        }
+        .card h3 {
+            margin-bottom: 15px;
+            color: #1e293b;
+            border-bottom: 2px solid #f1f5f9;
+            padding-bottom: 8px;
         }
         .form-group {
             margin-bottom: 15px;
@@ -160,9 +85,10 @@
             margin-top: 15px;
         }
         table th, table td {
-            padding: 12px;
+            padding: 10px;
             text-align: right;
             border-bottom: 1px solid #e2e8f0;
+            font-size: 14px;
         }
         table th {
             background: #f8fafc;
@@ -172,70 +98,68 @@
 </head>
 <body>
 
-    <!-- القائمة الجانبية المحدثة -->
-    <aside class="sidebar">
-        <div class="brand-header">
-            <div class="logo-circle"><i class="fas fa-print"></i></div>
-            <h1>Bro Tech</h1>
-            <span>ProTech ERP v2.0</span>
-        </div>
-        <ul class="nav-links">
-            <li onclick="window.location.href='index.html'"><i class="fas fa-chart-pie"></i> لوحة المؤشرات</li>
-            <li onclick="window.location.href='index.html'"><i class="fas fa-boxes"></i> إدارة المخزون</li>
-            <li class="active"><i class="fas fa-id-badge"></i> حضور وموظفي الشركة</li>
-            <li onclick="window.location.href='https://hmztzyadtarq-wq.github.io/pro-tech1.com/admin-videos.html'"><i class="fas fa-tachometer-alt"></i> ادارة الموقع الالكتروني</li>
-            <li onclick="window.location.href='https://hmztzyadtarq-wq.github.io/pro-tech1.com'"><i class="fas fa-eye"></i> نظره عامه للموقع الالكتروني</li>
-        </ul>
-        <div class="sidebar-footer">
-            <p><i class="fas fa-phone-alt"></i> 01020008299</p>
-            <small>الحالة: متصل بالواتساب والحسابات</small>
-        </div>
-    </aside>
-
-    <!-- المحتوى الرئيسي لصفحة الموظفين والحضور -->
-    <main class="main-content">
-        <div class="header-title">
-            <h2>إدارة الموظفين وتسجيل الحضور والانصراف</h2>
+    <div class="container">
+        <!-- شريط علوي يوضح أن هذه صفحة الموظف -->
+        <div class="top-bar">
+            <h2><i class="fas fa-cash-register"></i> نظام الموظف - برو تيك</h2>
+            <span>صلاحية: إدخال فواتير وعملاء فقط</span>
         </div>
 
-        <!-- نموذج إضافة موظف أو تسجيل حضور -->
+        <!-- قسم إنشاء فاتورة جديدة -->
         <div class="card">
-            <h3>إضافة موظف جديد</h3>
-            <div class="form-group" style="margin-top: 15px;">
-                <label>اسم الموظف</label>
-                <input type="text" id="employeeName" class="form-control" placeholder="أدخل اسم الموظف الثنائي أو الثلاثي">
+            <h3><i class="fas fa-file-invoice-dollar"></i> إصدار فاتورة جديدة للمبيعات</h3>
+            <div class="form-group">
+                <label>اسم العميل</label>
+                <input type="text" id="invoiceCustomer" class="form-control" placeholder="مثال: ايهاب سالم">
             </div>
             <div class="form-group">
-                <label>الوظيفة / القسم</label>
-                <input type="text" id="employeeRole" class="form-control" placeholder="مثال: مسؤول مبيعات، فني طباعة">
+                <label>تفاصيل الفاتورة / المنتج (مثال: حبر indoor اسود)</label>
+                <input type="text" id="invoiceDetails" class="form-control" placeholder="اكتب تفاصيل المنتجات المباعة">
             </div>
-            <button class="btn" onclick="addEmployee()">حفظ الموظف</button>
+            <div class="form-group">
+                <label>إجمالي المبلغ (ج.م)</label>
+                <input type="number" id="invoiceAmount" class="form-control" placeholder="مثال: 3500">
+            </div>
+            <button class="btn" onclick="addNewInvoice()">حفظ وإرسال الفاتورة للأدمن</button>
         </div>
 
-        <!-- جدول عرض الموظفين المسجلين -->
+        <!-- قسم إضافة عميل جديد لدليل العملاء -->
         <div class="card">
-            <h3>قائمة موظفي شركة برو تيك</h3>
+            <h3><i class="fas fa-user-plus"></i> إضافة عميل جديد لدليل العملاء</h3>
+            <div class="form-group">
+                <label>اسم العميل</label>
+                <input type="text" id="clientName" class="form-control" placeholder="اسم العميل الكامل">
+            </div>
+            <div class="form-group">
+                <label>رقم الهاتف / العنوان</label>
+                <input type="text" id="clientDetails" class="form-control" placeholder="مثال: شارع فيصل - 010xxxxxxxx">
+            </div>
+            <button class="btn" onclick="addNewClient()" style="background: #10b981;">حفظ العميل</button>
+        </div>
+
+        <!-- عرض الفواتير المسجلة حديثاً من قِبل هذا الموظف -->
+        <div class="card">
+            <h3><i class="fas fa-list"></i> الفواتير المسجلة اليوم</h3>
             <table>
                 <thead>
                     <tr>
-                        <th>الاسم</th>
-                        <th>الوظيفة</th>
-                        <th>حالة الحضور اليوم</th>
-                        <th>الإجراءات</th>
+                        <th>رقم الفاتورة</th>
+                        <th>اسم العميل</th>
+                        <th>التفاصيل والمبلغ</th>
+                        <th>التاريخ</th>
                     </tr>
                 </thead>
-                <tbody id="employeesTableBody">
-                    <!-- يتم جلب البيانات وتعبئتها من فايربيز تلقائياً -->
+                <tbody id="employeeInvoicesList">
+                    <!-- يتم جلبها من فايربيز تلقائياً -->
                 </tbody>
             </table>
         </div>
-    </main>
+    </div>
 
-    <!-- ربط السكريبت وقاعدة البيانات فايربيز -->
     <script>
-        // إعدادات اتصال فايربيز الخاصة بمشروعك
+        // إعدادات اتصال فايربيز (نفس قاعدة البيانات المستخدمة في لوحة الأدمن)
         const firebaseConfig = {
-            databaseURL: "https://pro-tech-sestem-default-rtdb.firebaseio.com/" // استبدلها برابط قاعدتك لو مختلف
+            databaseURL: "https://pro-tech-sestem-default-rtdb.firebaseio.com/"
         };
         
         if (!firebase.apps.length) {
@@ -243,58 +167,85 @@
         }
         const database = firebase.database();
 
-        // دالة إضافة موظف جديد لـ Firebase
-        function addEmployee() {
-            const name = document.getElementById('employeeName').value;
-            const role = document.getElementById('employeeRole').value;
+        // دالة إنشاء وإرسال الفاتورة لـ Firebase (تظهر فوراً في لوحة الأدمن)
+        function addNewInvoice() {
+            const customer = document.getElementById('invoiceCustomer').value;
+            const details = document.getElementById('invoiceDetails').value;
+            const amount = document.getElementById('invoiceAmount').value;
 
-            if(!name || !role) {
-                alert('الرجاء إدخال اسم الموظف ووظيفته أولاً!');
+            if(!customer || !details || !amount) {
+                alert('الرجاء إكمال كافة بيانات الفاتورة!');
                 return;
             }
 
-            const empRef = database.ref('employees').push();
-            empRef.set({
-                name: name,
-                role: role,
-                status: 'حاضر'
+            // توليد رقم فاتورة عشوائي زي النظام عندك
+            const invNumber = 'INV-' + Math.floor(1000 + Math.random() * 9000);
+            
+            // الحصول على تاريخ اليوم وتنسيقه زي الواجهة الرئيسية عندك
+            const today = new Date();
+            const dateStr = today.getFullYear() + '/' + (today.getMonth() + 1) + '/' + today.getDate();
+
+            // حفظ الفاتورة في مسار مخصص يقرأه الأدمن في لوحته
+            const invoicesRef = database.ref('invoices').push();
+            invoicesRef.set({
+                invNumber: invNumber,
+                customer: customer + ' ( ' + details + ' )',
+                amount: amount + ' ج.م',
+                date: dateStr
             }, (error) => {
-                if (error) {
-                    alert('حدث خطأ أثناء الحفظ!');
+                if(error) {
+                    alert('حدث خطأ أثناء حفظ الفاتورة!');
                 } else {
-                    alert('تم إضافة الموظف بنجاح!');
-                    document.getElementById('employeeName').value = '';
-                    document.getElementById('employeeRole').value = '';
+                    alert('تم إصدار الفاتورة وإرسالها للوحة الإدارة بنجاح!');
+                    document.getElementById('invoiceCustomer').value = '';
+                    document.getElementById('invoiceDetails').value = '';
+                    document.getElementById('invoiceAmount').value = '';
                 }
             });
         }
 
-        // جلب وعرض الموظفين من Firebase بصورة حية
-        database.ref('employees').on('value', (snapshot) => {
-            const tbody = document.getElementById('employeesTableBody');
+        // دالة إضافة عميل جديد لدليل العملاء ليظهر عند الأدمن
+        function addNewClient() {
+            const name = document.getElementById('clientName').value;
+            const details = document.getElementById('clientDetails').value;
+
+            if(!name) {
+                alert('الرجاء إدخال اسم العميل على الأقل!');
+                return;
+            }
+
+            const clientsRef = database.ref('customers').push();
+            clientsRef.set({
+                name: name,
+                details: details || 'لا يوجد تفاصيل'
+            }, (error) => {
+                if(error) {
+                    alert('حدث خطأ أثناء حفظ العميل!');
+                } else {
+                    alert('تم إضافة العميل بنجاح لدليل العملاء!');
+                    document.getElementById('clientName').value = '';
+                    document.getElementById('clientDetails').value = '';
+                }
+            });
+        }
+
+        // متابعة الفواتير وعرضها أول بأول في صفحة الموظف
+        database.ref('invoices').on('value', (snapshot) => {
+            const tbody = document.getElementById('employeeInvoicesList');
             tbody.innerHTML = '';
             
             snapshot.forEach((childSnapshot) => {
-                const emp = childSnapshot.val();
-                const empId = childSnapshot.key;
-
+                const inv = childSnapshot.val();
                 tbody.innerHTML += `
                     <tr>
-                        <td>${emp.name}</td>
-                        <td>${emp.role}</td>
-                        <td><span style="color: green; font-weight: bold;">${emp.status || 'حاضر'}</span></td>
-                        <td><button class="btn" style="padding: 5px 10px; background: #ef4444;" onclick="deleteEmployee('${empId}')">حذف</button></td>
+                        <td><b>${inv.invNumber}</b></td>
+                        <td>${inv.customer}</td>
+                        <td>${inv.amount}</td>
+                        <td>${inv.date}</td>
                     </tr>
                 `;
             });
         });
-
-        // دالة حذف موظف
-        function deleteEmployee(id) {
-            if(confirm('هل أنت متأكد من حذف هذا الموظف؟')) {
-                database.ref('employees/' + id).remove();
-            }
-        }
     </script>
 </body>
 </html>
