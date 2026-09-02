@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>بوابة الموظف - ProTech ERP</title>
+    <title>نظام برو تيك - بوابة الموظف</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
@@ -21,7 +21,7 @@
             display: flex;
             min-height: 100vh;
         }
-        /* نفس تصميم القائمة الجانبية للأدمن بالضبط */
+        /* نفس تصميم الـ Sidebar الأصلي للأدمن مع السكرول المطلوب والتصغير */
         .sidebar {
             width: 260px;
             background: #0f172a;
@@ -63,6 +63,7 @@
         .sidebar .nav-links {
             flex: 1;
             overflow-y: auto;
+            overflow-x: hidden;
             list-style: none;
             padding: 0 10px;
             margin: 0;
@@ -103,19 +104,22 @@
             font-size: 10px;
             color: #94a3b8;
         }
-        
-        /* محتوى الصفحة الرئيسي نفس استايل الأدمن */
+
+        /* تنسيق المحتوى الرئيسي مطابق للأدمن */
         .main-content {
             margin-right: 260px;
             flex: 1;
             padding: 30px;
         }
-        .header-title {
+        .top-bar-user {
+            background: #fff;
+            padding: 15px 20px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
             margin-bottom: 25px;
-        }
-        .header-title h2 {
-            font-size: 24px;
-            color: #1e293b;
         }
         .card {
             background: #fff;
@@ -175,56 +179,58 @@
             background: #f8fafc;
             color: #475569;
         }
-        .tab-content {
+        .tab-pane {
             display: none;
         }
-        .tab-content.active {
+        .tab-pane.active {
             display: block;
         }
     </style>
 </head>
 <body>
 
-    <!-- القائمة الجانبية بنفس تصميم الأدمن ولكن بزرين أساسيين فقط للموظف -->
+    <!-- القائمة الجانبية (نفس تصميم الأدمن تماماً مع زرين التنقل للموظف) -->
     <aside class="sidebar">
         <div class="brand-header">
             <div class="logo-circle"><i class="fas fa-print"></i></div>
             <h1>Bro Tech</h1>
-            <span>ProTech ERP v2.0 (بوابة الموظف)</span>
+            <span>ProTech ERP v2.0</span>
         </div>
         <ul class="nav-links">
-            <li class="active" id="nav-sales" onclick="switchEmployeeTab('sales')"><i class="fas fa-cash-register"></i> إدارة الفواتير والمبيعات</li>
-            <li id="nav-customers" onclick="switchEmployeeTab('customers')"><i class="fas fa-users"></i> دليل العملاء</li>
+            <li class="active" id="menu-sales" onclick="switchTab('sales')"><i class="fas fa-cash-register"></i> المبيعات والفواتير</li>
+            <li id="menu-customers" onclick="switchTab('customers')"><i class="fas fa-users"></i> دليل العملاء</li>
         </ul>
         <div class="sidebar-footer">
             <p><i class="fas fa-phone-alt"></i> 01020008299</p>
-            <small>حالة النظام: موظف مبيعات</small>
+            <small>الحالة: متصل بالواتساب والحسابات</small>
         </div>
     </aside>
 
-    <!-- المحتوى الرئيسي -->
+    <!-- المحتوى الرئيسي المطابق لشاشة الأدمن -->
     <main class="main-content">
         
-        <!-- تبويب إدارة الفواتير والمبيعات -->
-        <div id="tab-sales" class="tab-content active">
-            <div class="header-title">
-                <h2>إصدار وتسجيل الفواتير</h2>
-            </div>
+        <div class="top-bar-user">
+            <h2>لوحة الموظف - إدارة الفواتير والعملاء</h2>
+            <span style="background: #e2e8f0; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: bold;">النظام يعمل ببيانات حقيقية (Firebase)</span>
+        </div>
+
+        <!-- 1. قسم المبيعات والفواتير -->
+        <div id="section-sales" class="tab-pane active">
             <div class="card">
-                <h3>إضافة فاتورة جديدة</h3>
+                <h3>إصدار فاتورة جديدة</h3>
                 <div class="form-group">
-                    <label>اسم العميل والتفاصيل</label>
-                    <input type="text" id="invoiceCustomer" class="form-control" placeholder="مثال: ايهاب سالم ( حبر indoor اسود )">
+                    <label>اسم العميل وتفاصيل المنتج (مثال: ايهاب سالم - حبر indoor اسود)</label>
+                    <input type="text" id="invCustomer" class="form-control" placeholder="أدخل اسم العميل والمنتج المباع">
                 </div>
                 <div class="form-group">
-                    <label>إجمالي المبلغ (ج.م)</label>
-                    <input type="text" id="invoiceAmount" class="form-control" placeholder="مثال: 3,500 ج.م">
+                    <label>المبلغ الإجمالي (ج.م)</label>
+                    <input type="text" id="invAmount" class="form-control" placeholder="مثال: 3,500 ج.م">
                 </div>
-                <button class="btn" onclick="addNewInvoice()">حفظ الفاتورة وإرسالها للأدمن</button>
+                <button class="btn" onclick="saveInvoice()">حفظ الفاتورة وتحديثها فوراً</button>
             </div>
 
             <div class="card">
-                <h3>الفواتير الصادرة</h3>
+                <h3>سجل الفواتير المسجلة</h3>
                 <table>
                     <thead>
                         <tr>
@@ -234,42 +240,39 @@
                             <th>التاريخ</th>
                         </tr>
                     </thead>
-                    <tbody id="invoicesTableBody">
-                        <!-- يتم جلب البيانات من فايربيز -->
+                    <tbody id="invoicesTable">
+                        <!-- جلب البيانات حية من الفايربيز -->
                     </tbody>
                 </table>
             </div>
         </div>
 
-        <!-- تبويب دليل العملاء -->
-        <div id="tab-customers" class="tab-content">
-            <div class="header-title">
-                <h2>دليل العملاء</h2>
-            </div>
+        <!-- 2. قسم دليل العملاء -->
+        <div id="section-customers" class="tab-pane">
             <div class="card">
                 <h3>إضافة عميل جديد</h3>
                 <div class="form-group">
                     <label>اسم العميل</label>
-                    <input type="text" id="clientName" class="form-control" placeholder="اسم العميل">
+                    <input type="text" id="custName" class="form-control" placeholder="اسم العميل الكامل">
                 </div>
                 <div class="form-group">
-                    <label>تفاصيل التواصل / العنوان</label>
-                    <input type="text" id="clientDetails" class="form-control" placeholder="العنوان ورقم الهاتف">
+                    <label>العنوان ورقم الهاتف</label>
+                    <input type="text" id="custDetails" class="form-control" placeholder="مثال: شارع فيصل - 010xxxxxxxx">
                 </div>
-                <button class="btn" onclick="addNewClient()" style="background: #10b981;">حفظ العميل</button>
+                <button class="btn" onclick="saveCustomer()" style="background: #10b981;">إضافة وحفظ العميل</button>
             </div>
 
             <div class="card">
-                <h3>قائمة العملاء المسجلين</h3>
+                <h3>دليل العملاء المسجلين</h3>
                 <table>
                     <thead>
                         <tr>
                             <th>اسم العميل</th>
-                            <th>التفاصيل والعنوان</th>
+                            <th>العنوان والتفاصيل</th>
                         </tr>
                     </thead>
-                    <tbody id="customersTableBody">
-                        <!-- يتم جلب البيانات من فايربيز -->
+                    <tbody id="customersTable">
+                        <!-- جلب البيانات حية من الفايربيز -->
                     </tbody>
                 </table>
             </div>
@@ -277,7 +280,7 @@
 
     </main>
 
-    <!-- السكريبت والربط بقاعدة البيانات -->
+    <!-- الأكواد البرمجية والربط بقاعدة البيانات -->
     <script>
         const firebaseConfig = {
             databaseURL: "https://pro-tech-sestem-default-rtdb.firebaseio.com/"
@@ -288,24 +291,24 @@
         }
         const database = firebase.database();
 
-        // التنقل بين القسمين (الفواتير والعملاء) داخل نفس الصفحة بنظام السحب المماثل للأدمن
-        function switchEmployeeTab(tabName) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        // دالة التبديل بين القسمين في نفس واجهة الأدمن
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.sidebar .nav-links li').forEach(el => el.classList.remove('active'));
 
-            if(tabName === 'sales') {
-                document.getElementById('tab-sales').classList.add('active');
-                document.getElementById('nav-sales').classList.add('active');
-            } else if(tabName === 'customers') {
-                document.getElementById('tab-customers').classList.add('active');
-                document.getElementById('nav-customers').classList.add('active');
+            if(tab === 'sales') {
+                document.getElementById('section-sales').classList.add('active');
+                document.getElementById('menu-sales').classList.add('active');
+            } else if(tab === 'customers') {
+                document.getElementById('section-customers').classList.add('active');
+                document.getElementById('menu-customers').classList.add('active');
             }
         }
 
-        // إضافة فاتورة جديدة وتحديثها في فايربيز (تظهر مباشرة في صفحة الأدمن)
-        function addNewInvoice() {
-            const customer = document.getElementById('invoiceCustomer').value;
-            const amount = document.getElementById('invoiceAmount').value;
+        // حفظ الفاتورة في نفس مسار قاعدة البيانات الخاص بالأدمن
+        function saveInvoice() {
+            const customer = document.getElementById('invCustomer').value;
+            const amount = document.getElementById('invAmount').value;
 
             if(!customer || !amount) {
                 alert('الرجاء إدخال بيانات الفاتورة كاملة!');
@@ -323,19 +326,19 @@
                 date: dateStr
             }, (error) => {
                 if(error) {
-                    alert('خطأ أثناء الحفظ');
+                    alert('خطأ في الحفظ');
                 } else {
-                    alert('تم حفظ الفاتورة بنجاح وتحديثها في نظام الأدمن!');
-                    document.getElementById('invoiceCustomer').value = '';
-                    document.getElementById('invoiceAmount').value = '';
+                    alert('تم حفظ الفاتورة بنجاح!');
+                    document.getElementById('invCustomer').value = '';
+                    document.getElementById('invAmount').value = '';
                 }
             });
         }
 
-        // إضافة عميل جديد لـ فايربيز
-        function addNewClient() {
-            const name = document.getElementById('clientName').value;
-            const details = document.getElementById('clientDetails').value;
+        // حفظ العميل في نفس مسار العملاء الخاص بالأدمن
+        function saveCustomer() {
+            const name = document.getElementById('custName').value;
+            const details = document.getElementById('custDetails').value;
 
             if(!name) {
                 alert('الرجاء إدخال اسم العميل!');
@@ -347,18 +350,18 @@
                 details: details || 'لا يوجد تفاصيل'
             }, (error) => {
                 if(error) {
-                    alert('خطأ أثناء الحفظ');
+                    alert('خطأ في الحفظ');
                 } else {
-                    alert('تم إضافة العميل لدليل العملاء بنجاح!');
-                    document.getElementById('clientName').value = '';
-                    document.getElementById('clientDetails').value = '';
+                    alert('تم إضافة العميل بنجاح!');
+                    document.getElementById('custName').value = '';
+                    document.getElementById('custDetails').value = '';
                 }
             });
         }
 
-        // الاستماع لجداول الفواتير لحظياً
+        // جلب الفواتير لحظياً لتطابق ما يراه الأدمن
         database.ref('invoices').on('value', (snapshot) => {
-            const tbody = document.getElementById('invoicesTableBody');
+            const tbody = document.getElementById('invoicesTable');
             tbody.innerHTML = '';
             snapshot.forEach((child) => {
                 const inv = child.val();
@@ -373,16 +376,16 @@
             });
         });
 
-        // الاستماع لجداول العملاء لحظياً
+        // جلب العملاء لحظياً لتطابق ما يراه الأدمن
         database.ref('customers').on('value', (snapshot) => {
-            const tbody = document.getElementById('customersTableBody');
+            const tbody = document.getElementById('customersTable');
             tbody.innerHTML = '';
             snapshot.forEach((child) => {
-                const client = child.val();
+                const cust = child.val();
                 tbody.innerHTML += `
                     <tr>
-                        <td><b>${client.name}</b></td>
-                        <td>${client.details}</td>
+                        <td><b>${cust.name}</b></td>
+                        <td>${cust.details}</td>
                     </tr>
                 `;
             });
