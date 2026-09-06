@@ -19,7 +19,9 @@ const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const db = getFirestore(app);
 
-// Data State (Initial Defaults) - تم ضبط الأكواد بمنتهى الدقة لمنع أي تداخل
+const LOW_STOCK_THRESHOLD = 20;
+
+// Data State (Initial Defaults)
 let inventory = [
     { code: 'PR-001', name: 'حبر طابعة ياباني أسود ليزر', qty: 45, unit: 'لتر', price: 1200 },
     { code: 'PR-002', name: 'ماكينة طباعة رقمية موديل X', qty: 5, unit: 'قطعة', price: 25000 },
@@ -45,6 +47,7 @@ let settings = {
 };
 
 let currentInvoiceData = null;
+let currentInvoiceIndex = null;
 let mainChartInstance = null;
 
 // Load data from Firebase on startup
@@ -110,16 +113,31 @@ function refreshAllData() {
     renderCustomers();
     populateSelects();
 }
+window.refreshAllData = refreshAllData;
 
-window.switchTab = function(tabId) {
-    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('.sidebar .nav-links li').forEach(el => el.classList.remove('active'));
-    
+// ===================== التنقل بين التابات =====================
+window.switchTab = function(tabId, el) {
+    document.querySelectorAll('.tab-content').forEach(elx => elx.classList.remove('active'));
+    document.querySelectorAll('.sidebar .nav-links li').forEach(elx => elx.classList.remove('active'));
+
     let targetTab = document.getElementById('tab-' + tabId);
     if(targetTab) targetTab.classList.add('active');
-    if(event && event.currentTarget) event.currentTarget.classList.add('active');
+
+    // تحديد العنصر النشط في القائمة الجانبية بدون الاعتماد على window.event (غير موثوق دائماً)
+    if (el && el.classList) {
+        el.classList.add('active');
+    } else if (window.event && window.event.currentTarget) {
+        window.event.currentTarget.classList.add('active');
+    }
+
+    // إغلاق قائمة الموبايل تلقائياً بعد اختيار صفحة
+    const sidebar = document.getElementById('mainSidebar');
+    if (sidebar && sidebar.classList.contains('mobile-open') && typeof window.toggleMobileMenu === 'function') {
+        window.toggleMobileMenu();
+    }
 };
 
+// ===================== لوحة المؤشرات =====================
 function renderDashboard() {
     let totalStock = inventory.reduce((sum, item) => sum + Number(item.qty), 0);
     let totalSales = invoices.reduce((sum, inv) => sum + Number(inv.total), 0);
@@ -141,11 +159,11 @@ function renderDashboard() {
         let profitCard = document.createElement('div');
         profitCard.className = 'stat-card';
         profitCard.innerHTML = `
+            <div class="stat-icon" style="background: #10b981; color: #fff;"><i class="fas fa-chart-line"></i></div>
             <div class="stat-info">
                 <h3>إجمالي الربح</h3>
-                <p id="statTotalProfit" style="font-size: 20px; font-weight: bold; color: #10b981; margin: 5px 0 0 0;">0 ج.م</p>
+                <span id="statTotalProfit">0 ج.م</span>
             </div>
-            <div class="stat-icon" style="background: #10b981; color: #fff; padding: 15px; border-radius: 8px;"><i class="fas fa-chart-line"></i></div>
         `;
         statsGrid.appendChild(profitCard);
     }
@@ -155,6 +173,9 @@ function renderDashboard() {
     let recentTbody = document.querySelector('#recentInvoicesTable tbody');
     if(recentTbody) {
         recentTbody.innerHTML = '';
+        if(invoices.length === 0) {
+            recentTbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:15px; color:#94a3b8;">لا توجد فواتير بعد</td></tr>`;
+        }
         invoices.slice(-5).reverse().forEach(inv => {
             recentTbody.innerHTML += `
                 <tr>
@@ -170,7 +191,7 @@ function renderDashboard() {
     let alertsList = document.getElementById('lowStockAlertsList');
     if(alertsList) {
         alertsList.innerHTML = '';
-        let lowItems = inventory.filter(i => i.qty < 20);
+        let lowItems = inventory.filter(i => Number(i.qty) < LOW_STOCK_THRESHOLD);
         if(lowItems.length === 0) {
             alertsList.innerHTML = '<p style="color:#10b981; font-size:14px;"><i class="fas fa-check-circle"></i> جميع الأصناف في المخزون متوفرة.</p>';
         } else {
@@ -181,21 +202,87 @@ function renderDashboard() {
     }
 }
 
+// طباعة قائمة المنتجات الناقصة (بجانب لوحة تنبيهات نقص المخزون)
+window.printLowStockReport = function() {
+    let lowItems = inventory.filter(i => Number(i.qty) < LOW_STOCK_THRESHOLD);
+    let todayStr = new Date().toLocaleDateString('ar-EG');
+
+    let rowsHtml = '';
+    if(lowItems.length === 0) {
+        rowsHtml = `<tr><td colspan="4" style="text-align:center; padding:15px; color:#666;">لا توجد أصناف ناقصة حالياً - المخزون بحالة جيدة</td></tr>`;
+    } else {
+        lowItems.forEach(i => {
+            rowsHtml += `
+                <tr>
+                    <td style="padding:8px; border:1px solid #cbd5e1; text-align:center;">${i.code}</td>
+                    <td style="padding:8px; border:1px solid #cbd5e1;">${i.name}</td>
+                    <td style="padding:8px; border:1px solid #cbd5e1; text-align:center; color:#e11d48; font-weight:bold;">${i.qty} ${i.unit}</td>
+                    <td style="padding:8px; border:1px solid #cbd5e1; text-align:center;">${i.price.toLocaleString()} ج.م</td>
+                </tr>
+            `;
+        });
+    }
+
+    let printWin = window.open('', '_blank', 'height=700,width=900');
+    printWin.document.write(`
+        <html lang="ar" dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <title>قائمة المنتجات الناقصة - Bro Tech</title>
+            <style>
+                body { font-family: Tahoma, sans-serif; padding: 25px; background:#fff; color:#000; direction: rtl; }
+                table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                th, td { border: 1px solid #cbd5e1; padding: 8px; font-size: 13px; }
+                th { background: #f1f5f9; }
+                @media print { .no-print { display:none; } }
+            </style>
+        </head>
+        <body>
+            <div style="text-align:center; margin-bottom:20px;">
+                <h2 style="color:#0284c7; margin:0;">Bro Tech - قائمة المنتجات التي قربت تخلص</h2>
+                <p style="color:#64748b; margin:5px 0;">تاريخ التقرير: ${todayStr} | حد التنبيه: أقل من ${LOW_STOCK_THRESHOLD} وحدة</p>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>كود الصنف</th>
+                        <th>اسم الصنف</th>
+                        <th>الكمية المتبقية</th>
+                        <th>سعر الوحدة</th>
+                    </tr>
+                </thead>
+                <tbody>${rowsHtml}</tbody>
+            </table>
+            <div class="no-print" style="margin-top:25px; text-align:center;">
+                <button onclick="window.print()" style="background:#0284c7; color:white; border:none; padding:10px 20px; border-radius:5px; cursor:pointer; font-weight:bold;">🖨️ طباعة القائمة</button>
+            </div>
+        </body>
+        </html>
+    `);
+    printWin.document.close();
+};
+
+// ===================== المخزون =====================
 function renderInventory() {
     let tbody = document.getElementById('inventoryTableBody');
     if(!tbody) return;
     tbody.innerHTML = '';
+    if(inventory.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px; color:#94a3b8;">لا توجد أصناف مسجلة</td></tr>`;
+        return;
+    }
     inventory.forEach((item, index) => {
+        let lowClass = Number(item.qty) < LOW_STOCK_THRESHOLD ? 'style="color:#e11d48; font-weight:bold;"' : '';
         tbody.innerHTML += `
             <tr>
                 <td>${item.code}</td>
                 <td><bdi style="unicode-bidi: isolate; direction: auto;">${item.name}</bdi></td>
-                <td><strong>${item.qty}</strong></td>
+                <td ${lowClass}>${item.qty}</td>
                 <td>${item.unit}</td>
                 <td>${item.price.toLocaleString()} ج.م</td>
                 <td>
-                    <button onclick="openEditProductModal(${index})" style="background: #0284c7; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;"><i class="fas fa-edit"></i> تعديل</button>
-                    <button onclick="deleteProduct(${index})" style="background: #f43f5e; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;"><i class="fas fa-trash"></i> حذف</button>
+                    <button onclick="openEditProductModal(${index})" class="btn-action btn-edit-sm"><i class="fas fa-edit"></i> تعديل</button>
+                    <button onclick="deleteProduct(${index})" class="btn-action btn-danger-sm"><i class="fas fa-trash"></i> حذف</button>
                 </td>
             </tr>
         `;
@@ -205,7 +292,7 @@ function renderInventory() {
 window.filterInventory = function() {
     let searchInput = document.getElementById('searchInventory');
     if(!searchInput) return;
-    let query = searchInput.value.toLowerCase();
+    let query = searchInput.value.toLowerCase().trim();
     document.querySelectorAll('#inventoryTableBody tr').forEach(row => {
         row.style.display = row.innerText.toLowerCase().includes(query) ? '' : 'none';
     });
@@ -223,7 +310,12 @@ window.addNewProduct = function(e) {
     let price = Number(document.getElementById('prodPrice')?.value);
 
     if(!code || !name) return;
-    
+
+    if(inventory.some(i => i.code === code)) {
+        alert('هذا الكود مستخدم بالفعل لصنف آخر، برجاء اختيار كود مختلف.');
+        return;
+    }
+
     inventory.push({ code, name, qty, unit, price });
     saveData();
     refreshAllData();
@@ -239,10 +331,52 @@ window.deleteProduct = function(index) {
     }
 };
 
+window.openEditProductModal = function(index) {
+    const product = inventory[index];
+    if (!product) return;
+
+    document.getElementById('editProdIndex').value = index;
+    document.getElementById('editProdCode').value = product.code || '';
+    document.getElementById('editProdName').value = product.name || '';
+    document.getElementById('editProdQty').value = product.qty || 0;
+    document.getElementById('editProdUnit').value = product.unit || '';
+    document.getElementById('editProdPrice').value = product.price || 0;
+
+    document.getElementById('editProductModal').style.display = 'flex';
+};
+
+window.closeEditProductModal = function() {
+    document.getElementById('editProductModal').style.display = 'none';
+};
+
+window.saveEditedProduct = function(event) {
+    event.preventDefault();
+
+    const index = document.getElementById('editProdIndex').value;
+    if (index === "" || !inventory[index]) return;
+
+    inventory[index].code = document.getElementById('editProdCode').value.trim();
+    inventory[index].name = document.getElementById('editProdName').value.trim();
+    inventory[index].qty = Number(document.getElementById('editProdQty').value);
+    inventory[index].unit = document.getElementById('editProdUnit').value;
+    inventory[index].price = Number(document.getElementById('editProdPrice').value);
+
+    saveData();
+    refreshAllData();
+
+    closeEditProductModal();
+    alert('تم تعديل بيانات الصنف بنجاح!');
+};
+
+// ===================== المشتريات =====================
 function renderPurchases() {
     let tbody = document.getElementById('purchasesTableBody');
     if(!tbody) return;
     tbody.innerHTML = '';
+    if(purchases.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px; color:#94a3b8;">لا توجد عمليات شراء مسجلة</td></tr>`;
+        return;
+    }
     purchases.forEach((p, index) => {
         tbody.innerHTML += `
             <tr>
@@ -253,7 +387,7 @@ function renderPurchases() {
                 <td>${(p.unitCost || 0).toLocaleString()} ج.م</td>
                 <td>${p.cost.toLocaleString()} ج.م</td>
                 <td>${p.date}</td>
-                <td><button class="btn-danger-sm" onclick="deletePurchase(${index})"><i class="fas fa-trash"></i> حذف</button></td>
+                <td><button class="btn-action btn-danger-sm" onclick="deletePurchase(${index})"><i class="fas fa-trash"></i> حذف</button></td>
             </tr>
         `;
     });
@@ -267,8 +401,8 @@ window.createNewPurchase = function(e) {
     let supplier = document.getElementById('purchaseSupplier')?.value;
     let prodCode = document.getElementById('purchaseProductSelect')?.value;
     let qty = Number(document.getElementById('purchaseQty')?.value);
-    let unitCost = Number(document.getElementById('purchaseUnitCost')?.value || document.getElementById('purchaseCost')?.value);
-    let totalCost = unitCost * qty;
+    let totalCost = Number(document.getElementById('purchaseCost')?.value);
+    let unitCost = qty > 0 ? (totalCost / qty) : 0;
 
     let product = inventory.find(i => i.code === prodCode);
     if(product) {
@@ -286,7 +420,7 @@ window.createNewPurchase = function(e) {
 };
 
 window.deletePurchase = function(index) {
-    if(confirm('هل تريد حذف عملية الشراء هذه؟')) {
+    if(confirm('هل تريد حذف عملية الشراء هذه؟ سيتم خصم الكمية المضافة من المخزون.')) {
         let p = purchases[index];
         let product = inventory.find(i => i.code === p.productCode);
         if(product) {
@@ -299,14 +433,17 @@ window.deletePurchase = function(index) {
     }
 };
 
+// ===================== القوائم المنسدلة المشتركة =====================
 function populateSelects() {
     let custSelect = document.getElementById('invoiceCustomerSelect');
     if(custSelect) {
+        let currentVal = custSelect.value;
         custSelect.innerHTML = '<option value="">-- اختر عميل مسجل --</option>';
         customers.forEach(c => {
             custSelect.innerHTML += `<option value="${c.name}">${c.name} (${c.phone || 'بدون هاتف'})</option>`;
         });
         custSelect.innerHTML += `<option value="NEW_CUSTOMER" style="color: #0284c7; font-weight: bold;">+ إضافة عميل جديد...</option>`;
+        if(currentVal) custSelect.value = currentVal;
     }
 
     let purProdSelect = document.getElementById('purchaseProductSelect');
@@ -322,20 +459,9 @@ window.handleCustomerSelectChange = function() {
     let val = document.getElementById('invoiceCustomerSelect')?.value;
     let newDiv = document.getElementById('newCustomerDiv');
     if(newDiv) newDiv.style.display = (val === 'NEW_CUSTOMER') ? 'block' : 'none';
-
-    let found = customers.find(c => c.name === val);
-    if(found) {
-        let oldBalInput = document.getElementById('invoiceOldBalance');
-        let oldBalType = document.getElementById('invoiceOldBalanceType');
-        let oldBalDateInput = document.getElementById('invoiceOldBalanceDate');
-
-        if(oldBalInput) oldBalInput.value = found.oldBalance || 0;
-        if(oldBalType) oldBalType.value = found.balanceType || 'none';
-        if(oldBalDateInput && found.oldBalanceDate) oldBalDateInput.value = found.oldBalanceDate;
-        calculateInvoiceTotal();
-    }
 };
 
+// ===================== إنشاء / تعديل الفاتورة =====================
 window.addInvoiceItemRow = function(selectedCode = '', selectedQty = 1) {
     let tbody = document.getElementById('invoiceItemsBody');
     if(!tbody) return;
@@ -354,11 +480,12 @@ window.addInvoiceItemRow = function(selectedCode = '', selectedQty = 1) {
         <td style="padding: 5px; text-align: center;"><button type="button" onclick="this.closest('tr').remove(); calculateInvoiceTotal();" style="background:#f43f5e; color:#fff; border:none; padding:5px 8px; border-radius:4px; cursor:pointer;"><i class="fas fa-trash"></i></button></td>
     `;
     tbody.appendChild(tr);
-    
+
     let selectEl = tr.querySelector('.inv-item-code');
     if(selectedCode && selectEl) {
         window.updateRowPrice(selectEl);
     }
+    return tr;
 };
 window.updateRowPrice = function(selectElem) {
     let opt = selectElem.options[selectElem.selectedIndex];
@@ -397,14 +524,24 @@ window.calculateInvoiceTotal = function() {
 
     let display = document.getElementById('invoiceFinalTotalDisplay');
     if(display) display.innerText = finalTotal.toLocaleString() + ' ج.م';
-    
+
     return finalTotal;
 };
 
 window.openNewInvoiceModal = function() {
+    // وضع الإنشاء الجديد (وليس التعديل)
+    document.getElementById('editingInvoiceIndex').value = '';
+    document.getElementById('invoiceFormTitle').innerHTML = '<i class="fas fa-file-invoice-dollar"></i> إنشاء فاتورة مبيعات جديدة';
+    document.getElementById('invoiceSubmitBtn').innerHTML = '<i class="fas fa-save"></i> حفظ وعرض الفاتورة';
+
     let modal = document.getElementById('newInvoiceModal');
     if(modal) modal.style.display = 'flex';
     populateSelects();
+
+    let custSelect = document.getElementById('invoiceCustomerSelect');
+    if(custSelect) custSelect.value = '';
+    let newDiv = document.getElementById('newCustomerDiv');
+    if(newDiv) newDiv.style.display = 'none';
 
     let tbody = document.getElementById('invoiceItemsBody');
     if(tbody) {
@@ -416,14 +553,88 @@ window.openNewInvoiceModal = function() {
     if(disc) disc.value = 0;
     let oldBal = document.getElementById('invoiceOldBalance');
     if(oldBal) oldBal.value = 0;
+    let oldBalType = document.getElementById('invoiceOldBalanceType');
+    if(oldBalType) oldBalType.value = 'none';
+    let oldBalDate = document.getElementById('invoiceOldBalanceDate');
+    if(oldBalDate) oldBalDate.value = '';
+    let payStatus = document.getElementById('invoicePaymentStatus');
+    if(payStatus) payStatus.value = 'تم الدفع بالكامل';
+    let remDiv = document.getElementById('remainingDiv');
+    if(remDiv) remDiv.style.display = 'none';
+    let remInput = document.getElementById('invoiceRemainingInput');
+    if(remInput) remInput.value = 0;
+
     calculateInvoiceTotal();
 };
 
 window.closeNewInvoiceModal = function() { document.getElementById('newInvoiceModal').style.display = 'none'; };
 
+// فتح الفاتورة الحالية للتعديل الكامل (الأصناف، الخصم، حالة الدفع...)
+window.openEditInvoiceModal = function(index) {
+    let inv = invoices[index];
+    if(!inv) return;
+
+    populateSelects();
+
+    document.getElementById('editingInvoiceIndex').value = index;
+    document.getElementById('invoiceFormTitle').innerHTML = `<i class="fas fa-edit"></i> تعديل الفاتورة رقم ${inv.id}`;
+    document.getElementById('invoiceSubmitBtn').innerHTML = '<i class="fas fa-save"></i> حفظ التعديلات';
+
+    let modal = document.getElementById('newInvoiceModal');
+    if(modal) modal.style.display = 'flex';
+
+    let custSelect = document.getElementById('invoiceCustomerSelect');
+    let newDiv = document.getElementById('newCustomerDiv');
+    let custExists = customers.some(c => c.name === inv.customerName);
+    if(custSelect) {
+        custSelect.value = custExists ? inv.customerName : 'NEW_CUSTOMER';
+    }
+    if(newDiv) {
+        newDiv.style.display = custExists ? 'none' : 'block';
+        if(!custExists) {
+            document.getElementById('newCustomerName').value = inv.customerName || '';
+            document.getElementById('newCustomerPhone').value = inv.customerPhone || '';
+            document.getElementById('newCustomerAddress').value = inv.customerAddress || '';
+        }
+    }
+
+    let tbody = document.getElementById('invoiceItemsBody');
+    tbody.innerHTML = '';
+    (inv.items || []).forEach(item => {
+        let tr = window.addInvoiceItemRow(item.code, item.qty);
+        let priceInput = tr.querySelector('.inv-item-price');
+        if(priceInput) priceInput.value = item.price; // نحافظ على السعر الأصلي وقت البيع
+    });
+
+    document.getElementById('invoiceDiscountPercent').value = inv.discountPercent || 0;
+    document.getElementById('invoiceOldBalance').value = inv.oldBalance || 0;
+    document.getElementById('invoiceOldBalanceType').value = inv.oldBalanceType || 'none';
+    document.getElementById('invoiceOldBalanceDate').value = inv.oldBalanceDate || '';
+
+    let remaining = inv.remaining || 0;
+    let payStatus = document.getElementById('invoicePaymentStatus');
+    let remDiv = document.getElementById('remainingDiv');
+    let remInput = document.getElementById('invoiceRemainingInput');
+    if(remaining > 0) {
+        payStatus.value = 'لم يدفع';
+        remDiv.style.display = 'block';
+        remInput.value = remaining;
+    } else {
+        payStatus.value = 'تم الدفع بالكامل';
+        remDiv.style.display = 'none';
+        remInput.value = 0;
+    }
+
+    calculateInvoiceTotal();
+};
+
 window.createNewInvoice = function(e) {
     if(e) e.preventDefault();
-    
+
+    let editingIndexRaw = document.getElementById('editingInvoiceIndex')?.value;
+    let isEditing = editingIndexRaw !== '' && editingIndexRaw !== undefined && editingIndexRaw !== null;
+    let editingIndex = isEditing ? Number(editingIndexRaw) : null;
+
     let customerSelectVal = document.getElementById('invoiceCustomerSelect')?.value;
     let customerName = customerSelectVal;
     let customerPhone = '';
@@ -433,10 +644,18 @@ window.createNewInvoice = function(e) {
         customerName = document.getElementById('newCustomerName')?.value.trim();
         customerPhone = document.getElementById('newCustomerPhone')?.value.trim();
         customerAddress = document.getElementById('newCustomerAddress')?.value.trim();
-        if(customerName && !customers.some(c => c.name === customerName)) {
-            customers.push({ name: customerName, phone: customerPhone, address: customerAddress, oldBalance: 0, balanceType: 'none' });
+        if(!customerName) {
+            alert('يرجى إدخال اسم العميل الجديد!');
+            return;
+        }
+        if(!customers.some(c => c.name === customerName)) {
+            customers.push({ name: customerName, phone: customerPhone, address: customerAddress, oldBalance: 0, balanceType: 'none', oldBalanceDate: '' });
         }
     } else {
+        if(!customerSelectVal) {
+            alert('يرجى اختيار عميل أو إضافة عميل جديد!');
+            return;
+        }
         let foundCust = customers.find(c => c.name === customerSelectVal);
         if(foundCust) {
             customerPhone = foundCust.phone;
@@ -445,33 +664,56 @@ window.createNewInvoice = function(e) {
     }
 
     let rows = document.querySelectorAll('#invoiceItemsBody tr');
-    let items = [];
-    let subtotal = 0;
-
     if(rows.length === 0) {
         alert('يرجى إضافة صنف واحد على الأقل للفاتورة!');
         return;
     }
 
+    // لو بنعدل فاتورة موجودة، أول حاجة نرجع كمية أصنافها القديمة للمخزون مؤقتاً
+    // عشان نقدر نتحقق من الكمية المتاحة بشكل صحيح مع الكميات الجديدة
+    let originalItemsBackup = null;
+    if(isEditing && invoices[editingIndex]) {
+        originalItemsBackup = invoices[editingIndex].items;
+        originalItemsBackup.forEach(oldItem => {
+            let prodObj = inventory.find(i => i.code === oldItem.code);
+            if(prodObj) prodObj.qty = Number(prodObj.qty) + Number(oldItem.qty);
+        });
+    }
+
+    let items = [];
+    let subtotal = 0;
+
     for(let tr of rows) {
         let selectEl = tr.querySelector('.inv-item-code');
         if(!selectEl || !selectEl.value) {
             alert('يرجى اختيار صنف صحيح في كل السطور!');
+            if(originalItemsBackup) originalItemsBackup.forEach(oldItem => {
+                let prodObj = inventory.find(i => i.code === oldItem.code);
+                if(prodObj) prodObj.qty = Number(prodObj.qty) - Number(oldItem.qty);
+            });
             return;
         }
         let prodCode = selectEl.value;
         let qty = Number(tr.querySelector('.inv-item-qty').value);
         let price = Number(tr.querySelector('.inv-item-price').value);
-        
+
         let prodObj = inventory.find(i => i.code === prodCode);
-        
+
         if(!prodObj) {
             alert(`الصنف المحدد غير موجود في المخزون!`);
+            if(originalItemsBackup) originalItemsBackup.forEach(oldItem => {
+                let p2 = inventory.find(i => i.code === oldItem.code);
+                if(p2) p2.qty = Number(p2.qty) - Number(oldItem.qty);
+            });
             return;
         }
 
         if(qty > prodObj.qty) {
             alert(`الكمية المطلوبة للصنف (${prodObj.name}) أكبر من المتاح في المخزون (${prodObj.qty})!`);
+            if(originalItemsBackup) originalItemsBackup.forEach(oldItem => {
+                let p2 = inventory.find(i => i.code === oldItem.code);
+                if(p2) p2.qty = Number(p2.qty) - Number(oldItem.qty);
+            });
             return;
         }
 
@@ -502,6 +744,7 @@ window.createNewInvoice = function(e) {
         if(paidAmount < 0) paidAmount = 0;
     }
 
+    // خصم الكميات الجديدة فعلياً من المخزون (كل صنف يقل من مكانه الصحيح)
     items.forEach(item => {
         let prodObj = inventory.find(i => i.code === item.code);
         if(prodObj) {
@@ -510,36 +753,58 @@ window.createNewInvoice = function(e) {
         }
     });
 
-    let invoiceId = 'INV-' + Math.floor(1000 + Math.random() * 9000);
-    let currentDate = new Date().toLocaleDateString('ar-EG');
+    let finalInvoiceObj;
 
-    let newInv = {
-        id: invoiceId, customerName, customerPhone, customerAddress,
-        items, subtotal, discountPercent, discountAmount,
-        oldBalance, oldBalanceType, oldBalanceDate,
-        total: finalTotal, paid: paidAmount, remaining: remainingAmount,
-        status: paymentStatus === 'لم يدفع' && remainingAmount > 0 ? `متبقي: ${remainingAmount} ج.م` : paymentStatus,
-        date: currentDate
-    };
+    if(isEditing && invoices[editingIndex]) {
+        let existing = invoices[editingIndex];
+        finalInvoiceObj = {
+            ...existing,
+            customerName, customerPhone, customerAddress,
+            items, subtotal, discountPercent, discountAmount,
+            oldBalance, oldBalanceType, oldBalanceDate,
+            total: finalTotal, paid: paidAmount, remaining: remainingAmount,
+            status: paymentStatus === 'لم يدفع' && remainingAmount > 0 ? `متبقي: ${remainingAmount} ج.م` : paymentStatus,
+            lastEditedDate: new Date().toLocaleDateString('ar-EG')
+        };
+        invoices[editingIndex] = finalInvoiceObj;
+    } else {
+        let invoiceId = 'INV-' + Math.floor(1000 + Math.random() * 9000);
+        let currentDate = new Date().toLocaleDateString('ar-EG');
+        finalInvoiceObj = {
+            id: invoiceId, customerName, customerPhone, customerAddress,
+            items, subtotal, discountPercent, discountAmount,
+            oldBalance, oldBalanceType, oldBalanceDate,
+            total: finalTotal, paid: paidAmount, remaining: remainingAmount,
+            status: paymentStatus === 'لم يدفع' && remainingAmount > 0 ? `متبقي: ${remainingAmount} ج.م` : paymentStatus,
+            date: currentDate
+        };
+        invoices.push(finalInvoiceObj);
+    }
 
-    invoices.push(newInv);
     saveData();
     refreshAllData();
     window.closeNewInvoiceModal();
-    window.showInvoiceModal(newInv);
+    window.showInvoiceModal(finalInvoiceObj);
 };
 
+// ===================== عرض جدول الفواتير =====================
 function renderInvoices() {
     let tbody = document.getElementById('invoicesTableBody');
     if(!tbody) return;
     tbody.innerHTML = '';
-    
-    // نستخدم الـ index الحقيقي للفاتورة بناءً على المصفوفة الأصلية أو البحث العكسي الدقيق
+
+    if(invoices.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px; color:#94a3b8;">لا توجد فواتير مسجلة بعد</td></tr>`;
+        return;
+    }
+
     invoices.slice().reverse().forEach((inv, revIndex) => {
         let index = invoices.length - 1 - revIndex;
-        let statusBadge = (inv.remaining > 0) ? `<span class="badge-danger">متبقي: ${inv.remaining} ج.م</span>` : '<span class="badge-success">تم الدفع بالكامل</span>';
+        let statusBadge = (inv.remaining > 0)
+            ? `<span class="badge-danger"><i class="fas fa-arrow-down"></i> متبقي: ${inv.remaining.toLocaleString()} ج.م</span>`
+            : `<span class="badge-success"><i class="fas fa-arrow-up"></i> تم الدفع بالكامل</span>`;
         let invString = encodeURIComponent(JSON.stringify(inv));
-        
+
         tbody.innerHTML += `
             <tr>
                 <td><strong>${inv.id}</strong></td>
@@ -548,9 +813,12 @@ function renderInvoices() {
                 <td>${inv.total.toLocaleString()} ج.م</td>
                 <td>${statusBadge}</td>
                 <td>
-                    <button onclick='showInvoiceModalEncoded("${invString}")' style="background: #0284c7; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left:5px;"><i class="fas fa-eye"></i> معاينة</button>
-                    <button onclick="openInvoicePaymentByIndex(${index})" style="background: #f59e0b; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px;"><i class="fas fa-edit"></i> تعديل</button>
-                    <button onclick="deleteInvoice('${inv.id}')" style="background: #f43f5e; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;"><i class="fas fa-trash"></i></button>
+                    <div class="row-actions">
+                        <button onclick='showInvoiceModalEncoded("${invString}")' class="btn-action btn-view-sm" title="معاينة"><i class="fas fa-eye"></i></button>
+                        <button onclick="openEditInvoiceModal(${index})" class="btn-action btn-edit-sm" title="تعديل الفاتورة كاملة"><i class="fas fa-edit"></i> تعديل</button>
+                        <button onclick="openInvoicePaymentByIndex(${index})" class="btn-action btn-pay-sm" title="تسجيل سداد"><i class="fas fa-hand-holding-usd"></i></button>
+                        <button onclick="deleteInvoice(${index})" class="btn-action btn-danger-sm" title="حذف (يرجع المخزون)"><i class="fas fa-trash"></i></button>
+                    </div>
                 </td>
             </tr>
         `;
@@ -558,52 +826,92 @@ function renderInvoices() {
 }
 
 window.filterInvoices = function() {
-    let query = document.getElementById('searchInvoices')?.value.toLowerCase() || '';
+    let query = document.getElementById('searchInvoices')?.value.toLowerCase().trim() || '';
     document.querySelectorAll('#invoicesTableBody tr').forEach(row => {
         row.style.display = row.innerText.toLowerCase().includes(query) ? '' : 'none';
     });
 };
 
-window.deleteInvoice = function(id) {
-    if(confirm('هل تريد حذف هذه الفاتورة؟')) {
-        invoices = invoices.filter(i => i.id !== id);
+// حذف الفاتورة مع إرجاع كل منتج بكميته الصحيحة إلى المخزون
+window.deleteInvoice = function(index) {
+    let inv = invoices[index];
+    if(!inv) return;
+    if(confirm(`هل تريد حذف الفاتورة رقم ${inv.id}؟ سيتم إرجاع كل منتج بكميته إلى المخزون تلقائياً.`)) {
+        (inv.items || []).forEach(item => {
+            let prodObj = inventory.find(i => i.code === item.code);
+            if(prodObj) {
+                prodObj.qty = Number(prodObj.qty) + Number(item.qty);
+            } else {
+                // لو الصنف اتحذف من المخزون الأساسي، نعيد إضافته برصيده الراجع
+                inventory.push({ code: item.code, name: item.name, qty: Number(item.qty), unit: 'قطعة', price: item.price });
+            }
+        });
+        invoices.splice(index, 1);
         saveData();
         refreshAllData();
+        alert('تم حذف الفاتورة وإرجاع كل منتج بكميته إلى المخزون بنجاح!');
     }
 };
 
+// ===================== دليل العملاء =====================
 function renderCustomers() {
     let tbody = document.getElementById('customersTableBody');
     if(!tbody) return;
     tbody.innerHTML = '';
-    
+
+    if(customers.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px; color:#94a3b8;">لا يوجد عملاء مسجلين بعد</td></tr>`;
+        return;
+    }
+
     customers.forEach((c, index) => {
         let custInvoices = invoices.filter(i => i.customerName === c.name);
         let totalSales = custInvoices.reduce((sum, i) => sum + Number(i.total), 0);
-        let totalRemaining = custInvoices.reduce((sum, i) => sum + Number(i.remaining || 0), 0);
+        let totalRemainingFromInvoices = custInvoices.reduce((sum, i) => sum + Number(i.remaining || 0), 0);
 
-        let oldBalText = 'لا يوجد';
-        if(c.oldBalance && c.oldBalance > 0) {
-            let typeLabel = c.balanceType === 'on_him' ? 'عليه (مدين)' : 'له (دائن)';
-            oldBalText = `${c.oldBalance.toLocaleString()} ج.م (${typeLabel}) بتاريخ: ${c.oldBalanceDate || 'غير محدد'}`;
+        // الحساب السابق المستقل (لو موجود) بيتحسب موجب لو عليه أو سالب لو له
+        let signedOldBalance = 0;
+        if(c.oldBalance && c.balanceType === 'on_him') signedOldBalance = Number(c.oldBalance);
+        else if(c.oldBalance && c.balanceType === 'for_him') signedOldBalance = -Number(c.oldBalance);
+
+        let netDebt = totalRemainingFromInvoices + signedOldBalance;
+
+        let debtHtml;
+        if(netDebt > 0) {
+            debtHtml = `<span class="badge-danger"><i class="fas fa-arrow-down"></i> ${netDebt.toLocaleString()} ج.م</span>`;
+        } else if(netDebt < 0) {
+            debtHtml = `<span class="badge-success"><i class="fas fa-arrow-up"></i> له رصيد ${Math.abs(netDebt).toLocaleString()} ج.م</span>`;
+        } else {
+            debtHtml = `<span class="badge-neutral">لا يوجد</span>`;
         }
+
+        let lastPurchase = custInvoices.length > 0 ? custInvoices[custInvoices.length - 1].date : '—';
 
         tbody.innerHTML += `
             <tr>
                 <td><strong>${c.name}</strong></td>
                 <td>${c.phone || 'غير مسجل'}</td>
-                <td>${c.address || 'غير مسجل'}</td>
-                <td style="font-size: 12px; color: #cbd5e1;">${oldBalText}</td>
-                <td><strong style="color: #f43f5e;">${totalRemaining.toLocaleString()} ج.م</strong></td>
+                <td>${debtHtml}</td>
                 <td><strong style="color: #0284c7;">${totalSales.toLocaleString()} ج.م</strong></td>
+                <td>${lastPurchase}</td>
                 <td>
-                    <button onclick="openEditCustomerBalance(${index})" style="background: #0284c7; color: white; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer; margin-left: 4px;"><i class="fas fa-history"></i> تعديل الحساب</button>
-                    <button onclick="deleteCustomer(${index})" style="background: #f43f5e; color: white; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer;"><i class="fas fa-trash"></i></button>
+                    <div class="row-actions">
+                        <button onclick="openEditCustomerModal(${index})" class="btn-action btn-edit-sm" title="تعديل بيانات العميل"><i class="fas fa-edit"></i> تعديل</button>
+                        <button onclick="deleteCustomer(${index})" class="btn-action btn-danger-sm" title="حذف العميل"><i class="fas fa-trash"></i></button>
+                    </div>
                 </td>
             </tr>
         `;
     });
 }
+
+// البحث في دليل العملاء (كان معطوباً - تم إصلاحه)
+window.filterCustomers = function() {
+    let query = document.getElementById('searchCustomers')?.value.toLowerCase().trim() || '';
+    document.querySelectorAll('#customersTableBody tr').forEach(row => {
+        row.style.display = row.innerText.toLowerCase().includes(query) ? '' : 'none';
+    });
+};
 
 window.openAddCustomerModal = function() { document.getElementById('addCustomerModal').style.display = 'flex'; };
 window.closeAddCustomerModal = function() { document.getElementById('addCustomerModal').style.display = 'none'; };
@@ -615,7 +923,6 @@ window.addNewCustomerDirect = function(e) {
     let address = document.getElementById('custAddress')?.value.trim();
     let oldBalance = Number(document.getElementById('custOldBalance')?.value) || 0;
     let balanceType = document.getElementById('custBalanceType')?.value || 'none';
-    let oldBalanceDate = document.getElementById('custOldBalanceDate')?.value || '';
 
     if(!name) return;
     if(customers.some(c => c.name === name)) {
@@ -623,7 +930,7 @@ window.addNewCustomerDirect = function(e) {
         return;
     }
 
-    customers.push({ name, phone, address, oldBalance, balanceType, oldBalanceDate });
+    customers.push({ name, phone, address, oldBalance, balanceType, oldBalanceDate: new Date().toLocaleDateString('ar-EG') });
     saveData();
     refreshAllData();
     window.closeAddCustomerModal();
@@ -631,42 +938,80 @@ window.addNewCustomerDirect = function(e) {
     alert('تم حفظ العميل بنجاح!');
 };
 
-window.openEditCustomerBalance = function(index) {
+// تعديل بيانات العميل كاملة (اسم، هاتف، عنوان، حساب سابق) وليس فقط الديون
+window.openEditCustomerModal = function(index) {
     let c = customers[index];
-    let newBal = prompt(`تعديل الحساب القديم للعميل (${c.name}):\nأدخل قيمة الحساب (بالجنيه):`, c.oldBalance || 0);
-    if(newBal === null) return;
-    
-    let type = prompt(`نوع الحساب:\nاكتب (on_him) لو عليه متبقي\nاكتب (for_him) لو له رصيد متبقي`, c.balanceType || 'on_him');
-    let dateStr = prompt(`أدخل تاريخ الحساب القديم (مثال: 2026/01/15):`, c.oldBalanceDate || new Date().toLocaleDateString());
+    if(!c) return;
+    document.getElementById('editCustIndex').value = index;
+    document.getElementById('editCustName').value = c.name || '';
+    document.getElementById('editCustPhone').value = c.phone || '';
+    document.getElementById('editCustAddress').value = c.address || '';
+    document.getElementById('editCustOldBalance').value = c.oldBalance || 0;
+    document.getElementById('editCustBalanceType').value = c.balanceType || 'none';
+    document.getElementById('editCustOldBalanceDate').value = c.oldBalanceDate || '';
+    document.getElementById('editCustomerModal').style.display = 'flex';
+};
 
-    c.oldBalance = Number(newBal) || 0;
-    c.balanceType = type === 'for_him' ? 'for_him' : 'on_him';
-    c.oldBalanceDate = dateStr || '';
+window.closeEditCustomerModal = function() {
+    document.getElementById('editCustomerModal').style.display = 'none';
+};
+
+window.saveEditedCustomer = function(e) {
+    e.preventDefault();
+    let index = document.getElementById('editCustIndex').value;
+    let c = customers[index];
+    if(!c) return;
+
+    let newName = document.getElementById('editCustName').value.trim();
+    let oldName = c.name;
+
+    c.name = newName;
+    c.phone = document.getElementById('editCustPhone').value.trim();
+    c.address = document.getElementById('editCustAddress').value.trim();
+    c.oldBalance = Number(document.getElementById('editCustOldBalance').value) || 0;
+    c.balanceType = document.getElementById('editCustBalanceType').value;
+    c.oldBalanceDate = document.getElementById('editCustOldBalanceDate').value.trim();
+
+    // لو اتغير اسم العميل، نحدّث كل الفواتير المرتبطة بيه عشان يفضل الربط سليم
+    if(oldName !== newName) {
+        invoices.forEach(inv => {
+            if(inv.customerName === oldName) inv.customerName = newName;
+        });
+    }
 
     saveData();
     refreshAllData();
-    alert('تم تحديث الحساب القديم للعميل بنجاح!');
+    closeEditCustomerModal();
+    alert('تم تحديث بيانات العميل بنجاح!');
 };
 
 window.deleteCustomer = function(index) {
-    if(confirm('هل أنت متأكد من حذف هذا العميل من الدليل؟')) {
+    let c = customers[index];
+    if(!c) return;
+    let hasInvoices = invoices.some(i => i.customerName === c.name);
+    let msg = hasInvoices
+        ? `تنبيه: هذا العميل لديه فواتير مسجلة! سيتم حذفه من الدليل فقط دون حذف الفواتير. هل تريد المتابعة؟`
+        : `هل أنت متأكد من حذف هذا العميل من الدليل؟`;
+    if(confirm(msg)) {
         customers.splice(index, 1);
         saveData();
         refreshAllData();
     }
 };
 
+// ===================== معاينة وطباعة الفاتورة =====================
 window.showInvoiceModalEncoded = function(encodedInv) {
     window.showInvoiceModal(JSON.parse(decodeURIComponent(encodedInv)));
 };
 
 window.showInvoiceModal = function(inv) {
     currentInvoiceData = inv;
+    currentInvoiceIndex = invoices.findIndex(i => i.id === inv.id);
     window.activePrintingInvoice = inv;
-    
+
     let area = document.getElementById('printableInvoiceArea');
     if(!area) return;
-    
+
     let itemsHtml = '';
     if(inv.items) {
         inv.items.forEach(item => {
@@ -738,7 +1083,7 @@ window.showInvoiceModal = function(inv) {
             </div>
         </div>
 
-        <div class="no-print" style="text-align: center; margin-top: 15px; padding: 10px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: center; gap: 10px;">
+        <div class="no-print" style="text-align: center; margin-top: 15px; padding: 10px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
             <button onclick="printInvoice()" style="background: #0284c7; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fas fa-print"></i> طباعة الفاتورة</button>
             <button onclick="sendToWhatsAppNabawy()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fab fa-whatsapp"></i> إرسال لمحمد النبوي</button>
             <button onclick="closeInvoiceModal()" style="background: #64748b; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold;"><i class="fas fa-times"></i> إغلاق</button>
@@ -761,6 +1106,28 @@ window.sendToWhatsAppNabawy = function() {
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
 };
 
+window.sendToWhatsApp = function() {
+    window.sendToWhatsAppNabawy();
+};
+
+window.downloadPDF = function() {
+    let area = document.getElementById('printableInvoiceArea');
+    if(!area || typeof html2canvas === 'undefined' || typeof window.jspdf === 'undefined') {
+        window.printInvoice();
+        return;
+    }
+    html2canvas(area).then(canvas => {
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const imgData = canvas.toDataURL('image/png');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        let inv = window.activePrintingInvoice || currentInvoiceData;
+        pdf.save(`فاتورة-${inv ? inv.id : 'protech'}.pdf`);
+    });
+};
+
 function initChart() {
     const ctx = document.getElementById('salesPurchasesChart');
     if(!ctx || typeof Chart === 'undefined') return;
@@ -769,50 +1136,13 @@ function initChart() {
         data: {
             labels: ['يناير', 'فبراير', 'مارس', 'إبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'],
             datasets: [
-                { label: 'المبيعات', data: [12000, 19000, 15000, 25000, 32000, 41000, 48000, 0, 0, 0, 0, 0], borderColor: '#10b981', tension: 0.3 },
-                { label: 'المشتريات', data: [10000, 15000, 12000, 20000, 28000, 35000, 40000, 0, 0, 0, 0, 0], borderColor: '#f97316', tension: 0.3 }
+                { label: 'المبيعات', data: [12000, 19000, 15000, 25000, 32000, 41000, 48000, 0, 0, 0, 0, 0], borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.08)', tension: 0.3, fill: true },
+                { label: 'المشتريات', data: [10000, 15000, 12000, 20000, 28000, 35000, 40000, 0, 0, 0, 0, 0], borderColor: '#f97316', backgroundColor: 'rgba(249,115,22,0.08)', tension: 0.3, fill: true }
             ]
         },
         options: { responsive: true, maintainAspectRatio: false }
     });
 }
-
-window.openEditProductModal = function(index) {
-    const product = inventory[index];
-    if (!product) return;
-
-    document.getElementById('editProdIndex').value = index;
-    document.getElementById('editProdCode').value = product.code || '';
-    document.getElementById('editProdName').value = product.name || '';
-    document.getElementById('editProdQty').value = product.qty || 0;
-    document.getElementById('editProdUnit').value = product.unit || '';
-    document.getElementById('editProdPrice').value = product.price || 0;
-
-    document.getElementById('editProductModal').style.display = 'flex';
-};
-
-window.closeEditProductModal = function() {
-    document.getElementById('editProductModal').style.display = 'none';
-};
-
-window.saveEditedProduct = function(event) {
-    event.preventDefault();
-    
-    const index = document.getElementById('editProdIndex').value;
-    if (index === "" || !inventory[index]) return;
-
-    inventory[index].code = document.getElementById('editProdCode').value.trim();
-    inventory[index].name = document.getElementById('editProdName').value.trim();
-    inventory[index].qty = Number(document.getElementById('editProdQty').value);
-    inventory[index].unit = document.getElementById('editProdUnit').value;
-    inventory[index].price = Number(document.getElementById('editProdPrice').value);
-
-    saveData();
-    refreshAllData();
-
-    closeEditProductModal();
-    alert('تم تعديل بيانات الصنف بنجاح!');
-};
 
 document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
 
@@ -849,7 +1179,7 @@ window.printInvoice = function() {
     }
 
     let printWindow = window.open('', '_blank', 'height=900,width=1000');
-    
+
     printWindow.document.write(`
         <html lang="ar" dir="rtl">
         <head>
@@ -934,84 +1264,11 @@ window.printInvoice = function() {
         </body>
         </html>
     `);
-    
+
     printWindow.document.close();
 };
 
-window.openDailySalesReport = function() {
-    let todayStr = new Date().toLocaleDateString('ar-EG');
-    let todayInvoices = invoices.filter(inv => inv.date === todayStr);
-    
-    let totalSalesToday = todayInvoices.reduce((sum, inv) => sum + Number(inv.total), 0);
-    let totalPaidToday = todayInvoices.reduce((sum, inv) => sum + Number(inv.paid || 0), 0);
-    let totalRemainingToday = todayInvoices.reduce((sum, inv) => sum + Number(inv.remaining || 0), 0);
-
-    let rowsHtml = '';
-    if(todayInvoices.length === 0) {
-        rowsHtml = `<tr><td colspan="5" style="text-align: center; padding: 15px; color: #64748b;">لا توجد فواتير مسجلة اليوم (${todayStr})</td></tr>`;
-    } else {
-        todayInvoices.forEach(inv => {
-            rowsHtml += `
-                <tr>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${inv.id}</td>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">${inv.customerName}</td>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${inv.total.toLocaleString()} ج.م</td>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${(inv.paid || 0).toLocaleString()} ج.م</td>
-                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; color: #e11d48;">${(inv.remaining || 0).toLocaleString()} ج.م</td>
-                </tr>
-            `;
-        });
-    }
-
-    let reportWin = window.open('', '_blank', 'height=700,width=900');
-    reportWin.document.write(`
-        <html lang="ar" dir="rtl">
-        <head>
-            <meta charset="UTF-8">
-            <title>تقرير المبيعات اليومية - Bro Tech</title>
-            <style>
-                body { font-family: Tahoma, sans-serif; padding: 20px; background: #fff; color: #000; direction: rtl; }
-                table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-                th, td { border: 1px solid #cbd5e1; padding: 8px; font-size: 13px; }
-                th { background: #f1f5f9; }
-                .summary-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 6px; margin-bottom: 20px; display: flex; justify-content: space-around; font-weight: bold; }
-                @media print { .no-print { display: none; } }
-            </style>
-        </head>
-        <body>
-            <div style="text-align: center; margin-bottom: 20px;">
-                <h2 style="color: #0284c7; margin: 0;">Bro Tech - تقرير المبيعات اليومية</h2>
-                <p style="color: #64748b; margin: 5px 0;">تاريخ T-Report: ${todayStr}</p>
-            </div>
-
-            <div class="summary-box">
-                <div>إجمالي مبيعات اليوم: <span style="color: #0284c7;">${totalSalesToday.toLocaleString()} ج.م</span></div>
-                <div>التحصيل النقدي: <span style="color: #10b981;">${totalPaidToday.toLocaleString()} ج.م</span></div>
-                <div>الآجل (المتبقي): <span style="color: #e11d48;">${totalRemainingToday.toLocaleString()} ج.م</span></div>
-            </div>
-
-            <table>
-                <thead>
-                    <tr>
-                        <th>رقم الفاتورة</th>
-                        <th>اسم العميل</th>
-                        <th>إجمالي الفاتورة</th>
-                        <th>المدفوع</th>
-                        <th>المتبقي</th>
-                    </tr>
-                </thead>
-                <tbody>${rowsHtml}</tbody>
-            </table>
-
-            <div class="no-print" style="margin-top: 25px; text-align: center;">
-                <button onclick="window.print()" style="background: #0284c7; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold;">🖨️ طباعة التقرير / حفظ PDF</button>
-            </div>
-        </body>
-        </html>
-    `);
-    reportWin.document.close();
-};
-
+// ===================== تقارير المبيعات =====================
 window.toggleReportMenu = function() {
     let menu = document.getElementById('reportMenuDropdown');
     if(menu) {
@@ -1038,10 +1295,11 @@ window.openCustomReport = function(type) {
         let todayStr = now.toLocaleDateString('ar-EG');
         filteredInvoices = invoices.filter(inv => inv.date === todayStr);
         reportTitle = `تقرير المبيعات اليومية (${todayStr})`;
-    } 
+    }
     else if (type === 'weekly') {
-        reportTitle = `تقرير المبيعات الأسبوعي (آخر 7 أيام)`;
-    } 
+        filteredInvoices = invoices.slice(-30);
+        reportTitle = `تقرير المبيعات الأسبوعي (آخر الفواتير)`;
+    }
     else if (type === 'monthly') {
         let currentYear = now.getFullYear();
         filteredInvoices = invoices.filter(inv => inv.date && inv.date.includes(currentYear.toString()));
@@ -1130,7 +1388,7 @@ window.openCustomerAccountPrompt = function() {
 
     let customerListStr = customerNames.map((name, index) => `${index + 1} - ${name}`).join('\n');
     let chosenIndex = prompt(`اختر رقم العميل المطلوب استخراج كشف حسابه:\n\n${customerListStr}`);
-    
+
     if(!chosenIndex) return;
     let selectedCustomer = customerNames[Number(chosenIndex) - 1];
 
@@ -1211,10 +1469,7 @@ window.generateCustomerReport = function(customerName) {
     reportWin.document.close();
 };
 
-// ==========================================
-// وظائف تعديل سداد الفواتير المباشر من الجدول
-// ==========================================
-
+// ===================== تعديل سداد الفواتير المباشر من الجدول =====================
 window.openInvoicePaymentByIndex = function(index) {
     if (typeof invoices === 'undefined' || !invoices[index]) {
         alert('خطأ في بيانات الفاتورة!');
@@ -1222,32 +1477,31 @@ window.openInvoicePaymentByIndex = function(index) {
     }
 
     let inv = invoices[index];
-    
     window.currentEditingInvoiceIndex = index;
 
     document.getElementById('editPaymentInvIndex').value = index;
     let invNumEl = document.getElementById('editPaymentInvNumber');
-    if(invNumEl) invNumEl.innerText = inv.number || inv.id;
-    
+    if(invNumEl) invNumEl.innerText = inv.id;
+
     let custNameEl = document.getElementById('editPaymentCustomerName');
     if(custNameEl) custNameEl.innerText = inv.customerName;
-    
+
     let remEl = document.getElementById('editPaymentCurrentRemaining');
-    if(remEl) remEl.innerText = (inv.remaining || 0) + ' ج.م';
-    
+    if(remEl) remEl.innerText = (inv.remaining || 0).toLocaleString() + ' ج.م';
+
     let payInput = document.getElementById('payAmountInput');
     if(payInput) payInput.value = inv.remaining || 0;
-    
-    let today = new Date().toISOString().split('T')[0];
+
+    let today = new Date().toLocaleDateString('ar-EG');
     let noteInput = document.getElementById('payNoteInput');
     if(noteInput) noteInput.value = `تم سداد دفعة بتاريخ ${today}`;
-    
+
     let modal = document.getElementById('editInvoicePaymentModal');
     if(modal) modal.style.display = 'flex';
 };
 
 window.editInvoiceStatusModal = function() {
-    if (typeof currentInvoiceIndex === 'undefined' || currentInvoiceIndex === null) {
+    if (currentInvoiceIndex === null || currentInvoiceIndex === undefined || currentInvoiceIndex < 0) {
         alert('برجاء اختيار فاتورة أولاً!');
         return;
     }
@@ -1273,16 +1527,18 @@ window.submitInvoicePaymentUpdate = function() {
     let currentRemaining = inv.remaining || 0;
 
     if (payAmount > currentRemaining) {
-        if (!confirm('المبلغ المدفوع أكبر من المتبقي على الفاتورة، هل تريد الاستمرار وإضافة الباقي رصيد دائن للعميل؟')) {
+        if (!confirm('المبلغ المدفوع أكبر من المتبقي على الفاتورة، هل تريد الاستمرار؟')) {
             return;
         }
     }
 
+    // تحديث الفاتورة: المدفوع يزيد والمتبقي (الدين) يقل تلقائياً، وينعكس فوراً على دليل العملاء
+    inv.paid = Number(inv.paid || 0) + payAmount;
     inv.remaining = Math.max(0, currentRemaining - payAmount);
     if (inv.remaining === 0) {
-        inv.paymentStatus = 'تم الدفع بالكامل';
+        inv.status = 'تم الدفع بالكامل';
     } else {
-        inv.paymentStatus = `تم دفع ${payAmount} ج.م - متبقي ${inv.remaining} ج.م`;
+        inv.status = `متبقي: ${inv.remaining} ج.م`;
     }
 
     if (!inv.paymentHistory) inv.paymentHistory = [];
@@ -1292,288 +1548,47 @@ window.submitInvoicePaymentUpdate = function() {
         note: payNote
     });
 
-    if (typeof activityLog !== 'undefined') {
-        activityLog.unshift({
-            title: `سداد فاتورة (${inv.number || inv.id})`,
-            details: `قام العميل ${inv.customerName} بسداد مبلغ ${payAmount} ج.م. (${payNote})`,
-            date: new Date().toLocaleString('ar-EG')
-        });
-    }
+    saveData();
+    refreshAllData();
 
-    if (typeof saveData === 'function') saveData();
-    if (typeof refreshAllData === 'function') refreshAllData();
-    
     closeEditPaymentModal();
-    if (typeof closeInvoiceModal === 'function') closeInvoiceModal();
+    closeInvoiceModal();
 
-    alert(`تم تسجيل سداد مبلغ ${payAmount} ج.م بنجاح وتحديث حساب العميل!`);
+    alert(`تم تسجيل سداد مبلغ ${payAmount.toLocaleString()} ج.م بنجاح، وتم تحديث مديونية العميل تلقائياً في دليل العملاء!`);
 };
-// دوال إدارة الموظفين والحضور والانصراف
-let html5QrCode = null;
 
-function openAddEmployeeModal() {
-    document.getElementById('addEmployeeModal').style.display = 'flex';
-}
+// ===================== بحث سريع عام =====================
+window.handleGlobalSearch = function(event) {
+    let query = event.target.value.toLowerCase().trim();
+    if(!query) return;
+    // بحث في العملاء أولاً، ولو موجود ننقل المستخدم لصفحة العملاء ونطبق الفلتر
+    let foundCustomer = customers.find(c => c.name.toLowerCase().includes(query) || (c.phone || '').includes(query));
+    let foundInvoice = invoices.find(i => i.id.toLowerCase().includes(query) || i.customerName.toLowerCase().includes(query));
+    let foundProduct = inventory.find(i => i.name.toLowerCase().includes(query) || i.code.toLowerCase().includes(query));
 
-function closeAddEmployeeModal() {
-    document.getElementById('addEmployeeModal').style.display = 'none';
-}
-
-function addNewEmployee(e) {
-    e.preventDefault();
-    let name = document.getElementById('empName').value.trim();
-    let code = document.getElementById('empCode').value.trim();
-    let img = document.getElementById('empImg').value.trim() || 'https://via.placeholder.com/100';
-    let info = document.getElementById('empInfo').value.trim();
-
-    if(!window.employees) window.employees = [];
-    
-    window.employees.push({ id: Date.now(), name, code, img, info });
-    saveData();
-    renderEmployeesTab();
-    closeAddEmployeeModal();
-    
-    document.getElementById('empName').value = '';
-    document.getElementById('empCode').value = '';
-    document.getElementById('empImg').value = '';
-    document.getElementById('empInfo').value = '';
-    alert('تم إضافة الموظف بنجاح!');
-}
-
-function renderEmployeesTab() {
-    let grid = document.getElementById('employeesCardsGrid');
-    if(!grid) return;
-    
-    if(!window.employees) window.employees = [];
-    if(!window.attendanceLog) window.attendanceLog = [];
-
-    grid.innerHTML = '';
-    
-    let todayStr = new Date().toLocaleDateString('ar-EG');
-    let presentTodayIds = window.attendanceLog.filter(a => a.date === todayStr && a.status === 'حاضر').map(a => a.empId);
-
-    let presentCount = presentTodayIds.length;
-    let absentCount = window.employees.length - presentCount;
-
-    if(document.getElementById('presentCountBadge')) document.getElementById('presentCountBadge').innerText = presentCount;
-    if(document.getElementById('absentCountBadge')) document.getElementById('absentCountBadge').innerText = Math.max(0, absentCount);
-
-    window.employees.forEach(emp => {
-        let isPresent = presentTodayIds.includes(emp.id);
-        grid.innerHTML += `
-            <div style="background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 20px; text-align: center; color: #fff;">
-                <img src="${emp.img}" alt="${emp.name}" style="width: 70px; height: 70px; border-radius: 50%; object-fit: cover; margin-bottom: 10px; border: 2px solid #38bdf8;">
-                <h4 style="margin: 5px 0; color: #fff; font-size: 16px;">${emp.name}</h4>
-                <p style="margin: 0 0 8px 0; font-size: 12px; color: #94a3b8;">${emp.info || 'موظف بالشركة'}</p>
-                <p style="margin: 0 0 12px 0; font-size: 11px; color: #fbbf24; background: #0f172a; padding: 3px 6px; border-radius: 4px; display: inline-block;">كود الباركود: ${emp.code}</p>
-                <div style="display: flex; gap: 8px; justify-content: center; margin-bottom: 10px;">
-                    <button onclick="markAttendance(${emp.id}, 'حاضر')" style="flex: 1; padding: 6px; background: ${isPresent ? '#059669' : '#10b981'}; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; font-weight: bold;">
-                        ${isPresent ? '✓ تم الحضور' : 'تسجيل حضور'}
-                    </button>
-                    <button onclick="markAttendance(${emp.id}, 'غائب')" style="padding: 6px 10px; background: #ef4444; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">غياب</button>
-                </div>
-                <div style="display: flex; gap: 5px; justify-content: center;">
-                    <button onclick="openEmployeeExpenses(${emp.id})" style="background: #0ea5e9; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-size: 11px; cursor: pointer;"><i class="fas fa-wallet"></i> المصروفات</button>
-                    <button onclick="deleteEmployee(${emp.id})" style="background: #475569; color: white; border: none; padding: 5px 8px; border-radius: 4px; font-size: 11px; cursor: pointer;"><i class="fas fa-trash"></i></button>
-                </div>
-            </div>
-        `;
-    });
-
-    let attTable = document.getElementById('attendanceTableBody');
-    if(attTable) {
-        attTable.innerHTML = '';
-        window.attendanceLog.slice(-15).reverse().forEach(log => {
-            let emp = window.employees.find(e => e.id === log.empId);
-            let empName = emp ? emp.name : 'موظف محذوف';
-            attTable.innerHTML += `
-                <tr>
-                    <td>${empName}</td>
-                    <td>${log.date} - ${log.time}</td>
-                    <td><span style="background: #0f172a; padding: 3px 8px; border-radius: 4px; font-size: 11px; color: #38bdf8;">${log.method || 'يدوي'}</span></td>
-                    <td><span style="color: ${log.status === 'حاضر' ? '#10b981' : '#f43f5e'}; font-weight: bold;">${log.status}</span></td>
-                    <td><button onclick="deleteAttendanceLog(${log.id})" style="background: none; border: none; color: #ef4444; cursor: pointer;"><i class="fas fa-times"></i></button></td>
-                </tr>
-            `;
-        });
-    }
-}
-
-function markAttendance(empId, status) {
-    if(!window.attendanceLog) window.attendanceLog = [];
-    let todayStr = new Date().toLocaleDateString('ar-EG');
-    let timeStr = new Date().toLocaleTimeString('ar-EG');
-
-    // منع التكرار لنفس اليوم إذا سجل مسبقاً
-    let existingIndex = window.attendanceLog.findIndex(a => a.empId === empId && a.date === todayStr);
-    if(existingIndex >= 0) {
-        window.attendanceLog[existingIndex].status = status;
-        window.attendanceLog[existingIndex].time = timeStr;
-        window.attendanceLog[existingIndex].method = 'يدوي / الإدارة';
-    } else {
-        window.attendanceLog.push({ id: Date.now(), empId, date: todayStr, time: timeStr, status, method: 'يدوي / الإدارة' });
-    }
-
-    saveData();
-    renderEmployeesTab();
-}
-
-function deleteEmployee(empId) {
-    if(confirm('هل أنت متأكد من حذف هذا الموظف؟')) {
-        window.employees = window.employees.filter(e => e.id !== empId);
-        saveData();
-        renderEmployeesTab();
-    }
-}
-
-function deleteAttendanceLog(logId) {
-    window.attendanceLog = window.attendanceLog.filter(l => l.id !== logId);
-    saveData();
-    renderEmployeesTab();
-}
-
-// تشغيل كاميرا الباركود
-function openBarcodeScannerModal() {
-    document.getElementById('barcodeScannerModal').style.display = 'flex';
-    setTimeout(() => {
-        if(!html5QrCode) {
-            html5QrCode = new Html5Qrcode("reader");
+    if(event.key === 'Enter') {
+        if(foundCustomer) {
+            window.switchTab('customers');
+            document.getElementById('searchCustomers').value = query;
+            window.filterCustomers();
+        } else if(foundInvoice) {
+            window.switchTab('sales');
+            document.getElementById('searchInvoices').value = query;
+            window.filterInvoices();
+        } else if(foundProduct) {
+            window.switchTab('inventory');
+            document.getElementById('searchInventory').value = query;
+            window.filterInventory();
         }
-        html5QrCode.start(
-            { facingMode: "environment" },
-            { fps: 10, qrbox: { width: 250, height: 150 } },
-            (decodedText, decodedResult) => {
-                processBarcode(decodedText);
-            },
-            (errorMessage) => {
-                // تجاهل أخطاء المسح المؤقتة حتى يلتقط الباركود
-            }
-        ).catch(err => {
-            console.warn("تعذر تشغيل الكاميرا مباشرة، استخدم الإدخال اليدوي بالكود:", err);
-        });
-    }, 300);
-}
-
-function closeBarcodeScannerModal() {
-    document.getElementById('barcodeScannerModal').style.display = 'none';
-    if(html5QrCode && html5QrCode.isScanning) {
-        html5QrCode.stop().catch(err => console.log(err));
     }
-}
+};
 
-function manualBarcodeSubmit() {
-    let code = document.getElementById('manualEmpCodeInput').value.trim();
-    if(code) {
-        processBarcode(code);
-        document.getElementById('manualEmpCodeInput').value = '';
-    }
-}
-
-function processBarcode(code) {
-    if(!window.employees) window.employees = [];
-    let emp = window.employees.find(e => e.code === code);
-    if(emp) {
-        markAttendance(emp.id, 'حاضر');
-        alert(`تم تسجيل حضور الموظف بنجاح: ${emp.name}`);
-        closeBarcodeScannerModal();
-    } else {
-        alert('كود الباركود غير مسجل لأي موظف في النظام!');
-    }
-}
-
-// نافذة المصروفات الخاصة بالموظف
-function openEmployeeExpenses(empId) {
-    let emp = window.employees.find(e => e.id === empId);
-    if(!emp) return;
-    
-    document.getElementById('modalEmployeeName').innerText = `مصروفات الموظف: ${emp.name}`;
-    document.getElementById('activeEmployeeId').value = empId;
-    
-    if(!window.employeeExpenses) window.employeeExpenses = [];
-    renderEmployeeExpensesTable(empId);
-    
-    document.getElementById('employeeExpenseModal').style.display = 'flex';
-}
-
-function closeEmployeeExpenseModal() {
-    document.getElementById('employeeExpenseModal').style.display = 'none';
-}
-
-function addEmployeeExpenseItem(e) {
-    e.preventDefault();
-    let empId = Number(document.getElementById('activeEmployeeId').value);
-    let amount = Number(document.getElementById('expenseAmount').value);
-    let note = document.getElementById('expenseNote').value.trim();
-    let dateStr = new Date().toLocaleDateString('ar-EG');
-
-    if(!window.employeeExpenses) window.employeeExpenses = [];
-    window.employeeExpenses.push({ id: Date.now(), empId, amount, note, date: dateStr });
-    
+window.saveSettings = function(event) {
+    event.preventDefault();
+    settings.companyName = document.getElementById('companyNameInput').value.trim();
+    settings.owner = document.getElementById('companyOwnerInput').value.trim();
+    settings.whatsapp = document.getElementById('whatsappNumberInput').value.trim();
+    settings.address = document.getElementById('companyAddressInput').value.trim();
     saveData();
-    renderEmployeeExpensesTable(empId);
-    
-    document.getElementById('expenseAmount').value = '';
-    document.getElementById('expenseNote').value = '';
-}
-
-function renderEmployeeExpensesTable(empId) {
-    let tbody = document.getElementById('employeeExpensesTableBody');
-    if(!tbody) return;
-    tbody.innerHTML = '';
-    
-    let items = (window.employeeExpenses || []).filter(ex => ex.empId === empId);
-    items.forEach(ex => {
-        tbody.innerHTML += `
-            <tr>
-                <td>${ex.amount} ج.م</td>
-                <td>${ex.note}</td>
-                <td style="text-align: center;">${ex.date}</td>
-                <td style="text-align: center;"><button onclick="deleteEmployeeExpense(${ex.id}, ${empId})" style="background: none; border: none; color: #ef4444; cursor: pointer;"><i class="fas fa-trash"></i></button></td>
-            </tr>
-        `;
-    });
-}
-
-function deleteEmployeeExpense(expenseId, empId) {
-    window.employeeExpenses = window.employeeExpenses.filter(ex => ex.id !== expenseId);
-    saveData();
-    renderEmployeeExpensesTable(empId);
-}
-function toggleMobileMenu() {
-    // هذا الكود سيبحث عن أي عنصر <nav> أو عنصر يحمل اسم class يحتوي على كلمة menu أو sidebar
-    const navMenu = document.querySelector('nav') || document.querySelector('.sidebar') || document.querySelector('[class*="menu"]') || document.querySelector('[class*="nav"]');
-    const menuIcon = document.getElementById('menuIcon');
-
-    if (navMenu) {
-        navMenu.classList.toggle('active');
-        
-        // تغيير شكل الأيقونة من 3 خطوط إلى (X) والعكس
-        if (menuIcon) {
-            if (navMenu.classList.contains('active')) {
-                menuIcon.classList.remove('fa-bars');
-                menuIcon.classList.add('fa-times');
-            } else {
-                menuIcon.classList.remove('fa-times');
-                menuIcon.classList.add('fa-bars');
-            }
-        }
-    } else {
-        alert("تأكد من وجود عنصر القائمة في الصفحة");
-    }
-}
-// ربط الزر مباشرة بالحدث عند تحميل الصفحة لضمان عمله
-document.addEventListener("DOMContentLoaded", function() {
-    const btn = document.querySelector('.menu-toggle-btn');
-    if (btn) {
-        btn.addEventListener('click', function() {
-            // ابحث عن القائمة الجانبية أو الهيدر لديك وضع الـ ID أو الـ Class الخاص بها هنا
-            // كمثال، سنستهدف الحاوية الرئيسية للقائمة أو السايدبار باسمها الحقيقي لديك
-            let sidebar = document.querySelector('aside') || document.querySelector('.sidebar') || document.querySelector('nav');
-            if (sidebar) {
-                sidebar.style.display = (sidebar.style.display === 'none' ? 'block' : 'none');
-            } else {
-                alert("تم الضغط بنجاح، ولكن يجدر تحديد العنصر المراد إخفاؤه");
-            }
-        });
-    }
-});
+    alert('تم حفظ إعدادات النظام بنجاح!');
+};
