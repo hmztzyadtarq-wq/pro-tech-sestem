@@ -64,24 +64,24 @@
     <!-- App Container -->
     <div class="app-layout">
         <!-- Sidebar Navigation -->
-        <aside class="sidebar">
+        <aside class="sidebar" id="mainSidebar">
             <div class="brand-header">
                 <div class="logo-circle"><i class="fas fa-print"></i></div>
                 <h1>Bro Tech</h1>
                 <span>ProTech ERP v2.0</span>
             </div>
             <ul class="nav-links">
-                <li class="active" onclick="switchTab('dashboard')"><i class="fas fa-chart-pie"></i> لوحة المؤشرات</li>
-                <li onclick="switchTab('inventory')"><i class="fas fa-boxes"></i> إدارة المخزون</li>
-                <li onclick="switchTab('sales')"><i class="fas fa-cash-register"></i> المبيعات والفواتير</li>
-                <li onclick="switchTab('purchases')"><i class="fas fa-shopping-cart"></i> المشتريات والتوريد</li>
-                <li onclick="switchTab('customers')"><i class="fas fa-users"></i> دليل العملاء</li>
+                <li class="active" onclick="switchTab('dashboard', this)"><i class="fas fa-chart-pie"></i> لوحة المؤشرات</li>
+                <li onclick="switchTab('inventory', this)"><i class="fas fa-boxes"></i> إدارة المخزون</li>
+                <li onclick="switchTab('sales', this)"><i class="fas fa-cash-register"></i> المبيعات والفواتير</li>
+                <li onclick="switchTab('purchases', this)"><i class="fas fa-shopping-cart"></i> المشتريات والتوريد</li>
+                <li onclick="switchTab('customers', this)"><i class="fas fa-users"></i> دليل العملاء</li>
                 <!-- زرار إدارة الحضور والمرتبات في القائمة الجانبية -->
-                <li onclick="switchTab('expenses')"><i class="fas fa-id-badge"></i> حضور وموظفي الشركة</li>
-                <li onclick="switchTab('settings')"><i class="fas fa-cogs"></i> الإعدادات والربط</li>
+                <li onclick="switchTab('expenses', this)"><i class="fas fa-id-badge"></i> حضور وموظفي الشركة</li>
+                <li onclick="switchTab('settings', this)"><i class="fas fa-cogs"></i> الإعدادات والربط</li>
                 <li onclick="window.location.href='https://hmztzyadtarq-wq.github.io/pro-tech1.com/admin-videos.html'"><i class="fas fa-tachometer-alt"></i>  ادارة الموقع الاكتراوني </li>
                 <li onclick="window.location.href='https://hmztzyadtarq-wq.github.io/pro-tech1.com'"><i class="fas fa-eye"></i>  نظره عامه للموقع  الاكتروني  </li>
-                <li onclick="window.location.harf='https://business.facebook.com/latest/home?asset_id=1984681641825368&nav_ref=profile_plus_lar_admin'"><i class="fab fa-facebook"></i>اداره صفحه الفيس بوك   </li>
+                <li onclick="window.location.href='https://business.facebook.com/latest/home?asset_id=1984681641825368&nav_ref=profile_plus_lar_admin'"><i class="fab fa-facebook"></i>اداره صفحه الفيس بوك   </li>
                 <li onclick="window.location.href='https://www.facebook.com/ad_center/create/ad/?entry_point=www_pages_launchpoint&page_id=1984681641825368&locale=ar_AR'"><i class="fas fa-facebook"></i>  انشاء اعلان فيس بوك  </li>
             </ul>
             <div class="sidebar-footer">
@@ -91,22 +91,22 @@
                     <i class="fas fa-sign-out-alt"></i> تسجيل الخروج
                 </button>
             </div>
-            <!-- زر الثلاث خطوط -->
-<button class="menu-toggle-btn" onclick="toggleMobileMenu()">
-    <i class="fas fa-bars" id="menuIcon"></i>
-</button>
         </aside>
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleMobileMenu()"></div>
 
         <!-- Main Content Area -->
         <main class="main-content">
             <!-- Top Bar -->
             <header class="top-bar">
+                <button class="menu-toggle-btn" onclick="toggleMobileMenu()" aria-label="فتح القائمة">
+                    <i class="fas fa-bars" id="menuIcon"></i>
+                </button>
                 <div class="search-global">
                     <i class="fas fa-search"></i>
                     <input type="text" id="globalSearch" placeholder="بحث سريع في العملاء، الفواتير، أو المنتجات..." onkeyup="handleGlobalSearch(event)">
                 </div>
                 <div class="user-profile">
-                    <span class="badge-live"><i class="fas fa-circle"></i> النظام يعمل ببيانات حقيقية</span>
+                    <span class="badge-live"><i class="fas fa-circle"></i> <span class="badge-live-text">النظام يعمل ببيانات حقيقية</span></span>
                     <div class="avatar">PT</div>
                 </div>
             </header>
@@ -115,7 +115,7 @@
             <section id="tab-dashboard" class="tab-content active">
                 <div class="page-header-title">
                     <h1>لوحة المؤشرات والتحليلات الحية</h1>
-                    <p>متابعة حركة المخزون، المبيعات، والمشتريات بشكل لحظي وواقعي 100%[cite: 4]</p>
+                    <p>متابعة حركة المخزون، المبيعات، والمشتريات بشكل لحظي وواقعي 100%</p>
                 </div>
 
                 <!-- Quick Stat Cards -->
@@ -185,7 +185,12 @@
                         </div>
                     </div>
                     <div class="sub-card">
-                        <h3><i class="fas fa-exclamation-triangle"></i> تنبيهات نقص المخزون</h3>
+                        <div class="sub-card-header-flex">
+                            <h3><i class="fas fa-exclamation-triangle"></i> تنبيهات نقص المخزون</h3>
+                            <button class="btn-print-lowstock" onclick="printLowStockReport()" title="طباعة قائمة المنتجات الناقصة">
+                                <i class="fas fa-print"></i> طباعة القائمة
+                            </button>
+                        </div>
                         <div id="lowStockAlertsList" class="alert-list">
                             <!-- Filled dynamically -->
                         </div>
@@ -206,6 +211,7 @@
                     <div class="table-toolbar">
                         <input type="text" id="searchInventory" placeholder="بحث في الأصناف..." onkeyup="filterInventory()">
                     </div>
+                    <div class="table-responsive">
                     <table class="data-table">
                         <thead>
                             <tr>
@@ -221,6 +227,7 @@
                             <!-- Dynamic -->
                         </tbody>
                     </table>
+                    </div>
                 </div>
             </section>
 
@@ -248,6 +255,7 @@
                     <div class="table-toolbar flex-toolbar">
                         <input type="text" id="searchInvoices" placeholder="بحث باسم العميل أو رقم الفاتورة..." onkeyup="filterInvoices()">
                     </div>
+                    <div class="table-responsive">
                     <table class="data-table">
                         <thead>
                             <tr>
@@ -255,7 +263,7 @@
                                 <th>اسم العميل</th>
                                 <th>التاريخ</th>
                                 <th>إجمالي المبلغ</th>
-                                <th>حالة الدفع / الواتساب</th>
+                                <th>حالة الدفع</th>
                                 <th>الإجراءات</th>
                             </tr>
                         </thead>
@@ -263,6 +271,7 @@
                             <!-- Dynamic -->
                         </tbody>
                     </table>
+                    </div>
                 </div>
             </section>
 
@@ -276,6 +285,7 @@
                     <button class="btn-primary" onclick="openNewPurchaseModal()"><i class="fas fa-cart-plus"></i> تسجيل عملية شراء جديدة</button>
                 </div>
                 <div class="card-table-wrapper">
+                    <div class="table-responsive">
                     <table class="data-table">
                         <thead>
                             <tr>
@@ -283,14 +293,17 @@
                                 <th>المورد</th>
                                 <th>الصنف المشتري</th>
                                 <th>الكمية المضافة</th>
+                                <th>سعر الوحدة</th>
                                 <th>التكلفة الإجمالية</th>
                                 <th>التاريخ</th>
+                                <th>الإجراءات</th>
                             </tr>
                         </thead>
                         <tbody id="purchasesTableBody">
                             <!-- Dynamic -->
                         </tbody>
                     </table>
+                    </div>
                 </div>
             </section>
 
@@ -307,15 +320,15 @@
                     <div class="table-toolbar">
                         <input type="text" id="searchCustomers" placeholder="بحث بالاسم أو رقم الهاتف..." onkeyup="filterCustomers()">
                     </div>
+                    <div class="table-responsive">
                     <table class="data-table">
                         <thead>
                             <tr>
                                 <th>اسم العميل</th>
                                 <th>رقم الهاتف / الواتساب</th>
-                                <th>العنوان</th>
-                                <th>حالة الحساب والمتبقي</th>
-                                <th>عدد الفواتير</th>
-                                <th>إجمالي المبيعات</th>
+                                <th>المديونية الحالية (عليه)</th>
+                                <th>إجمالي المشتريات</th>
+                                <th>آخر عملية شراء</th>
                                 <th>الإجراءات</th>
                             </tr>
                         </thead>
@@ -323,6 +336,7 @@
                             <!-- Dynamic -->
                         </tbody>
                     </table>
+                    </div>
                 </div>
             </section>
 
@@ -331,7 +345,7 @@
                 <div class="page-header-title flex-header">
                     <div>
                         <h1>لوحة الأدمن: متابعة الحضور، الغياب، والمرتبات</h1>
-                        <p>متابعة حالات الحضور، الغياب، وساعات العمل، وصافي المرتبات لكل موظف بدقة تامة[cite: 4]</p>
+                        <p>متابعة حالات الحضور، الغياب، وساعات العمل، وصافي المرتبات لكل موظف بدقة تامة</p>
                     </div>
                     <button class="btn-primary" onclick="openAddEmployeeModalCustom()"><i class="fas fa-user-plus"></i> إضافة موظف جديد</button>
                 </div>
@@ -346,6 +360,7 @@
                     <div style="margin-bottom: 12px; font-weight: bold; color: #1e293b; font-size: 16px; display: flex; justify-content: space-between; align-items: center;">
                         <span><i class="fas fa-clipboard-user" style="color: #0284c7;"></i> سجل الحضور، الغياب، وكشف حساب الموظفين</span>
                     </div>
+                    <div class="table-responsive">
                     <table class="data-table" style="width: 100%; border-collapse: collapse;">
                         <thead>
                             <tr style="background: #f1f5f9; color: #334155;">
@@ -361,6 +376,7 @@
                             <!-- يتم تعبئتها ديناميكياً من السكربت -->
                         </tbody>
                     </table>
+                    </div>
                 </div>
             </section>
 
@@ -467,14 +483,15 @@
         </div>
     </div>
 
-    <!-- New Invoice Creation Modal -->
+    <!-- New Invoice Creation / Edit Modal -->
     <div id="newInvoiceModal" class="modal" style="display: none;">
         <div class="modal-content" style="width: 700px; max-width: 95%; background: #1e293b; color: #fff; padding: 25px; border-radius: 12px;">
             <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3 style="color: #38bdf8; margin: 0;"><i class="fas fa-file-invoice-dollar"></i> إنشاء فاتورة مبيعات جديدة</h3>
+                <h3 id="invoiceFormTitle" style="color: #38bdf8; margin: 0;"><i class="fas fa-file-invoice-dollar"></i> إنشاء فاتورة مبيعات جديدة</h3>
                 <span class="close-btn" onclick="closeNewInvoiceModal()" style="cursor: pointer; font-size: 20px;">&times;</span>
             </div>
             <div class="modal-body" style="max-height: 75vh; overflow-y: auto; padding: 5px;">
+                <input type="hidden" id="editingInvoiceIndex" value="">
                 <div style="margin-bottom: 12px;">
                     <label style="display: block; margin-bottom: 5px; font-size: 13px; color: #94a3b8;">اختر العميل:</label>
                     <select id="invoiceCustomerSelect" onchange="handleCustomerSelectChange()" style="width: 100%; padding: 8px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 4px;">
@@ -537,7 +554,7 @@
                     <h2 id="invoiceFinalTotalDisplay" style="margin: 5px 0 0 0; color: #38bdf8;">0 ج.م</h2>
                 </div>
                 <div style="display: flex; gap: 10px;">
-                    <button type="button" onclick="createNewInvoice(event)" style="flex: 2; background: #10b981; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;"><i class="fas fa-save"></i> حفظ وعرض الفاتورة</button>
+                    <button type="button" id="invoiceSubmitBtn" onclick="createNewInvoice(event)" style="flex: 2; background: #10b981; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;"><i class="fas fa-save"></i> حفظ وعرض الفاتورة</button>
                     <button type="button" onclick="closeNewInvoiceModal()" style="flex: 1; background: #475569; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer;">إلغاء</button>
                 </div>
             </div>
@@ -802,8 +819,89 @@
                         <label>العنوان:</label>
                         <input type="text" id="custAddress" required placeholder="المدينة / المنطقة...">
                     </div>
+                    <div class="form-group">
+                        <label>حساب سابق (اختياري):</label>
+                        <input type="number" id="custOldBalance" value="0" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label>نوع الحساب السابق:</label>
+                        <select id="custBalanceType">
+                            <option value="none">بدون حساب سابق</option>
+                            <option value="on_him">عليه (مدين)</option>
+                            <option value="for_him">له (دائن)</option>
+                        </select>
+                    </div>
                     <button type="submit" class="btn-primary">حفظ العميل</button>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Customer Modal (Full Details) -->
+    <div id="editCustomerModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>تعديل بيانات العميل</h2>
+                <span class="close-btn" onclick="closeEditCustomerModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form onsubmit="saveEditedCustomer(event)">
+                    <input type="hidden" id="editCustIndex">
+                    <div class="form-group">
+                        <label>اسم العميل:</label>
+                        <input type="text" id="editCustName" required>
+                    </div>
+                    <div class="form-group">
+                        <label>رقم الهاتف / الواتساب:</label>
+                        <input type="text" id="editCustPhone">
+                    </div>
+                    <div class="form-group">
+                        <label>العنوان:</label>
+                        <input type="text" id="editCustAddress">
+                    </div>
+                    <div class="form-group">
+                        <label>حساب سابق (منفصل عن الفواتير):</label>
+                        <input type="number" id="editCustOldBalance" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>نوع الحساب السابق:</label>
+                        <select id="editCustBalanceType">
+                            <option value="none">بدون حساب سابق</option>
+                            <option value="on_him">عليه (مدين)</option>
+                            <option value="for_him">له (دائن)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>تاريخ الحساب السابق:</label>
+                        <input type="text" id="editCustOldBalanceDate" placeholder="مثال: 2026/01/15">
+                    </div>
+                    <button type="submit" class="btn-primary">حفظ التعديلات</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Invoice Payment Update Modal -->
+    <div id="editInvoicePaymentModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>تسجيل سداد / تعديل المتبقي</h2>
+                <span class="close-btn" onclick="closeEditPaymentModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editPaymentInvIndex">
+                <p style="margin-bottom:8px; font-size:14px;">رقم الفاتورة: <strong id="editPaymentInvNumber">--</strong></p>
+                <p style="margin-bottom:8px; font-size:14px;">العميل: <strong id="editPaymentCustomerName">--</strong></p>
+                <p style="margin-bottom:15px; font-size:14px;">المتبقي الحالي: <strong id="editPaymentCurrentRemaining" style="color:#e11d48;">0 ج.م</strong></p>
+                <div class="form-group">
+                    <label>المبلغ المدفوع الآن:</label>
+                    <input type="number" id="payAmountInput" value="0" min="0">
+                </div>
+                <div class="form-group">
+                    <label>ملاحظة:</label>
+                    <input type="text" id="payNoteInput" placeholder="ملاحظة السداد">
+                </div>
+                <button type="button" class="btn-primary" onclick="submitInvoicePaymentUpdate()">تأكيد السداد</button>
             </div>
         </div>
     </div>
@@ -816,34 +914,22 @@
             window.location.href = "login.html";
         }
 
-        function addNewCustomerDirect(e) {
-            e.preventDefault();
-            let name = document.getElementById('custName').value.trim();
-            let phone = document.getElementById('custPhone').value.trim();
-            let address = document.getElementById('custAddress').value.trim();
-
-            if(!name) return;
-
-            let exists = customers.some(c => c.name === name);
-            if(exists) {
-                alert('هذا العميل مسجل مسبقاً!');
-                return;
-            }
-
-            customers.push({ name, phone, address });
-            saveData();
-            refreshAllData();
-            closeAddCustomerModal();
-            
-            document.getElementById('custName').value = '';
-            document.getElementById('custPhone').value = '';
-            document.getElementById('custAddress').value = '';
-            
-            alert('تم حفظ العميل بنجاح!');
-        }
-
         function closeEditProductModal() {
             document.getElementById('editProductModal').style.display = 'none';
+        }
+
+        // ===== قائمة الموبايل (هامبرجر) =====
+        function toggleMobileMenu() {
+            const sidebar = document.getElementById('mainSidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const menuIcon = document.getElementById('menuIcon');
+            if (!sidebar) return;
+            const isOpen = sidebar.classList.toggle('mobile-open');
+            if (overlay) overlay.classList.toggle('active', isOpen);
+            if (menuIcon) {
+                menuIcon.classList.toggle('fa-bars', !isOpen);
+                menuIcon.classList.toggle('fa-times', isOpen);
+            }
         }
 
         // دوال إدارة الموظفين والحضور والانصراف وكشوفات الحساب الشاملة
@@ -865,7 +951,6 @@
                     ? `<span style="background: #dcfce7; color: #166534; padding: 3px 8px; border-radius: 20px; font-weight: bold; font-size: 11px;"><i class="fas fa-check-circle"></i> حاضر</span>`
                     : `<span style="background: #fee2e2; color: #991b1b; padding: 3px 8px; border-radius: 20px; font-weight: bold; font-size: 11px;"><i class="fas fa-times-circle"></i> غياب</span>`;
 
-                // تعبئة الجدول في الأسفل
                 tbody.innerHTML += `
                     <tr style="border-bottom: 1px solid #e2e8f0;">
                         <td style="padding: 12px; font-weight: bold; color: #1e293b;">${emp.name}</td>
@@ -874,7 +959,7 @@
                         <td style="padding: 12px; text-align: center; font-weight: bold; color: ${emp.arrivedAt === '--' ? '#ef4444' : '#0284c7'};">${emp.arrivedAt}</td>
                         <td style="padding: 12px; text-align: center; font-weight: bold; color: #059669;">${emp.salary} ج.م</td>
                         <td style="padding: 12px; text-align: center;">
-                            <div style="display: flex; gap: 6px; justify-content: center;">
+                            <div style="display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
                                 <button onclick="openEditEmployeeModal(${index})" style="background: #f59e0b; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;" title="تعديل"><i class="fas fa-edit"></i></button>
                                 <button onclick="deleteEmployee(${index})" style="background: #ef4444; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;" title="حذف"><i class="fas fa-trash"></i></button>
                                 <button onclick="openEmployeeExpenseModal(${index})" style="background: #0284c7; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;" title="تقرير شهري"><i class="fas fa-file-invoice-dollar"></i> تقرير الشهر وصافي المرتب</button>
@@ -883,7 +968,6 @@
                     </tr>
                 `;
 
-                // الكروت المصغرة في الأعلى كما طلبت تماماً
                 grid.innerHTML += `
                     <div class="stat-card" onclick="openEmployeeExpenseModal(${index})" style="padding: 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
                         <div style="display: flex; align-items: center; gap: 10px;">
@@ -1077,7 +1161,6 @@
                 });
             }
 
-            // حساب صافي المرتب بدقة
             let netSalary = emp.salary - totalDeductions - totalAbsences + totalAdditions;
 
             let printWindow = window.open('', '_blank');
