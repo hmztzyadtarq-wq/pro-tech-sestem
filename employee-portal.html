@@ -1,198 +1,1229 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تسجيل الحضور السحابي - برو تيك</title>
+    <title>نظام إدارة شركة برو تيك - ProTech ERP Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- مكتبات Firebase Firestore الإصدار 12 -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
-        import { getFirestore, collection, getDocs, doc, updatedoc, getDoc } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyDLD-Y6d7LcyqB0rf3YYbJLTFHDXUsWQNM",
-            authDomain: "protech-system.firebaseapp.com",
-            projectId: "protech-system",
-            storageBucket: "protech-system.firebasestorage.app",
-            messagingSenderId: "184422532312",
-            appId: "1:184422532312:web:76df7769c281c66fca43ad",
-            measurementId: "G-1RRP97BPJC"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-
-        const COMPANY_LAT = 30.139719; 
-        const COMPANY_LNG = 31.390727; 
-        const ALLOWED_DISTANCE_METERS = 400; 
-
-        // بصمة الهاتف لمنع التسجيل من أجهزة متعددة
-        function getDeviceToken() {
-            let deviceId = localStorage.getItem('protech_device_unique_id');
-            if (!deviceId) {
-                deviceId = 'device_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
-                localStorage.setItem('protech_device_unique_id', deviceId);
-            }
-            return deviceId;
+    <!-- Chart.js for real statistics and trends -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- jsPDF & html2canvas for client-side professional PDF generation matching the template -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script>
+        // حماية الصفحة: التحقق من تسجيل الدخول
+        if (localStorage.getItem('protech_logged_in') !== 'true') {
+            window.location.href = "login.html";
         }
-
-        // جلب أسماء الموظفين من Firestore عند فتح الصفحة
-        window.loadEmployees = async function() {
-            let select = document.getElementById('employeeSelect');
-            try {
-                // افترضنا أن الموظفين مخزنين في مجموعة باسم 'employees' أو حسب طريقة تخزينك في الآدمن
-                // يمكنك تعديل اسم الـ collection إذا كان مختلفاً لديك
-                const querySnapshot = await getDocs(collection(db, "employees"));
-                select.innerHTML = '<option value="">-- اختر اسمك من القائمة --</option>';
-                
-                querySnapshot.forEach((docSnap) => {
-                    let emp = docSnap.data();
-                    let opt = document.createElement('option');
-                    opt.value = docSnap.id; // تخزين معرف الوثيقة (Document ID)
-                    opt.textContent = emp.name + (emp.role ? ` (${emp.role})` : '');
-                    select.appendChild(opt);
-                });
-            } catch (error) {
-                console.error("خطأ في جلب الموظفين: ", error);
-                select.innerHTML = '<option value="">خطأ في الاتصال بقاعدة البيانات</option>';
-            }
-        };
-
-        function calculateDistance(lat1, lon1, lat2, lon2) {
-            function toRad(x) { return x * Math.PI / 180; }
-            let R = 6371000;
-            let dLat = toRad(lat2 - lat1);
-            let dLon = toRad(lon2 - lon1);
-            let a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-                    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-            let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            return R * c;
-        }
-
-        window.verifyAndCheckin = async function(e) {
-            e.preventDefault();
-            let empId = document.getElementById('employeeSelect').value;
-            let successBox = document.getElementById('successMsg');
-            let errorBox = document.getElementById('errorMsg');
-            
-            successBox.style.display = 'none';
-            errorBox.style.display = 'none';
-
-            if (!empId) {
-                errorBox.style.display = 'block';
-                errorBox.innerHTML = 'يرجى اختيار اسم الموظف أولاً.';
-                return;
-            }
-
-            if (!navigator.geolocation) {
-                errorBox.style.display = 'block';
-                errorBox.innerHTML = 'متصفحك لا يدعم خاصية تحديد الموقع الجغرافي.';
-                return;
-            }
-
-            navigator.geolocation.getCurrentPosition(
-                async (position) => {
-                    let userLat = position.coords.latitude;
-                    let userLng = position.coords.longitude;
-                    let distance = calculateDistance(userLat, userLng, COMPANY_LAT, COMPANY_LNG);
-
-                    if (distance <= ALLOWED_DISTANCE_METERS) {
-                        let currentDevice = getDeviceToken();
-                        
-                        try {
-                            const empRef = doc(db, "employees", empId);
-                            const empSnap = await getDoc(empRef);
-
-                            if (empSnap.exists()) {
-                                let emp = empSnap.data();
-
-                                // التحقق من قفل الجهاز
-                                if (emp.deviceId && emp.deviceId !== currentDevice) {
-                                    errorBox.style.display = 'block';
-                                    errorBox.innerHTML = 'عذراً، هذا الحساب مسجل بالفعل على هاتف شخصي آخر ولا يمكن تسجيل الحضور من هذا الهاتف!';
-                                    return;
-                                }
-
-                                let updateData = {
-                                    status: 'حاضر',
-                                    arrivedAt: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
-                                };
-
-                                if (!emp.deviceId) {
-                                    updateData.deviceId = currentDevice;
-                                }
-
-                                // تحديث الحضور في Firestore لتتحدث الآدمن فوراً
-                                await updateDoc(empRef, updateData);
-
-                                successBox.style.display = 'block';
-                                successBox.innerHTML = `<i class="fas fa-check-circle"></i> أهلاً بك يا <b>${emp.name}</b>، تم تسجيل حضورك بنجاح!`;
-                            } else {
-                                errorBox.style.display = 'block';
-                                errorBox.innerHTML = 'الموظف غير موجود في قاعدة البيانات.';
-                            }
-                        } catch (err) {
-                            console.error(err);
-                            errorBox.style.display = 'block';
-                            errorBox.innerHTML = 'حدث خطأ أثناء الاتصال بقاعدة البيانات لتسجيل الحضور.';
-                        }
-
-                    } else {
-                        errorBox.style.display = 'block';
-                        errorBox.innerHTML = `عذراً، أنت خارج نطاق الشركة! مسافتك الحالية تقريباً ${Math.round(distance)} متر (الحد المسموح 400 متر).`;
-                    }
-                },
-                (error) => {
-                    errorBox.style.display = 'block';
-                    errorBox.innerHTML = 'فشل في تحديد موقعك. يرجى تفعيل الـ GPS والسماح للمتصفح بالوصول لموقعك.';
-                },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-            );
-        };
-
-        window.onload = function() {
-            loadEmployees();
-        };
     </script>
-
     <style>
-        body { font-family: 'Cairo', sans-serif; background: #0f172a; color: #fff; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .checkin-card { background: #1e293b; padding: 30px; border-radius: 12px; width: 420px; max-width: 100%; box-shadow: 0 10px 25px rgba(0,0,0,0.5); text-align: center; border: 1px solid #334155; }
-        .logo-circle { width: 60px; height: 60px; background: #0284c7; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; margin: 0 auto 15px; }
-        h2 { color: #38bdf8; margin-bottom: 5px; }
-        p { color: #94a3b8; font-size: 13px; margin-bottom: 20px; }
-        .form-group { margin-bottom: 15px; text-align: right; }
-        label { display: block; margin-bottom: 5px; font-size: 13px; color: #cbd5e1; }
-        select { width: 100%; padding: 10px; background: #0f172a; color: #fff; border: 1px solid #475569; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
-        select option { background: #0f172a; color: #fff; }
-        .btn-checkin { width: 100%; padding: 12px; background: #10b981; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 16px; margin-top: 10px; transition: 0.3s; }
-        .btn-checkin:hover { background: #059669; }
-        #successMsg { display: none; background: #dcfce7; color: #166534; padding: 12px; border-radius: 6px; margin-top: 15px; font-weight: bold; font-size: 14px; text-align: right; }
-        #errorMsg { display: none; background: #fee2e2; color: #991b1b; padding: 12px; border-radius: 6px; margin-top: 15px; font-weight: bold; font-size: 14px; text-align: right; }
+        /* التعديلات المطلوبة لتصغير الكروت وجعلها بالأعلى */
+        .stats-grid-small {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .stats-grid-small .stat-card {
+            padding: 10px 15px !important;
+            min-height: unset !important;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+            cursor: pointer;
+        }
+        .stats-grid-small .stat-icon {
+            width: 40px;
+            height: 40px;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+        }
+        .stats-grid-small .stat-info h3 {
+            font-size: 12px;
+            color: #64748b;
+            margin: 0;
+        }
+        .stats-grid-small .stat-info span {
+            font-size: 16px;
+            font-weight: bold;
+            color: #1e293b;
+        }
     </style>
 </head>
 <body>
-
-    <div class="checkin-card">
-        <div class="logo-circle"><i class="fas fa-cloud-upload-alt"></i></div>
-        <h2>تسجيل الحضور السحابي</h2>
-        <p>سجل حضورك من هاتفك الشخصي داخل نطاق الشركة (400 متر)</p>
-        
-        <form onsubmit="verifyAndCheckin(event)">
-            <div class="form-group">
-                <label><i class="fas fa-user"></i> اسم الموظف:</label>
-                <select id="employeeSelect" required>
-                    <option value="">-- جاري تحميل أسماء الموظفين من القاعدة --</option>
-                </select>
+    <!-- App Container -->
+    <div class="app-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar" id="mainSidebar">
+            <div class="brand-header">
+                <div class="logo-circle"><i class="fas fa-print"></i></div>
+                <h1>Bro Tech</h1>
+                <span>ProTech ERP v2.0</span>
             </div>
-            <button type="submit" class="btn-checkin"><i class="fas fa-check-circle"></i> تأكيد وحفظ الحضور</button>
-        </form>
+            <ul class="nav-links">
+               
+               
+                <li class="active"onclick="switchTab('sales', this)"><i class="fas fa-cash-register"></i> المبيعات والفواتير</li>
+                 <li onclick="switchTab('inventory', this)"><i class="fas fa-boxes"></i> إدارة المخزون</li>
+                <li onclick="switchTab('purchases', this)"><i class="fas fa-shopping-cart"></i> المشتريات والتوريد</li>
+                <li onclick="switchTab('customers', this)"><i class="fas fa-users"></i> دليل العملاء</li>
+"window.location.href='https://www.facebook.com/ad_center/create/ad/?entry_point=www_pages_launchpoint&page_id=1984681641825368&locale=ar_AR'"><i class="fas fa-facebook"></i>  انشاء اعلان فيس بوك  </li>
+            </ul>
+            <div class="sidebar-footer">
+                <p><i class="fas fa-phone-alt"></i> 01020008299</p>
+                <small>الحالة: متصل بالواتساب والحسابات</small>
+                <button onclick="logoutSystem()" style="background:#fee2e2; color:#991b1b; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; font-weight:bold; width:100%; margin-top:10px;">
+                    <i class="fas fa-sign-out-alt"></i> تسجيل الخروج
+                </button>
+            </div>
+        </aside>
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleMobileMenu()"></div>
 
-        <div id="successMsg"></div>
-        <div id="errorMsg"></div>
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <header class="top-bar">
+                <button class="menu-toggle-btn" onclick="toggleMobileMenu()" aria-label="فتح القائمة">
+                    <i class="fas fa-bars" id="menuIcon"></i>
+                </button>
+                <div class="search-global">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="globalSearch" placeholder="بحث سريع في العملاء، الفواتير، أو المنتجات..." onkeyup="handleGlobalSearch(event)">
+                </div>
+                <div class="user-profile">
+                    <span class="badge-live"><i class="fas fa-circle"></i> <span class="badge-live-text">النظام يعمل ببيانات حقيقية</span></span>
+                    <div class="avatar">PT</div>
+                </div>
+            </header>
+
+            <!-- Dashboard Tab -->
+            <section id="tab-dashboard" class="tab-content active">
+                <div class="page-header-title">
+                    <h1>لوحة المؤشرات والتحليلات الحية</h1>
+                    <p>متابعة حركة المخزون، المبيعات، والمشتريات بشكل لحظي وواقعي 100%</p>
+                </div>
+
+                <!-- Quick Stat Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card" onclick="switchTab('inventory')">
+                        <div class="stat-icon bg-blue"><i class="fas fa-boxes"></i></div>
+                        <div class="stat-info">
+                            <h3>إجمالي المخزون</h3>
+                            <span id="statTotalStock">0</span> وحدة
+                        </div>
+                    </div>
+                    <div class="stat-card" onclick="switchTab('sales')">
+                        <div class="stat-icon bg-green"><i class="fas fa-chart-line"></i></div>
+                        <div class="stat-info">
+                            <h3>إجمالي المبيعات</h3>
+                            <span id="statTotalSales">0</span> ج.م
+                        </div>
+                    </div>
+                    <div class="stat-card" onclick="switchTab('purchases')">
+                        <div class="stat-icon bg-orange"><i class="fas fa-shopping-bag"></i></div>
+                        <div class="stat-info">
+                            <h3>إجمالي المشتريات</h3>
+                            <span id="statTotalPurchases">0</span> ج.م
+                        </div>
+                    </div>
+                    <div class="stat-card" onclick="switchTab('customers')">
+                        <div class="stat-icon bg-purple"><i class="fas fa-users"></i></div>
+                        <div class="stat-info">
+                            <h3>العملاء المسجلين</h3>
+                            <span id="statTotalCustomers">0</span> عميل
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Large Analytics Chart Section -->
+                <div class="analytics-card-large">
+                    <div class="card-header-flex">
+                        <h2><i class="fas fa-chart-area"></i> مؤشر حركة البيع والشراء (القمم والتدفقات)</h2>
+                        <div class="chart-legend">
+                            <span class="legend-sales"><i></i> المبيعات (تخصم المخزون)</span>
+                            <span class="legend-purchases"><i></i> المشتريات (تزيد المخزون)</span>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="salesPurchasesChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Recent Activities & Low Stock Alerts -->
+                <div class="dashboard-grid-two">
+                    <div class="sub-card">
+                        <h3><i class="fas fa-history"></i> آخر الفواتير المصدرة</h3>
+                        <div class="table-responsive">
+                            <table id="recentInvoicesTable">
+                               <thead>
+                                   <tr>
+                                       <th>رقم الفاتورة</th>
+                                       <th>العميل</th>
+                                       <th>المبلغ</th>
+                                       <th>التاريخ</th>
+                                   </tr>
+                               </thead>
+                               <tbody>
+                                   <!-- Filled dynamically -->
+                               </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="sub-card">
+                        <div class="sub-card-header-flex">
+                            <h3><i class="fas fa-exclamation-triangle"></i> تنبيهات نقص المخزون</h3>
+                            <button class="btn-print-lowstock" onclick="printLowStockReport()" title="طباعة قائمة المنتجات الناقصة">
+                                <i class="fas fa-print"></i> طباعة القائمة
+                            </button>
+                        </div>
+                        <div id="lowStockAlertsList" class="alert-list">
+                            <!-- Filled dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Inventory Tab -->
+            <section id="tab-inventory" class="tab-content">
+                <div class="page-header-title flex-header">
+                    <div>
+                        <h1>إدارة المخزون الحقيقي</h1>
+                        <p>تتبع الأصناف، الكميات الحالية، والأسعار (ينقص عند البيع ويزيد عند الشراء تلقائياً)</p>
+                    </div>
+                    <button class="btn-primary" onclick="openAddProductModal()"><i class="fas fa-plus"></i> إضافة صنف جديد</button>
+                </div>
+                <div class="card-table-wrapper">
+                    <div class="table-toolbar">
+                        <input type="text" id="searchInventory" placeholder="بحث في الأصناف..." onkeyup="filterInventory()">
+                    </div>
+                    <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>كود الصنف</th>
+                                <th>اسم الصنف والمواصفات</th>
+                                <th>الكمية المتاحة</th>
+                                <th>الوحدة</th>
+                                <th>سعر الوحدة</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventoryTableBody">
+                            <!-- Dynamic -->
+                        </tbody>
+                    </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sales & Invoices Tab -->
+            <section id="tab-sales" class="tab-content">
+                <div class="page-header-title flex-header">
+                    <div>
+                        <h1>المبيعات وإصدار الفواتير الاحترافية</h1>
+                        <p>إنشاء فاتورة رسمية مطابقة للتصميم المطلوب، تتسمى تلقائياً باسم العميل وتُرسل للواتساب</p>
+                    </div>
+                    <button class="btn-primary" onclick="openNewInvoiceModal()"><i class="fas fa-file-invoice-dollar"></i> إصدار فاتورة جديدة</button>
+                </div>
+                <div style="position: relative; display: inline-block; margin-bottom: 15px;">
+                    <button onclick="toggleReportMenu()" style="background: #0ea5e9; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; display: inline-flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-chart-bar"></i> تقارير المبيعات <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div id="reportMenuDropdown" style="display: none; position: absolute; right: 0; background: #1e293b; border: 1px solid #334155; border-radius: 6px; margin-top: 5px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); z-index: 100; min-width: 150px;">
+                        <button onclick="openCustomReport('daily')" style="width: 100%; padding: 10px; background: none; border: none; color: #fff; text-align: right; cursor: pointer; border-bottom: 1px solid #334155;">📅 تقرير يومي</button>
+                        <button onclick="openCustomReport('weekly')" style="width: 100%; padding: 10px; background: none; border: none; color: #fff; text-align: right; cursor: pointer; border-bottom: 1px solid #334155;">📆 تقرير أسبوعي</button>
+                        <button onclick="openCustomReport('monthly')" style="width: 100%; padding: 10px; background: none; border: none; color: #fff; text-align: right; cursor: pointer;">🗓️ تقرير شهري</button>
+                        <button onclick="openCustomerAccountPrompt()" style="width: 100%; padding: 10px; background: none; border: none; color: #38bdf8; text-align: right; cursor: pointer; font-weight: bold;">👤 كشف حساب عميل</button>
+                    </div>
+                </div>
+                <div class="card-table-wrapper">
+                    <div class="table-toolbar flex-toolbar">
+                        <input type="text" id="searchInvoices" placeholder="بحث باسم العميل أو رقم الفاتورة..." onkeyup="filterInvoices()">
+                    </div>
+                    <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>رقم/اسم الفاتورة</th>
+                                <th>اسم العميل</th>
+                                <th>التاريخ</th>
+                                <th>إجمالي المبلغ</th>
+                                <th>حالة الدفع</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="invoicesTableBody">
+                            <!-- Dynamic -->
+                        </tbody>
+                    </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Purchases Tab -->
+            <section id="tab-purchases" class="tab-content">
+                <div class="page-header-title flex-header">
+                    <div>
+                        <h1>إدارة المشتريات والتوريد (زيادة المخزون)</h1>
+                        <p>تسجيل عمليات الشراء من الموردين لزيادة رصيد المخزون تلقائياً 100%</p>
+                    </div>
+                    <button class="btn-primary" onclick="openNewPurchaseModal()"><i class="fas fa-cart-plus"></i> تسجيل عملية شراء جديدة</button>
+                </div>
+                <div class="card-table-wrapper">
+                    <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>رقم أمر الشراء</th>
+                                <th>المورد</th>
+                                <th>الصنف المشتري</th>
+                                <th>الكمية المضافة</th>
+                                <th>سعر الوحدة</th>
+                                <th>التكلفة الإجمالية</th>
+                                <th>التاريخ</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="purchasesTableBody">
+                            <!-- Dynamic -->
+                        </tbody>
+                    </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Customers Tab -->
+            <section id="tab-customers" class="tab-content">
+                <div class="page-header-title flex-header">
+                    <div>
+                        <h1>دليل العملاء</h1>
+                        <p>إدارة بيانات العملاء، أرقام التواصل، والمبالغ المستحقة وإجمالي التعاملات</p>
+                    </div>
+                    <button class="btn-primary" onclick="openAddCustomerModal()"><i class="fas fa-user-plus"></i> إضافة عميل جديد</button>
+                </div>
+                <div class="card-table-wrapper">
+                    <div class="table-toolbar">
+                        <input type="text" id="searchCustomers" placeholder="بحث بالاسم أو رقم الهاتف..." onkeyup="filterCustomers()">
+                    </div>
+                    <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>اسم العميل</th>
+                                <th>رقم الهاتف / الواتساب</th>
+                                <th>المديونية الحالية (عليه)</th>
+                                <th>إجمالي المشتريات</th>
+                                <th>آخر عملية شراء</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customersTableBody">
+                            <!-- Dynamic -->
+                        </tbody>
+                    </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Expenses & Attendance Tab (تم تعديل الترتيب ليصبح الكروت مصغرة بالأعلى والجدول بالأسفل + إضافة كشف الغياب والتقرير الشامل) -->
+            <section id="tab-expenses" class="tab-content">
+                <div class="page-header-title flex-header">
+                    <div>
+                        <h1>لوحة الأدمن: متابعة الحضور، الغياب، والمرتبات</h1>
+                        <p>متابعة حالات الحضور، الغياب، وساعات العمل، وصافي المرتبات لكل موظف بدقة تامة</p>
+                    </div>
+                    <button class="btn-primary" onclick="openAddEmployeeModalCustom()"><i class="fas fa-user-plus"></i> إضافة موظف جديد</button>
+                </div>
+                
+                <!-- 1. الكروت المصغرة أصبحت في الأعلى كما طلبت تماماً -->
+                <div id="employeesCardsGrid" class="stats-grid-small" style="margin-top: 15px;">
+                    <!-- يتم تعبئتها ديناميكياً -->
+                </div>
+
+                <!-- 2. الجدول أصبح في الأسفل كما طلبت تماماً -->
+                <div class="card-table-wrapper" style="margin-top: 20px; background: #fff; padding: 15px; border-radius: 8px;">
+                    <div style="margin-bottom: 12px; font-weight: bold; color: #1e293b; font-size: 16px; display: flex; justify-content: space-between; align-items: center;">
+                        <span><i class="fas fa-clipboard-user" style="color: #0284c7;"></i> سجل الحضور، الغياب، وكشف حساب الموظفين</span>
+                    </div>
+                    <div class="table-responsive">
+                    <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #f1f5f9; color: #334155;">
+                                <th style="padding: 10px; text-align: right;">اسم الموظف</th>
+                                <th style="padding: 10px; text-align: center;">الحالة (حضور / غياب)</th>
+                                <th style="padding: 10px; text-align: center;">مواعيد العمل</th>
+                                <th style="padding: 10px; text-align: center;">وقت الحضور</th>
+                                <th style="padding: 10px; text-align: center;">الراتب الأساسي</th>
+                                <th style="padding: 10px; text-align: center;">الإجراءات والتقرير الشهري</th>
+                            </tr>
+                        </thead>
+                        <tbody id="attendanceTableBody">
+                            <!-- يتم تعبئتها ديناميكياً من السكربت -->
+                        </tbody>
+                    </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Settings Tab -->
+            <section id="tab-settings" class="tab-content">
+                <div class="page-header-title">
+                    <h1>إعدادات النظام والربط الآلي</h1>
+                    <p>تخصيص بيانات شركة برو تيك ورقم إرسال الفواتير عبر الواتساب (01020008299)</p>
+                </div>
+                <div class="settings-card">
+                    <form onsubmit="saveSettings(event)">
+                        <div class="form-group">
+                            <label>اسم الشركة:</label>
+                            <input type="text" id="companyNameInput" value="شركة برو تيك للأحبار وماكينات الطباعة - ProTech">
+                        </div>
+                        <div class="form-group">
+                            <label>صاحب الشركة / المدير:</label>
+                            <input type="text" id="companyOwnerInput" value="وائل غنيم">
+                        </div>
+                        <div class="form-group">
+                            <label>رقم هاتف الواتساب الأساسي للإرسال التلقائي:</label>
+                            <input type="text" id="whatsappNumberInput" value="01020008299">
+                        </div>
+                        <div class="form-group">
+                            <label>عنوان الشركة:</label>
+                            <input type="text" id="companyAddressInput" value="جمهورية مصر العربية - مدينة بدر">
+                        </div>
+                        <button type="submit" class="btn-primary">حفظ الإعدادات</button>
+                    </form>
+                </div>
+            </section>
+        </main>
     </div>
+
+    <!-- Hidden Invoice Template Modal / Preview -->
+    <div id="invoiceModal" class="modal">
+        <div class="modal-content invoice-modal-width">
+            <div class="modal-header">
+                <h2>معاينة الفاتورة الرسمية (مطابقة للتصميم الأصلي بالعربية)</h2>
+                <span class="close-btn" onclick="closeInvoiceModal()">&times;</span>
+            </div>
+            <div class="modal-body" id="printableInvoiceArea">
+                <div class="invoice-box" style="background: #fff; color: #000; padding: 20px; font-family: 'Cairo', sans-serif; direction: rtl; text-align: right; border-radius: 8px;">
+                    <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #0284c7; padding-bottom: 15px; margin-bottom: 15px;">
+                        <div>
+                            <h2 style="margin: 0; color: #0284c7;">شركة برو تيك للأحبار وماكينات الطباعة</h2>
+                            <p style="margin: 5px 0 0 0; font-size: 13px; color: #555;">جمهورية مصر العربية - مدينة بدر</p>
+                            <p style="margin: 3px 0 0 0; font-size: 13px; color: #555;">هواتف: 01020008299</p>
+                        </div>
+                        <div style="text-align: left;">
+                            <h3 style="margin: 0; color: #333;" id="invModalNumber">فاتورة مبيعات</h3>
+                            <p style="margin: 5px 0 0 0; font-size: 13px; color: #555;" id="invModalDate">التاريخ: --/--/----</p>
+                        </div>
+                    </div>
+                    <div style="background: #f8fafc; padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 14px;">
+                        <p style="margin: 0 0 5px 0;"><strong>اسم العميل:</strong> <span id="invModalCustomerName">--</span></p>
+                        <p style="margin: 0 0 5px 0;"><strong>رقم الهاتف:</strong> <span id="invModalCustomerPhone">--</span></p>
+                        <p style="margin: 0;"><strong>العنوان:</strong> <span id="invModalCustomerAddress">--</span></p>
+                    </div>
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 13px;">
+                        <thead>
+                            <tr style="background: #0284c7; color: white;">
+                                <th style="padding: 8px; text-align: right;">الصنف</th>
+                                <th style="padding: 8px; text-align: center;">الكمية</th>
+                                <th style="padding: 8px; text-align: center;">السعر</th>
+                                <th style="padding: 8px; text-align: center;">الإجمالي</th>
+                            </tr>
+                        </thead>
+                        <tbody id="invModalItemsList">
+                            <!-- Dynamic -->
+                        </tbody>
+                    </table>
+                    <div style="display: flex; justify-content: flex-end; margin-bottom: 15px;">
+                        <div style="width: 250px; font-size: 14px;">
+                            <div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #eee;">
+                                <span>الإجمالي الفرعي:</span>
+                                <strong id="invModalSubtotal">0 ج.م</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #eee;">
+                                <span>الخصم:</span>
+                                <strong id="invModalDiscount">0 ج.م</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #eee; color: #d97706;" id="invModalOldBalanceRow">
+                                <span>حساب سابق:</span>
+                                <strong id="invModalOldBalance">0 ج.م</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: 8px 0; font-size: 16px; color: #0284c7; border-top: 2px solid #0284c7; margin-top: 5px;">
+                                <span>الإجمالي النهائي:</span>
+                                <strong id="invModalFinalTotal">0 ج.م</strong>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="text-align: center; font-size: 12px; color: #666; border-top: 1px dashed #ccc; padding-top: 10px;">
+                        <p style="margin: 0;">شكراً لتعاملكم مع شركة برو تيك - نسعد دائماً بخدمتكم</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeInvoiceModal()">إغلاق</button>
+                <button class="btn-primary" onclick="downloadPDF()"><i class="fas fa-file-pdf"></i> تحميل PDF (للطباعة بالماكينة)</button>
+                <button class="btn-success" onclick="sendToWhatsApp()"><i class="fab fa-whatsapp"></i> إرسال تلقائي للرقم (01020008299)</button>
+                <button type="button" onclick="editInvoiceStatusModal()" style="background: #f59e0b; color: white; border: none; padding: 8px 15px; border-radius: 6px; font-weight: bold; cursor: pointer;"><i class="fas fa-hand-holding-usd"></i> تسجيل سداد / تعديل المتبقي</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Invoice Creation / Edit Modal -->
+    <div id="newInvoiceModal" class="modal" style="display: none;">
+        <div class="modal-content" style="width: 700px; max-width: 95%; background: #1e293b; color: #fff; padding: 25px; border-radius: 12px;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 id="invoiceFormTitle" style="color: #38bdf8; margin: 0;"><i class="fas fa-file-invoice-dollar"></i> إنشاء فاتورة مبيعات جديدة</h3>
+                <span class="close-btn" onclick="closeNewInvoiceModal()" style="cursor: pointer; font-size: 20px;">&times;</span>
+            </div>
+            <div class="modal-body" style="max-height: 75vh; overflow-y: auto; padding: 5px;">
+                <input type="hidden" id="editingInvoiceIndex" value="">
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; margin-bottom: 5px; font-size: 13px; color: #94a3b8;">اختر العميل:</label>
+                    <select id="invoiceCustomerSelect" onchange="handleCustomerSelectChange()" style="width: 100%; padding: 8px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 4px;">
+                        <option value="">-- اختر عميل مسجل --</option>
+                    </select>
+                </div>
+                <div id="newCustomerDiv" style="display: none; background: #0f172a; padding: 10px; border-radius: 6px; margin-bottom: 12px; border: 1px dashed #475569;">
+                    <input type="text" id="newCustomerName" placeholder="اسم العميل الجديد" style="width: 100%; padding: 6px; margin-bottom: 6px; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 4px;">
+                    <input type="text" id="newCustomerPhone" placeholder="رقم الهاتف" style="width: 100%; padding: 6px; margin-bottom: 6px; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 4px;">
+                    <input type="text" id="newCustomerAddress" placeholder="العنوان" style="width: 100%; padding: 6px; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 4px;">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                        <label style="font-size: 13px; font-weight: bold; color: #38bdf8;">أصناف الفاتورة:</label>
+                        <button type="button" onclick="addInvoiceItemRow()" style="background: #0284c7; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 12px; cursor: pointer;"><i class="fas fa-plus"></i> إضافة صنف آخر</button>
+                    </div>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #0f172a; font-size: 12px; color: #94a3b8;">
+                                <th style="padding: 6px; text-align: right; width: 45%;">الصنف</th>
+                                <th style="padding: 6px; text-align: center; width: 20%;">الكمية</th>
+                                <th style="padding: 6px; text-align: center; width: 25%;">السعر</th>
+                                <th style="padding: 6px; text-align: center; width: 10%;">حذف</th>
+                            </tr>
+                        </thead>
+                        <tbody id="invoiceItemsBody"></tbody>
+                    </table>
+                </div>
+                <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                    <div style="flex: 1;">
+                        <label style="display: block; margin-bottom: 5px; font-size: 12px; color: #94a3b8;">نسبة الخصم الاختياري (%):</label>
+                        <input type="number" id="invoiceDiscountPercent" value="0" min="0" max="100" oninput="calculateInvoiceTotal()" style="width: 100%; padding: 6px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 4px;">
+                    </div>
+                </div>
+                <div style="background: #0f172a; padding: 10px; border-radius: 6px; margin-bottom: 12px; font-size: 12px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #fbbf24;">تسجيل حساب سابق (لو يوجد):</label>
+                    <div style="display: flex; gap: 8px; margin-bottom: 6px;">
+                        <input type="number" id="invoiceOldBalance" value="0" placeholder="المبلغ" oninput="calculateInvoiceTotal()" style="flex: 1; padding: 6px; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 4px;">
+                        <select id="invoiceOldBalanceType" onchange="calculateInvoiceTotal()" style="flex: 1; padding: 6px; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 4px;">
+                            <option value="none">بدون حساب سابق</option>
+                            <option value="on_him">حساب سابق (عليه - مدين)</option>
+                            <option value="for_him">حساب سابق (له - دائن)</option>
+                        </select>
+                    </div>
+                    <input type="text" id="invoiceOldBalanceDate" placeholder="تاريخ الحساب السابق (مثال: 2026/01/15)" style="width: 100%; padding: 6px; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 4px;">
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; margin-bottom: 5px; font-size: 13px; color: #94a3b8;">حالة الدفع:</label>
+                    <select id="invoicePaymentStatus" onchange="document.getElementById('remainingDiv').style.display = (this.value === 'لم يدفع') ? 'block' : 'none'" style="width: 100%; padding: 8px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 4px;">
+                        <option value="تم الدفع بالكامل">تم الدفع بالكامل</option>
+                        <option value="لم يدفع">متبقي جزء (آجل)</option>
+                    </select>
+                </div>
+                <div id="remainingDiv" style="display: none; margin-bottom: 12px;">
+                    <label style="display: block; margin-bottom: 5px; font-size: 13px; color: #f43f5e;">المبلغ المتبقي على العميل:</label>
+                    <input type="number" id="invoiceRemainingInput" value="0" style="width: 100%; padding: 8px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 4px;">
+                </div>
+                <div style="background: #0f172a; padding: 12px; border-radius: 6px; text-align: center; margin-bottom: 15px;">
+                    <span style="font-size: 14px; color: #94a3b8;">الإجمالي النهائي للفاتورة:</span>
+                    <h2 id="invoiceFinalTotalDisplay" style="margin: 5px 0 0 0; color: #38bdf8;">0 ج.م</h2>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button type="button" id="invoiceSubmitBtn" onclick="createNewInvoice(event)" style="flex: 2; background: #10b981; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;"><i class="fas fa-save"></i> حفظ وعرض الفاتورة</button>
+                    <button type="button" onclick="closeNewInvoiceModal()" style="flex: 1; background: #475569; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer;">إلغاء</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal تفاصيل سجلات وحسابات الموظف والتقرير الشامل -->
+    <div id="employeeExpenseModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 1000;">
+        <div class="modal-content" style="background: #ffffff; padding: 25px; border-radius: 12px; width: 700px; max-width: 95%; direction: rtl; text-align: right; max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 15px;">
+                <h3 id="modalEmployeeName" style="margin: 0; color: #0284c7; font-size: 20px;"><i class="fas fa-id-card-alt"></i> التقرير الشهري الشامل للموظف</h3>
+                <button onclick="closeEmployeeExpenseModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #64748b; font-weight: bold;"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <form onsubmit="addEmployeeExpenseItem(event)" style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e2e8f0;">
+                <input type="hidden" id="activeEmployeeId">
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <select id="expenseType" style="flex: 1; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;">
+                        <option value="سلفة / مصروف">سلفة / مصروف (يخصم)</option>
+                        <option value="مكافأة / حافز">مكافأة / حافز (يُضاف)</option>
+                        <option value="يوم غياب">يوم غياب (يُسجل للخصم)</option>
+                    </select>
+                    <input type="number" id="expenseAmount" placeholder="المبلغ أو قيمة الخصم (ج.م)" required style="flex: 1; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;">
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <input type="text" id="expenseNote" placeholder="بيان الحدث (مثال: غياب يوم الأحد، سلفة نقدية، حافز تميز)..." required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 14px;">
+                </div>
+                <button type="submit" style="width: 100%; padding: 10px; background: #0284c7; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;"><i class="fas fa-plus-circle"></i> تسجيل حركة جديدة في الشهر</button>
+            </form>
+
+            <div style="margin-bottom: 10px; font-weight: bold; color: #334155; font-size: 15px;">سجل الحركات والأيام (حضور، غياب، سلف، مكافآت):</div>
+            <div style="overflow-x: auto; margin-bottom: 20px;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                    <thead>
+                        <tr style="background: #f1f5f9; color: #334155;">
+                            <th style="padding: 10px; text-align: right; border-bottom: 2px solid #cbd5e1;">النوع</th>
+                            <th style="padding: 10px; text-align: right; border-bottom: 2px solid #cbd5e1;">المبلغ / القيمة</th>
+                            <th style="padding: 10px; text-align: right; border-bottom: 2px solid #cbd5e1;">البيان والتفاصيل</th>
+                            <th style="padding: 10px; text-align: center; border-bottom: 2px solid #cbd5e1;">التاريخ</th>
+                            <th style="padding: 10px; text-align: center; border-bottom: 2px solid #cbd5e1;">إجراء</th>
+                        </tr>
+                    </thead>
+                    <tbody id="employeeExpensesTableBody"></tbody>
+                </table>
+            </div>
+
+            <div style="text-align: center; border-top: 1px solid #e2e8f0; padding-top: 15px;">
+                <button type="button" onclick="printEmployeeStatement()" style="background: #10b981; color: white; border: none; padding: 12px 25px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 15px;"><i class="fas fa-file-alt"></i> تقرير شامل لكل ما حصل خلال الشهر (مع صافي المرتب)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal إضافة موظف جديد -->
+    <div id="addEmployeeModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 1000;">
+        <div class="modal-content" style="background: #ffffff; padding: 25px; border-radius: 12px; width: 450px; max-width: 92%; direction: rtl; text-align: right; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 15px;">
+                <h3 style="margin: 0; color: #0284c7; font-size: 18px;"><i class="fas fa-user-plus"></i> إضافة موظف جديد</h3>
+                <button onclick="closeAddEmployeeModal()" style="background: none; border: none; font-size: 18px; cursor: pointer; color: #64748b;"><i class="fas fa-times"></i></button>
+            </div>
+            <form onsubmit="addNewEmployeeCustom(event)">
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: bold; color: #334155;">اسم الموظف:</label>
+                    <input type="text" id="empName" required placeholder="الاسم الكامل..." style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: bold; color: #334155;">حالة الحضور اليومي:</label>
+                    <select id="empStatus" style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+                        <option value="حاضر">حاضر</option>
+                        <option value="غياب">غياب</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                    <div style="flex: 1;">
+                        <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: bold; color: #334155;">من الساعة:</label>
+                        <input type="text" id="empTimeFrom" value="09:00 ص" style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: bold; color: #334155;">إلى الساعة:</label>
+                        <input type="text" id="empTimeTo" value="05:00 م" style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+                    </div>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: bold; color: #334155;">جه انهارده الساعة:</label>
+                    <input type="text" id="empArrivedAt" value="09:05 ص" style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: bold; color: #334155;">الراتب الأساسي (ج.م):</label>
+                    <input type="number" id="empSalary" required min="0" value="5000" style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid #e2e8f0; padding-top: 15px;">
+                    <button type="button" onclick="closeAddEmployeeModal()" style="padding: 9px 16px; background: #64748b; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">إلغاء</button>
+                    <button type="submit" style="padding: 9px 18px; background: #0284c7; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px;">حفظ الموظف</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal تعديل بيانات وحضور الموظف -->
+    <div id="editEmployeeModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 1000;">
+        <div class="modal-content" style="background: #ffffff; padding: 25px; border-radius: 12px; width: 450px; max-width: 92%; direction: rtl; text-align: right; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 15px;">
+                <h3 style="margin: 0; color: #0284c7; font-size: 18px;"><i class="fas fa-user-edit"></i> تعديل بيانات وحضور الموظف</h3>
+                <button onclick="closeEditEmployeeModal()" style="background: none; border: none; font-size: 18px; cursor: pointer; color: #64748b;"><i class="fas fa-times"></i></button>
+            </div>
+            <form onsubmit="saveEditedEmployee(event)">
+                <input type="hidden" id="editEmpIndex">
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: bold; color: #334155;">اسم الموظف:</label>
+                    <input type="text" id="editEmpName" required style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: bold; color: #334155;">الحالة:</label>
+                    <select id="editEmpStatus" style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+                        <option value="حاضر">حاضر</option>
+                        <option value="غياب">غياب</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                    <div style="flex: 1;">
+                        <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: bold; color: #334155;">من الساعة:</label>
+                        <input type="text" id="editEmpTimeFrom" style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: bold; color: #334155;">إلى الساعة:</label>
+                        <input type="text" id="editEmpTimeTo" style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+                    </div>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: bold; color: #334155;">جه انهارده الساعة:</label>
+                    <input type="text" id="editEmpArrivedAt" style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: bold; color: #334155;">الراتب الأساسي (ج.م):</label>
+                    <input type="number" id="editEmpSalary" required style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid #e2e8f0; padding-top: 15px;">
+                    <button type="button" onclick="closeEditEmployeeModal()" style="padding: 9px 16px; background: #64748b; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">إلغاء</button>
+                    <button type="submit" style="padding: 9px 18px; background: #10b981; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px;">حفظ التعديلات</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Product Modal -->
+    <div id="addProductModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>إضافة صنف جديد للمخزون</h2>
+                <span class="close-btn" onclick="closeAddProductModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form onsubmit="addNewProduct(event)">
+                    <div class="form-group">
+                        <label>كود الصنف:</label>
+                        <input type="text" id="prodCode" required placeholder="مثال: PR-004">
+                    </div>
+                    <div class="form-group">
+                        <label>اسم الصنف والمواصفات:</label>
+                        <input type="text" id="prodName" required placeholder="مثال: حبر طباعة ياباني أصلي...">
+                    </div>
+                    <div class="form-group">
+                        <label>الكمية الأولية:</label>
+                        <input type="number" id="prodQty" required min="0" value="10">
+                    </div>
+                    <div class="form-group">
+                        <label>الوحدة:</label>
+                        <input type="text" id="prodUnit" required value="لتر / عبوة / قطعة">
+                    </div>
+                    <div class="form-group">
+                        <label>سعر الوحدة (ج.م):</label>
+                        <input type="number" id="prodPrice" required step="0.01" value="1500">
+                    </div>
+                    <button type="submit" class="btn-primary">حفظ الصنف وإضافته للمخزون</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Product Modal -->
+    <div id="editProductModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
+        <div style="background: white; width: 400px; max-width: 95%; padding: 25px; border-radius: 10px; box-sizing: border-box; text-align: right; direction: rtl;">
+            <h3 style="margin-top: 0; color: #0284c7; font-size: 18px; margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">تعديل بيانات الصنف</h3>
+            <form onsubmit="saveEditedProduct(event)">
+                <input type="hidden" id="editProdIndex">
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; font-size: 13px; margin-bottom: 5px; font-weight: bold; color: #334155;">كود الصنف:</label>
+                    <input type="text" id="editProdCode" required style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; font-size: 13px; margin-bottom: 5px; font-weight: bold; color: #334155;">اسم الصنف:</label>
+                    <input type="text" id="editProdName" required style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; font-size: 13px; margin-bottom: 5px; font-weight: bold; color: #334155;">الكمية الحالية:</label>
+                    <input type="number" id="editProdQty" required style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; font-size: 13px; margin-bottom: 5px; font-weight: bold; color: #334155;">الوحدة (قطعة، لتر، لفة...):</label>
+                    <input type="text" id="editProdUnit" required style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-size: 13px; margin-bottom: 5px; font-weight: bold; color: #334155;">السعر (ج.م):</label>
+                    <input type="number" id="editProdPrice" required style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+                </div>
+                <div style="text-align: left; border-top: 1px solid #e2e8f0; padding-top: 15px;">
+                    <button type="submit" style="background: #10b981; color: white; border: none; padding: 9px 18px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px;">حفظ التعديلات</button>
+                    <button type="button" onclick="closeEditProductModal()" style="background: #64748b; color: white; border: none; padding: 9px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; margin-right: 8px;">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- New Purchase Modal -->
+    <div id="newPurchaseModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>تسجيل عملية شراء (زيادة المخزون تلقائياً)</h2>
+                <span class="close-btn" onclick="closeNewPurchaseModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form onsubmit="createNewPurchase(event)">
+                    <div class="form-group">
+                        <label>اسم المورد:</label>
+                        <input type="text" id="purchaseSupplier" required placeholder="اسم شركة التوريد...">
+                    </div>
+                    <div class="form-group">
+                        <label>اختر الصنف:</label>
+                        <select id="purchaseProductSelect" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label>الكمية المشتراة (تضاف للمخزون فوراً):</label>
+                        <input type="number" id="purchaseQty" required min="1" value="20">
+                    </div>
+                    <div class="form-group">
+                        <label>إجمالي التكلفة (ج.م):</label>
+                        <input type="number" id="purchaseCost" required step="0.01" value="25000">
+                    </div>
+                    <button type="submit" class="btn-primary">تأكيد الشراء وزيادة المخزون</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Customer Modal -->
+    <div id="addCustomerModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>إضافة عميل جديد</h2>
+                <span class="close-btn" onclick="closeAddCustomerModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form onsubmit="addNewCustomerDirect(event)">
+                    <div class="form-group">
+                        <label>اسم العميل:</label>
+                        <input type="text" id="custName" required placeholder="اسم العميل أو الشركة...">
+                    </div>
+                    <div class="form-group">
+                        <label>رقم الهاتف / الواتساب:</label>
+                        <input type="text" id="custPhone" required placeholder="010xxxxxxxx">
+                    </div>
+                    <div class="form-group">
+                        <label>العنوان:</label>
+                        <input type="text" id="custAddress" required placeholder="المدينة / المنطقة...">
+                    </div>
+                    <div class="form-group">
+                        <label>حساب سابق (اختياري):</label>
+                        <input type="number" id="custOldBalance" value="0" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label>نوع الحساب السابق:</label>
+                        <select id="custBalanceType">
+                            <option value="none">بدون حساب سابق</option>
+                            <option value="on_him">عليه (مدين)</option>
+                            <option value="for_him">له (دائن)</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn-primary">حفظ العميل</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Customer Modal (Full Details) -->
+    <div id="editCustomerModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>تعديل بيانات العميل</h2>
+                <span class="close-btn" onclick="closeEditCustomerModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form onsubmit="saveEditedCustomer(event)">
+                    <input type="hidden" id="editCustIndex">
+                    <div class="form-group">
+                        <label>اسم العميل:</label>
+                        <input type="text" id="editCustName" required>
+                    </div>
+                    <div class="form-group">
+                        <label>رقم الهاتف / الواتساب:</label>
+                        <input type="text" id="editCustPhone">
+                    </div>
+                    <div class="form-group">
+                        <label>العنوان:</label>
+                        <input type="text" id="editCustAddress">
+                    </div>
+                    <div class="form-group">
+                        <label>حساب سابق (منفصل عن الفواتير):</label>
+                        <input type="number" id="editCustOldBalance" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>نوع الحساب السابق:</label>
+                        <select id="editCustBalanceType">
+                            <option value="none">بدون حساب سابق</option>
+                            <option value="on_him">عليه (مدين)</option>
+                            <option value="for_him">له (دائن)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>تاريخ الحساب السابق:</label>
+                        <input type="text" id="editCustOldBalanceDate" placeholder="مثال: 2026/01/15">
+                    </div>
+                    <button type="submit" class="btn-primary">حفظ التعديلات</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Invoice Payment Update Modal -->
+    <div id="editInvoicePaymentModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>تسجيل سداد / تعديل المتبقي</h2>
+                <span class="close-btn" onclick="closeEditPaymentModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editPaymentInvIndex">
+                <p style="margin-bottom:8px; font-size:14px;">رقم الفاتورة: <strong id="editPaymentInvNumber">--</strong></p>
+                <p style="margin-bottom:8px; font-size:14px;">العميل: <strong id="editPaymentCustomerName">--</strong></p>
+                <p style="margin-bottom:15px; font-size:14px;">المتبقي الحالي: <strong id="editPaymentCurrentRemaining" style="color:#e11d48;">0 ج.م</strong></p>
+                <div class="form-group">
+                    <label>المبلغ المدفوع الآن:</label>
+                    <input type="number" id="payAmountInput" value="0" min="0">
+                </div>
+                <div class="form-group">
+                    <label>ملاحظة:</label>
+                    <input type="text" id="payNoteInput" placeholder="ملاحظة السداد">
+                </div>
+                <button type="button" class="btn-primary" onclick="submitInvoicePaymentUpdate()">تأكيد السداد</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ربط السكربت البرمجي الأصلي والمحدث -->
+    <script type="module" src="script.js"></script>
+    <script>
+        function logoutSystem() {
+            localStorage.removeItem('protech_logged_in');
+            window.location.href = "login.html";
+        }
+
+        function closeEditProductModal() {
+            document.getElementById('editProductModal').style.display = 'none';
+        }
+
+        // ===== قائمة الموبايل (هامبرجر) =====
+        function toggleMobileMenu() {
+            const sidebar = document.getElementById('mainSidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const menuIcon = document.getElementById('menuIcon');
+            if (!sidebar) return;
+            const isOpen = sidebar.classList.toggle('mobile-open');
+            if (overlay) overlay.classList.toggle('active', isOpen);
+            if (menuIcon) {
+                menuIcon.classList.toggle('fa-bars', !isOpen);
+                menuIcon.classList.toggle('fa-times', isOpen);
+            }
+        }
+
+        // دوال إدارة الموظفين والحضور والانصراف وكشوفات الحساب الشاملة
+        let employees = JSON.parse(localStorage.getItem('protech_employees')) || [
+            { id: 1, name: 'أحمد محمود', status: 'حاضر', timeFrom: '09:00 ص', timeTo: '05:00 م', arrivedAt: '09:05 ص', salary: 5000, items: [] },
+            { id: 2, name: 'محمد إبراهيم', status: 'غياب', timeFrom: '09:00 ص', timeTo: '05:00 م', arrivedAt: '--', salary: 6500, items: [] }
+        ];
+
+        function renderEmployees() {
+            let tbody = document.getElementById('attendanceTableBody');
+            let grid = document.getElementById('employeesCardsGrid');
+            if(!tbody || !grid) return;
+
+            tbody.innerHTML = '';
+            grid.innerHTML = '';
+
+            employees.forEach((emp, index) => {
+                let statusBadge = emp.status === 'حاضر' 
+                    ? `<span style="background: #dcfce7; color: #166534; padding: 3px 8px; border-radius: 20px; font-weight: bold; font-size: 11px;"><i class="fas fa-check-circle"></i> حاضر</span>`
+                    : `<span style="background: #fee2e2; color: #991b1b; padding: 3px 8px; border-radius: 20px; font-weight: bold; font-size: 11px;"><i class="fas fa-times-circle"></i> غياب</span>`;
+
+                tbody.innerHTML += `
+                    <tr style="border-bottom: 1px solid #e2e8f0;">
+                        <td style="padding: 12px; font-weight: bold; color: #1e293b;">${emp.name}</td>
+                        <td style="padding: 12px; text-align: center;">${statusBadge}</td>
+                        <td style="padding: 12px; text-align: center; color: #475569; font-size: 13px;">${emp.timeFrom} إلى ${emp.timeTo}</td>
+                        <td style="padding: 12px; text-align: center; font-weight: bold; color: ${emp.arrivedAt === '--' ? '#ef4444' : '#0284c7'};">${emp.arrivedAt}</td>
+                        <td style="padding: 12px; text-align: center; font-weight: bold; color: #059669;">${emp.salary} ج.م</td>
+                        <td style="padding: 12px; text-align: center;">
+                            <div style="display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
+                                <button onclick="openEditEmployeeModal(${index})" style="background: #f59e0b; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;" title="تعديل"><i class="fas fa-edit"></i></button>
+                                <button onclick="deleteEmployee(${index})" style="background: #ef4444; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;" title="حذف"><i class="fas fa-trash"></i></button>
+                                <button onclick="openEmployeeExpenseModal(${index})" style="background: #0284c7; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;" title="تقرير شهري"><i class="fas fa-file-invoice-dollar"></i> تقرير الشهر وصافي المرتب</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+
+                grid.innerHTML += `
+                    <div class="stat-card" onclick="openEmployeeExpenseModal(${index})" style="padding: 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div style="width: 38px; height: 38px; background: #e0f2fe; color: #0284c7; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 16px;">
+                                <i class="fas fa-user-tie"></i>
+                            </div>
+                            <div>
+                                <h4 style="margin: 0; font-size: 14px; color: #1e293b;">${emp.name}</h4>
+                                <span style="font-size: 11px; color: #64748b;">الراتب: ${emp.salary} ج.م</span>
+                            </div>
+                        </div>
+                        <div>
+                            ${statusBadge}
+                        </div>
+                    </div>
+                `;
+            });
+
+            localStorage.setItem('protech_employees', JSON.stringify(employees));
+        }
+
+        function openAddEmployeeModalCustom() {
+            document.getElementById('addEmployeeModal').style.display = 'flex';
+        }
+        function closeAddEmployeeModal() {
+            document.getElementById('addEmployeeModal').style.display = 'none';
+        }
+
+        function addNewEmployeeCustom(e) {
+            e.preventDefault();
+            let name = document.getElementById('empName').value.trim();
+            let status = document.getElementById('empStatus').value;
+            let timeFrom = document.getElementById('empTimeFrom').value.trim();
+            let timeTo = document.getElementById('empTimeTo').value.trim();
+            let arrivedAt = document.getElementById('empArrivedAt').value.trim();
+            let salary = Number(document.getElementById('empSalary').value);
+
+            if(!name) return;
+
+            employees.push({
+                id: Date.now(),
+                name,
+                status,
+                timeFrom: timeFrom || '09:00 ص',
+                timeTo: timeTo || '05:00 م',
+                arrivedAt: status === 'غياب' ? '--' : (arrivedAt || '09:00 ص'),
+                salary,
+                items: []
+            });
+
+            renderEmployees();
+            closeAddEmployeeModal();
+            document.getElementById('empName').value = '';
+            alert('تم إضافة الموظف بنجاح!');
+        }
+
+        function deleteEmployee(index) {
+            if(confirm('هل أنت متأكد من حذف هذا الموظف وسجله نهائياً؟')) {
+                employees.splice(index, 1);
+                renderEmployees();
+            }
+        }
+
+        function openEditEmployeeModal(index) {
+            let emp = employees[index];
+            document.getElementById('editEmpIndex').value = index;
+            document.getElementById('editEmpName').value = emp.name;
+            document.getElementById('editEmpStatus').value = emp.status;
+            document.getElementById('editEmpTimeFrom').value = emp.timeFrom;
+            document.getElementById('editEmpTimeTo').value = emp.timeTo;
+            document.getElementById('editEmpArrivedAt').value = emp.arrivedAt;
+            document.getElementById('editEmpSalary').value = emp.salary;
+            document.getElementById('editEmployeeModal').style.display = 'flex';
+        }
+        function closeEditEmployeeModal() {
+            document.getElementById('editEmployeeModal').style.display = 'none';
+        }
+
+        function saveEditedEmployee(e) {
+            e.preventDefault();
+            let index = document.getElementById('editEmpIndex').value;
+            let emp = employees[index];
+
+            emp.name = document.getElementById('editEmpName').value.trim();
+            emp.status = document.getElementById('editEmpStatus').value;
+            emp.timeFrom = document.getElementById('editEmpTimeFrom').value.trim();
+            emp.timeTo = document.getElementById('editEmpTimeTo').value.trim();
+            emp.arrivedAt = emp.status === 'غياب' ? '--' : document.getElementById('editEmpArrivedAt').value.trim();
+            emp.salary = Number(document.getElementById('editEmpSalary').value);
+
+            renderEmployees();
+            closeEditEmployeeModal();
+            alert('تم تحديث بيانات وحضور الموظف بنجاح!');
+        }
+
+        let currentActiveEmpIndex = null;
+        function openEmployeeExpenseModal(index) {
+            currentActiveEmpIndex = index;
+            let emp = employees[index];
+            document.getElementById('modalEmployeeName').innerHTML = `<i class="fas fa-id-card-alt"></i> التقرير الشهري الشامل للموظف: ${emp.name}`;
+            document.getElementById('activeEmployeeId').value = index;
+            renderEmployeeExpensesTable();
+            document.getElementById('employeeExpenseModal').style.display = 'flex';
+        }
+        function closeEmployeeExpenseModal() {
+            document.getElementById('employeeExpenseModal').style.display = 'none';
+        }
+
+        function addEmployeeExpenseItem(e) {
+            e.preventDefault();
+            let index = document.getElementById('activeEmployeeId').value;
+            let type = document.getElementById('expenseType').value;
+            let amount = Number(document.getElementById('expenseAmount').value);
+            let note = document.getElementById('expenseNote').value.trim();
+
+            let emp = employees[index];
+            if(!emp.items) emp.items = [];
+            emp.items.push({
+                type,
+                amount,
+                note,
+                date: new Date().toLocaleDateString('ar-EG')
+            });
+
+            renderEmployees();
+            renderEmployeeExpensesTable();
+            document.getElementById('expenseAmount').value = '';
+            document.getElementById('expenseNote').value = '';
+        }
+
+        function renderEmployeeExpensesTable() {
+            let index = currentActiveEmpIndex;
+            let emp = employees[index];
+            let tbody = document.getElementById('employeeExpensesTableBody');
+            if(!tbody) return;
+            tbody.innerHTML = '';
+
+            if(!emp.items || emp.items.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 15px; color: #64748b;">لا توجد سجلات أو غياب مسجل لهذا الموظف خلال الشهر</td></tr>`;
+                return;
+            }
+
+            emp.items.forEach((item, itemIndex) => {
+                let badgeColor = item.type.includes('مكافأة') ? '#10b981' : (item.type.includes('غياب') ? '#d97706' : '#ef4444');
+                tbody.innerHTML += `
+                    <tr>
+                        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: ${badgeColor};">${item.type}</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold;">${item.amount} ج.م</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${item.note}</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center;">${item.date}</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center;">
+                            <button onclick="deleteEmpItem(${itemIndex})" style="background: #fee2e2; color: #991b1b; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function deleteEmpItem(itemIndex) {
+            let emp = employees[currentActiveEmpIndex];
+            emp.items.splice(itemIndex, 1);
+            renderEmployees();
+            renderEmployeeExpensesTable();
+        }
+
+        // زر التقرير الشامل لكل ما حدث خلال الشهر لكل موظف لوحده مع حساب صافي المرتب
+        function printEmployeeStatement() {
+            let emp = employees[currentActiveEmpIndex];
+            let totalDeductions = 0;
+            let totalAdditions = 0;
+            let totalAbsences = 0;
+            let rowsHtml = '';
+
+            if(emp.items) {
+                emp.items.forEach(item => {
+                    if(item.type.includes('يخصم') || item.type.includes('سلفة')) {
+                        totalDeductions += Number(item.amount);
+                    } else if(item.type.includes('مكافأة')) {
+                        totalAdditions += Number(item.amount);
+                    } else if(item.type.includes('غياب')) {
+                        totalAbsences += Number(item.amount);
+                    }
+                    rowsHtml += `
+                        <tr>
+                            <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${item.date}</td>
+                            <td style="padding: 8px; border: 1px solid #cbd5e1;">${item.type}</td>
+                            <td style="padding: 8px; border: 1px solid #cbd5e1;">${item.note}</td>
+                            <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold;">${item.amount} ج.م</td>
+                        </tr>
+                    `;
+                });
+            }
+
+            let netSalary = emp.salary - totalDeductions - totalAbsences + totalAdditions;
+
+            let printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <html lang="ar" dir="rtl">
+                <head>
+                    <title>التقرير الشهري الشامل للموظف - ${emp.name}</title>
+                    <style>
+                        body { font-family: 'Cairo', Tahoma, sans-serif; padding: 25px; color: #000; direction: rtl; }
+                        .header { text-align: center; border-bottom: 2px solid #0284c7; padding-bottom: 15px; margin-bottom: 20px; }
+                        .summary-box { background: #f8fafc; border: 1px solid #cbd5e1; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; font-size: 14px; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
+                        th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: right; }
+                        th { background: #f1f5f9; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h2>شركة برو تيك للأحبار وماكينات الطباعة - ProTech</h2>
+                        <h3>التقرير الشهري الشامل (حضور، غياب، سلف، صافي المرتب)</h3>
+                        <p><strong>اسم الموظف:</strong> ${emp.name} | <strong>تاريخ الإصدار:</strong> ${new Date().toLocaleDateString('ar-EG')}</p>
+                    </div>
+                    
+                    <div class="summary-box">
+                        <div><strong>الراتب الأساسي:</strong> ${emp.salary} ج.م</div>
+                        <div><strong>إجمالي السلف والخصومات:</strong> ${totalDeductions} ج.م</div>
+                        <div><strong>إجمالي خصومات الغياب:</strong> ${totalAbsences} ج.م</div>
+                        <div><strong>إجمالي المكافآت والحوافز:</strong> ${totalAdditions} ج.م</div>
+                    </div>
+
+                    <div style="background: #e0f2fe; padding: 12px; border-radius: 6px; text-align: center; margin-bottom: 20px; border: 1px solid #7dd3fc;">
+                        <h3 style="margin: 0; color: #0369a1; font-size: 18px;">صافي الراتب المستحق للشهر: ${netSalary} ج.م</h3>
+                    </div>
+
+                    <h4>تفاصيل حركات الشهر حرفياً (حضر، غياب، استلف، إلخ):</h4>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="text-align: center;">التاريخ</th>
+                                <th>نوع الحدث</th>
+                                <th>البيان والتفاصيل</th>
+                                <th style="text-align: center;">المبلغ / القيمة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rowsHtml || '<tr><td colspan="4" style="text-align:center; padding: 15px; color: #666;">لا توجد حركات أو غياب مسجل خلال هذا الشهر</td></tr>'}
+                        </tbody>
+                    </table>
+
+                    <div style="margin-top: 50px; display: flex; justify-content: space-between; font-size: 14px;">
+                        <div>توقيع المدير المسؤول: ........................</div>
+                        <div>توقيع الموظف المستلم: ........................</div>
+                    </div>
+                    <script>
+                        window.onload = function() { window.print(); }
+                    <\/script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            renderEmployees();
+        });
+    </script>
+    <script>
+        localStorage.setItem('protech_logged_in', 'true');
+    </script>
 </body>
 </html>
