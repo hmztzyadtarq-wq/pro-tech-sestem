@@ -21,6 +21,28 @@ const db = getFirestore(app);
 
 const LOW_STOCK_THRESHOLD = 20;
 
+// حساب عدد الأيام بين تاريخين (ISO) بدقة - يُستخدم في حساب أيام التأخير بكشف حساب العميل
+function daysBetweenISO(startISO, endISO) {
+    if(!startISO || !endISO) return null;
+    let start = new Date(startISO);
+    let end = new Date(endISO);
+    if(isNaN(start.getTime()) || isNaN(end.getTime())) return null;
+    let diffMs = end.setHours(0,0,0,0) - start.setHours(0,0,0,0);
+    return Math.max(0, Math.round(diffMs / 86400000));
+}
+
+// إجمالي صافي مديونية عميل واحد (موجب = عليه / سالب = له رصيد) - نفس المعادلة تماماً
+// تُستخدم في دليل العملاء، كشف الحساب، ولوحة المؤشرات؛ عشان الأرقام تتطابق 100% في كل الصفحات
+function getCustomerNetDebt(customerName) {
+    let cust = customers.find(c => c.name === customerName);
+    let custInvoices = invoices.filter(i => i.customerName === customerName);
+    let totalRemainingFromInvoices = custInvoices.reduce((sum, i) => sum + Number(i.remaining || 0), 0);
+    let signedOldBalance = 0;
+    if(cust && cust.oldBalance && cust.balanceType === 'on_him') signedOldBalance = Number(cust.oldBalance);
+    else if(cust && cust.oldBalance && cust.balanceType === 'for_him') signedOldBalance = -Number(cust.oldBalance);
+    return totalRemainingFromInvoices + signedOldBalance;
+}
+
 // Data State (Initial Defaults)
 let inventory = [
     { code: 'PR-001', name: 'حبر طابعة ياباني أسود ليزر', qty: 45, unit: 'لتر', price: 1200 },
@@ -169,6 +191,30 @@ function renderDashboard() {
     }
     let profitElem = document.getElementById('statTotalProfit');
     if(profitElem) profitElem.innerText = totalProfit.toLocaleString() + ' ج.م';
+
+    // كارت إجمالي مديونيات العملاء - بنفس المعادلة المستخدمة في دليل العملاء وكشف الحساب تماماً
+    // عشان الرقم يبقى متطابق 100% في كل صفحات الموقع
+    if(statsGrid && !document.getElementById('statTotalDebts')) {
+        let debtCard = document.createElement('div');
+        debtCard.className = 'stat-card';
+        debtCard.onclick = function() { window.switchTab('customers'); };
+        debtCard.innerHTML = `
+            <div class="stat-icon" style="background: #ef4444; color: #fff;"><i class="fas fa-hand-holding-dollar"></i></div>
+            <div class="stat-info">
+                <h3>إجمالي مديونيات العملاء</h3>
+                <span id="statTotalDebts">0 ج.م</span>
+            </div>
+        `;
+        statsGrid.appendChild(debtCard);
+    }
+    let debtsElem = document.getElementById('statTotalDebts');
+    if(debtsElem) {
+        let totalDebts = customers.reduce((sum, c) => {
+            let net = getCustomerNetDebt(c.name);
+            return sum + (net > 0 ? net : 0);
+        }, 0);
+        debtsElem.innerText = totalDebts.toLocaleString() + ' ج.م';
+    }
 
     let recentTbody = document.querySelector('#recentInvoicesTable tbody');
     if(recentTbody) {
@@ -764,21 +810,37 @@ window.createNewInvoice = function(e) {
             oldBalance, oldBalanceType, oldBalanceDate,
             total: finalTotal, paid: paidAmount, remaining: remainingAmount,
             status: paymentStatus === 'لم يدفع' && remainingAmount > 0 ? `متبقي: ${remainingAmount} ج.م` : paymentStatus,
+            // نحافظ على تاريخ الإصدار الأصلي (dateISO) عشان حساب أيام التأخير يفضل دقيق حتى بعد التعديل
+            dateISO: existing.dateISO || new Date().toISOString(),
             lastEditedDate: new Date().toLocaleDateString('ar-EG')
         };
         invoices[editingIndex] = finalInvoiceObj;
     } else {
         let invoiceId = 'INV-' + Math.floor(1000 + Math.random() * 9000);
-        let currentDate = new Date().toLocaleDateString('ar-EG');
+        let nowDate = new Date();
+        let currentDate = nowDate.toLocaleDateString('ar-EG');
         finalInvoiceObj = {
             id: invoiceId, customerName, customerPhone, customerAddress,
             items, subtotal, discountPercent, discountAmount,
             oldBalance, oldBalanceType, oldBalanceDate,
             total: finalTotal, paid: paidAmount, remaining: remainingAmount,
             status: paymentStatus === 'لم يدفع' && remainingAmount > 0 ? `متبقي: ${remainingAmount} ج.م` : paymentStatus,
-            date: currentDate
+            date: currentDate,
+            dateISO: nowDate.toISOString() // تاريخ دقيق (ISO) يُستخدم لحساب عدد أيام التأخير بدقة في كشف الحساب
         };
         invoices.push(finalInvoiceObj);
+    }
+
+    // مهم جداً: لو الفاتورة دي استوعبت "حساب سابق" للعميل (عليه أو له)، بقى هذا الرصيد
+    // جزء من إجمالي الفاتورة نفسها (total/remaining) من دلوقتي. لازم نصفّر رصيد العميل
+    // المستقل عشان منحسبوش مرتين (مرة جوه الفاتورة ومرة تانية في دليل العملاء).
+    if(oldBalanceType && oldBalanceType !== 'none' && oldBalance > 0) {
+        let custRecord = customers.find(cc => cc.name === customerName);
+        if(custRecord) {
+            custRecord.oldBalance = 0;
+            custRecord.balanceType = 'none';
+            custRecord.oldBalanceDate = '';
+        }
     }
 
     saveData();
@@ -846,10 +908,22 @@ window.deleteInvoice = function(index) {
                 inventory.push({ code: item.code, name: item.name, qty: Number(item.qty), unit: 'قطعة', price: item.price });
             }
         });
+
+        // لو الفاتورة دي كانت استوعبت "حساب سابق" للعميل وقت إصدارها (وتم تصفير رصيده وقتها)،
+        // لازم نرجّع هذا الحساب القديم تاني لملف العميل عشان الدين ميضيعش عند الحذف
+        if(inv.oldBalanceType && inv.oldBalanceType !== 'none' && Number(inv.oldBalance) > 0) {
+            let custRecord = customers.find(cc => cc.name === inv.customerName);
+            if(custRecord && (!custRecord.oldBalance || custRecord.oldBalance == 0)) {
+                custRecord.oldBalance = Number(inv.oldBalance);
+                custRecord.balanceType = inv.oldBalanceType;
+                custRecord.oldBalanceDate = inv.oldBalanceDate || inv.date;
+            }
+        }
+
         invoices.splice(index, 1);
         saveData();
         refreshAllData();
-        alert('تم حذف الفاتورة وإرجاع كل منتج بكميته إلى المخزون بنجاح!');
+        alert('تم حذف الفاتورة، وإرجاع كل منتج بكميته إلى المخزون، وإرجاع أي حساب سابق كان مرتبط بها بنجاح!');
     }
 };
 
@@ -867,14 +941,9 @@ function renderCustomers() {
     customers.forEach((c, index) => {
         let custInvoices = invoices.filter(i => i.customerName === c.name);
         let totalSales = custInvoices.reduce((sum, i) => sum + Number(i.total), 0);
-        let totalRemainingFromInvoices = custInvoices.reduce((sum, i) => sum + Number(i.remaining || 0), 0);
 
-        // الحساب السابق المستقل (لو موجود) بيتحسب موجب لو عليه أو سالب لو له
-        let signedOldBalance = 0;
-        if(c.oldBalance && c.balanceType === 'on_him') signedOldBalance = Number(c.oldBalance);
-        else if(c.oldBalance && c.balanceType === 'for_him') signedOldBalance = -Number(c.oldBalance);
-
-        let netDebt = totalRemainingFromInvoices + signedOldBalance;
+        // نفس دالة الحساب المستخدمة في كشف الحساب وفي لوحة المؤشرات، عشان الأرقام تتطابق دايماً
+        let netDebt = getCustomerNetDebt(c.name);
 
         let debtHtml;
         if(netDebt > 0) {
@@ -886,6 +955,7 @@ function renderCustomers() {
         }
 
         let lastPurchase = custInvoices.length > 0 ? custInvoices[custInvoices.length - 1].date : '—';
+        let encodedName = encodeURIComponent(c.name);
 
         tbody.innerHTML += `
             <tr>
@@ -896,6 +966,7 @@ function renderCustomers() {
                 <td>${lastPurchase}</td>
                 <td>
                     <div class="row-actions">
+                        <button onclick="generateCustomerReportEncoded('${encodedName}')" class="btn-action btn-view-sm" title="كشف حساب تفصيلي"><i class="fas fa-file-invoice"></i> كشف حساب</button>
                         <button onclick="openEditCustomerModal(${index})" class="btn-action btn-edit-sm" title="تعديل بيانات العميل"><i class="fas fa-edit"></i> تعديل</button>
                         <button onclick="deleteCustomer(${index})" class="btn-action btn-danger-sm" title="حذف العميل"><i class="fas fa-trash"></i></button>
                     </div>
@@ -1400,51 +1471,150 @@ window.openCustomerAccountPrompt = function() {
     window.generateCustomerReport(selectedCustomer);
 };
 
+// فك تشفير اسم العميل القادم من زر "كشف حساب" في جدول دليل العملاء
+window.generateCustomerReportEncoded = function(encodedName) {
+    window.generateCustomerReport(decodeURIComponent(encodedName));
+};
+
+// كشف حساب تفصيلي ودقيق 100% للعميل: كل فاتورة، كل دفعة، كل خصم، بالتواريخ،
+// ورصيد افتتاحي لو موجود، وفي الآخر إجمالي واحد واضح مفيهوش أي ازدواج في الحساب
 window.generateCustomerReport = function(customerName) {
+    let cust = customers.find(c => c.name === customerName);
     let customerInvoices = invoices.filter(inv => inv.customerName === customerName);
 
-    let totalInvoicesAmount = customerInvoices.reduce((sum, inv) => sum + Number(inv.total), 0);
-    let totalPaidAmount = customerInvoices.reduce((sum, inv) => sum + Number(inv.paid || 0), 0);
-    let totalRemainingAmount = customerInvoices.reduce((sum, inv) => sum + Number(inv.remaining || 0), 0);
+    if(customerInvoices.length === 0 && (!cust || !cust.oldBalance)) {
+        alert('لا توجد أي معاملات أو فواتير مسجلة لهذا العميل حتى الآن.');
+        return;
+    }
+
+    let totalGrossPurchases = 0;   // إجمالي قيمة الأصناف قبل الخصم
+    let totalDiscounts = 0;        // إجمالي الخصومات الممنوحة
+    let totalInitialPaid = 0;      // المدفوع وقت إصدار كل فاتورة
+    let totalLaterPayments = 0;    // دفعات لاحقة (سداد ديون متأخرة)
+    let totalRemainingNow = 0;     // المتبقي الحالي على كل الفواتير
 
     let rowsHtml = '';
+
     customerInvoices.forEach(inv => {
+        totalGrossPurchases += Number(inv.subtotal || inv.total || 0);
+        totalDiscounts += Number(inv.discountAmount || 0);
+        totalInitialPaid += Number(inv.paid || 0);
+        totalRemainingNow += Number(inv.remaining || 0);
+
+        let itemsSummary = (inv.items || []).map(it => `${it.name} × ${it.qty}`).join('، ') || '—';
+
+        let oldBalNote = '';
+        if(inv.oldBalance && Number(inv.oldBalance) > 0) {
+            oldBalNote = inv.oldBalanceType === 'on_him'
+                ? `<div style="color:#b45309; font-size:11.5px; margin-top:5px;"><i class="fas fa-clock-rotate-left"></i> شاملة حساب سابق كان عليه: ${Number(inv.oldBalance).toLocaleString()} ج.م (بتاريخ ${inv.oldBalanceDate || '—'})</div>`
+                : `<div style="color:#0369a1; font-size:11.5px; margin-top:5px;"><i class="fas fa-clock-rotate-left"></i> بعد خصم رصيد كان له: ${Number(inv.oldBalance).toLocaleString()} ج.م (بتاريخ ${inv.oldBalanceDate || '—'})</div>`;
+        }
+
+        let remainingColor = Number(inv.remaining || 0) > 0 ? '#e11d48' : '#10b981';
+        let remainingLabel = Number(inv.remaining || 0) > 0 ? `${Number(inv.remaining).toLocaleString()} ج.م` : 'مسدد بالكامل';
+
+        // لو لسه فيه متبقي على الفاتورة، نحسب عدد الأيام اللي فاتت من تاريخ إصدارها (عمر الدين)
+        let agingNote = '';
+        if(Number(inv.remaining || 0) > 0 && inv.dateISO) {
+            let ageDays = daysBetweenISO(inv.dateISO, new Date().toISOString());
+            if(ageDays !== null) {
+                agingNote = `<div style="color:#e11d48; font-size:11.5px; margin-top:4px;"><i class="fas fa-hourglass-half"></i> متأخر عن السداد منذ ${ageDays} يوم</div>`;
+            }
+        }
+
         rowsHtml += `
             <tr>
-                <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${inv.id}</td>
-                <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${inv.date}</td>
-                <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center;">${inv.total.toLocaleString()} ج.م</td>
-                <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; color: #10b981;">${(inv.paid || 0).toLocaleString()} ج.م</td>
-                <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; color: #e11d48;">${(inv.remaining || 0).toLocaleString()} ج.م</td>
+                <td style="text-align:center; font-weight:bold;">${inv.id}</td>
+                <td style="text-align:center; white-space:nowrap;">${inv.date}</td>
+                <td style="text-align:right; font-size:12.5px;">${itemsSummary}${oldBalNote}</td>
+                <td style="text-align:center;">${Number(inv.total).toLocaleString()} ج.م</td>
+                <td style="text-align:center; color:#10b981;">${Number(inv.paid || 0).toLocaleString()} ج.م</td>
+                <td style="text-align:center; color:${remainingColor}; font-weight:bold;">${remainingLabel}${agingNote}</td>
             </tr>
         `;
+
+        if(inv.paymentHistory && inv.paymentHistory.length > 0) {
+            inv.paymentHistory.forEach(p => {
+                totalLaterPayments += Number(p.amount || 0);
+                let lateDaysNote = '';
+                if(p.dateISO && inv.dateISO) {
+                    let lateDays = daysBetweenISO(inv.dateISO, p.dateISO);
+                    if(lateDays !== null) {
+                        lateDaysNote = lateDays > 0
+                            ? ` <span style="color:#b45309;">(بعد ${lateDays} يوم من تاريخ الفاتورة)</span>`
+                            : ` <span style="color:#059669;">(بنفس يوم الفاتورة)</span>`;
+                    }
+                }
+                rowsHtml += `
+                    <tr>
+                        <td colspan="6" style="background:#f0fdf4; color:#166534; font-size:12.5px; text-align:right; padding:8px 14px;">
+                            <i class="fas fa-hand-holding-dollar"></i>
+                            &nbsp;دفعة سداد لاحقة على فاتورة ${inv.id} بتاريخ <strong>${p.date}</strong>: <strong>${Number(p.amount).toLocaleString()} ج.م</strong>${lateDaysNote}
+                            ${p.note ? ' — ' + p.note : ''}
+                        </td>
+                    </tr>
+                `;
+            });
+        }
     });
 
-    let reportWin = window.open('', '_blank', 'height=700,width=900');
+    // رصيد افتتاحي مستقل (لسه معلق ومش داخل أي فاتورة حالياً)
+    let standaloneOldBalance = 0;
+    let standaloneRowHtml = '';
+    if(cust && cust.oldBalance && Number(cust.oldBalance) > 0 && cust.balanceType !== 'none') {
+        standaloneOldBalance = cust.balanceType === 'on_him' ? Number(cust.oldBalance) : -Number(cust.oldBalance);
+        let label = cust.balanceType === 'on_him' ? 'رصيد افتتاحي عليه (لسه مش مرتبط بفاتورة)' : 'رصيد افتتاحي له (لسه مش مرتبط بفاتورة)';
+        let color = cust.balanceType === 'on_him' ? '#e11d48' : '#0284c7';
+        standaloneRowHtml = `
+            <tr>
+                <td colspan="3" style="text-align:right; font-weight:bold; color:${color};"><i class="fas fa-circle-exclamation"></i> ${label}</td>
+                <td colspan="3" style="text-align:center; font-weight:bold; color:${color};">${Number(cust.oldBalance).toLocaleString()} ج.م ${cust.oldBalanceDate ? '(' + cust.oldBalanceDate + ')' : ''}</td>
+            </tr>
+        `;
+    }
+
+    let totalPaidAll = totalInitialPaid + totalLaterPayments;
+    // نفس دالة الحساب المستخدمة بالضبط في دليل العملاء ولوحة المؤشرات، عشان الرقم يتطابق 100% في كل مكان
+    let netDebtNow = getCustomerNetDebt(customerName);
+
+    let netDebtHtml = netDebtNow > 0
+        ? `<span style="color:#e11d48;"><i class="fas fa-arrow-down"></i> مطلوب منه: ${netDebtNow.toLocaleString()} ج.م</span>`
+        : netDebtNow < 0
+            ? `<span style="color:#059669;"><i class="fas fa-arrow-up"></i> رصيد له: ${Math.abs(netDebtNow).toLocaleString()} ج.م</span>`
+            : `<span style="color:#059669;"><i class="fas fa-circle-check"></i> الحساب مسدد بالكامل</span>`;
+
+    let reportWin = window.open('', '_blank', 'height=750,width=980');
     reportWin.document.write(`
         <html lang="ar" dir="rtl">
         <head>
             <meta charset="UTF-8">
             <title>كشف حساب عميل: ${customerName} - Bro Tech</title>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
             <style>
-                body { font-family: Tahoma, sans-serif; padding: 20px; background: #fff; color: #000; direction: rtl; }
+                body { font-family: Tahoma, sans-serif; padding: 25px; background: #fff; color: #1e293b; direction: rtl; }
                 table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-                th, td { border: 1px solid #cbd5e1; padding: 8px; font-size: 13px; }
-                th { background: #f1f5f9; }
-                .summary-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 6px; margin-bottom: 20px; display: flex; justify-content: space-around; font-weight: bold; }
+                th, td { border: 1px solid #cbd5e1; padding: 9px; font-size: 13px; }
+                th { background: #0f172a; color: #fff; }
+                .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+                .summary-item { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; text-align: center; }
+                .summary-item span.label { display:block; font-size:11.5px; color:#64748b; margin-bottom:4px; }
+                .summary-item span.value { font-size: 16px; font-weight: bold; }
+                .final-box { background: #0f172a; color: #fff; border-radius: 10px; padding: 16px; text-align: center; margin: 22px 0; font-size: 18px; font-weight: bold; }
                 @media print { .no-print { display: none; } }
             </style>
         </head>
         <body>
-            <div style="text-align: center; margin-bottom: 20px;">
-                <h2 style="color: #0284c7; margin: 0;">Bro Tech - كشف حساب عميل</h2>
-                <p style="font-size: 16px; margin: 5px 0; color: #334155;">اسم العميل: <strong>${customerName}</strong></p>
+            <div style="text-align: center; margin-bottom: 20px; border-bottom: 3px solid #0284c7; padding-bottom: 14px;">
+                <h1 style="color: #0284c7; margin: 0; font-size: 22px;">Bro Tech - كشف حساب عميل تفصيلي</h1>
+                <p style="font-size: 16px; margin: 8px 0 0; color: #334155;">اسم العميل: <strong>${customerName}</strong></p>
+                <p style="font-size: 12px; color: #94a3b8; margin: 4px 0 0;">تاريخ إصدار الكشف: ${new Date().toLocaleDateString('ar-EG')}</p>
             </div>
 
-            <div class="summary-box">
-                <div>إجمالي المشتريات: <span style="color: #0284c7;">${totalInvoicesAmount.toLocaleString()} ج.م</span></div>
-                <div>إجمالي المدفوع: <span style="color: #10b981;">${totalPaidAmount.toLocaleString()} ج.م</span></div>
-                <div>إجمالي المتبقي (الديون): <span style="color: #e11d48;">${totalRemainingAmount.toLocaleString()} ج.م</span></div>
+            <div class="summary-grid">
+                <div class="summary-item"><span class="label">إجمالي المشتريات (قبل الخصم)</span><span class="value" style="color:#0284c7;">${totalGrossPurchases.toLocaleString()} ج.م</span></div>
+                <div class="summary-item"><span class="label">إجمالي الخصومات</span><span class="value" style="color:#f59e0b;">${totalDiscounts.toLocaleString()} ج.م</span></div>
+                <div class="summary-item"><span class="label">إجمالي المدفوع (كل الدفعات)</span><span class="value" style="color:#10b981;">${totalPaidAll.toLocaleString()} ج.م</span></div>
+                <div class="summary-item"><span class="label">عدد الفواتير</span><span class="value" style="color:#334155;">${customerInvoices.length}</span></div>
             </div>
 
             <table>
@@ -1452,16 +1622,24 @@ window.generateCustomerReport = function(customerName) {
                     <tr>
                         <th>رقم الفاتورة</th>
                         <th>التاريخ</th>
+                        <th>الأصناف المشتراة</th>
                         <th>إجمالي الفاتورة</th>
-                        <th>المدفوع</th>
-                        <th>المتبقي (عليه)</th>
+                        <th>المدفوع وقتها</th>
+                        <th>المتبقي حالياً</th>
                     </tr>
                 </thead>
-                <tbody>${rowsHtml}</tbody>
+                <tbody>
+                    ${rowsHtml}
+                    ${standaloneRowHtml}
+                </tbody>
             </table>
 
-            <div class="no-print" style="margin-top: 25px; text-align: center;">
-                <button onclick="window.print()" style="background: #0284c7; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold;">🖨️ طباعة كشف الحساب / حفظ PDF</button>
+            <div class="final-box">
+                الإجمالي النهائي لحساب العميل الآن: ${netDebtHtml}
+            </div>
+
+            <div class="no-print" style="margin-top: 15px; text-align: center;">
+                <button onclick="window.print()" style="background: #0284c7; color: white; border: none; padding: 10px 22px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size:14px;"><i class="fas fa-print"></i> طباعة كشف الحساب / حفظ PDF</button>
             </div>
         </body>
         </html>
@@ -1542,9 +1720,11 @@ window.submitInvoicePaymentUpdate = function() {
     }
 
     if (!inv.paymentHistory) inv.paymentHistory = [];
+    let payMoment = new Date();
     inv.paymentHistory.push({
         amount: payAmount,
-        date: new Date().toLocaleString('ar-EG'),
+        date: payMoment.toLocaleString('ar-EG'),
+        dateISO: payMoment.toISOString(), // يُستخدم لحساب عدد أيام التأخير بدقة
         note: payNote
     });
 
