@@ -21,6 +21,9 @@ const db = getFirestore(app);
 
 const LOW_STOCK_THRESHOLD = 20;
 
+// حالة نموذج الفاتورة: هل المستخدم عدّل "المبلغ المدفوع" يدوياً؟ (لو لأ، بنفترض سداد كامل تلقائياً ونتابع الإجمالي)
+let invoicePaidManuallyEdited = false;
+
 // حساب عدد الأيام بين تاريخين (ISO) بدقة - يُستخدم في حساب أيام التأخير بكشف حساب العميل
 function daysBetweenISO(startISO, endISO) {
     if(!startISO || !endISO) return null;
@@ -501,11 +504,104 @@ function populateSelects() {
     }
 }
 
+// نُظهر تلقائياً لو العميل ده عليه فلوس ولا له رصيد، ونديله اختيار إنه يضمّه للفاتورة الحالية أو لأ
 window.handleCustomerSelectChange = function() {
     let val = document.getElementById('invoiceCustomerSelect')?.value;
     let newDiv = document.getElementById('newCustomerDiv');
     if(newDiv) newDiv.style.display = (val === 'NEW_CUSTOMER') ? 'block' : 'none';
+
+    let infoBox = document.getElementById('custDebtInfoBox');
+    let includeRow = document.getElementById('includeOldBalanceRow');
+    let checkbox = document.getElementById('includeOldBalanceCheckbox');
+    let label = document.getElementById('includeOldBalanceLabel');
+
+    // تصفير حقول الرصيد السابق المخفية أول ما نغيّر العميل، لحد ما يفعّل الـ checkbox
+    document.getElementById('invoiceOldBalance').value = 0;
+    document.getElementById('invoiceOldBalanceType').value = 'none';
+    document.getElementById('invoiceOldBalanceDate').value = '';
+    if(checkbox) checkbox.checked = false;
+
+    window.__selectedCustomerNetDebt = 0;
+
+    if(val && val !== 'NEW_CUSTOMER') {
+        let netDebt = getCustomerNetDebt(val);
+        window.__selectedCustomerNetDebt = netDebt;
+
+        if(infoBox) {
+            infoBox.style.display = 'block';
+            if(netDebt > 0.001) {
+                infoBox.style.background = '#2c1414';
+                infoBox.style.color = '#fca5a5';
+                infoBox.style.border = '1px solid #7f1d1d';
+                infoBox.innerHTML = `<i class="fas fa-triangle-exclamation"></i> هذا العميل عليه مبلغ سابق مستحق: ${netDebt.toLocaleString()} ج.م`;
+                if(includeRow) includeRow.style.display = 'flex';
+                if(label) label.innerText = 'إضافة هذا المبلغ (عليه) إلى إجمالي الفاتورة الحالية';
+            } else if(netDebt < -0.001) {
+                infoBox.style.background = '#0d2c22';
+                infoBox.style.color = '#6ee7b7';
+                infoBox.style.border = '1px solid #14532d';
+                infoBox.innerHTML = `<i class="fas fa-circle-check"></i> هذا العميل له رصيد سابق: ${Math.abs(netDebt).toLocaleString()} ج.م`;
+                if(includeRow) includeRow.style.display = 'flex';
+                if(label) label.innerText = 'خصم هذا الرصيد (له) من إجمالي الفاتورة الحالية';
+            } else {
+                infoBox.style.background = '#0f172a';
+                infoBox.style.color = '#94a3b8';
+                infoBox.style.border = '1px solid #334155';
+                infoBox.innerHTML = `<i class="fas fa-circle-info"></i> لا يوجد أي رصيد أو مديونية سابقة على هذا العميل.`;
+                if(includeRow) includeRow.style.display = 'none';
+            }
+        }
+    } else {
+        if(infoBox) infoBox.style.display = 'none';
+        if(includeRow) includeRow.style.display = 'none';
+    }
+
+    invoicePaidManuallyEdited = false;
+    calculateInvoiceTotal();
 };
+
+// تفعيل/إلغاء تضمين الرصيد السابق (المكتشف تلقائياً) في الفاتورة الحالية
+window.toggleIncludeOldBalance = function() {
+    let checkbox = document.getElementById('includeOldBalanceCheckbox');
+    let netDebt = Number(window.__selectedCustomerNetDebt || 0);
+    let custName = document.getElementById('invoiceCustomerSelect')?.value;
+    let cust = customers.find(c => c.name === custName);
+
+    if(checkbox && checkbox.checked && netDebt !== 0) {
+        document.getElementById('invoiceOldBalance').value = Math.abs(netDebt);
+        document.getElementById('invoiceOldBalanceType').value = netDebt > 0 ? 'on_him' : 'for_him';
+        document.getElementById('invoiceOldBalanceDate').value = (cust && cust.oldBalanceDate) || new Date().toLocaleDateString('ar-EG');
+    } else {
+        document.getElementById('invoiceOldBalance').value = 0;
+        document.getElementById('invoiceOldBalanceType').value = 'none';
+        document.getElementById('invoiceOldBalanceDate').value = '';
+    }
+    invoicePaidManuallyEdited = false;
+    calculateInvoiceTotal();
+};
+
+// المستخدم غيّر "المبلغ المدفوع" يدوياً - نوقف المتابعة التلقائية للإجمالي ونحدّث رسالة الحالة فقط
+window.handlePaidAmountManualEdit = function() {
+    invoicePaidManuallyEdited = true;
+    calculateInvoiceTotal();
+};
+
+// رسالة واضحة تحت خانة الدفع: هيفضل عليه كام، ولا دفع زيادة، ولا اتسدد بالكامل
+function updatePaymentStatusDisplay(grandTotal) {
+    let paidInput = document.getElementById('invoicePaidAmountInput');
+    let statusBox = document.getElementById('invoicePaymentStatusDisplay');
+    if(!paidInput || !statusBox) return;
+    let paid = Number(paidInput.value) || 0;
+    let diff = grandTotal - paid;
+
+    if(diff > 0.5) {
+        statusBox.innerHTML = `<span style="color:#f87171;"><i class="fas fa-arrow-down"></i> سيتبقى عليه: ${diff.toLocaleString()} ج.م (يُسجَّل عليه في حساباته)</span>`;
+    } else if(diff < -0.5) {
+        statusBox.innerHTML = `<span style="color:#34d399;"><i class="fas fa-arrow-up"></i> دفع زيادة: ${Math.abs(diff).toLocaleString()} ج.م (تُخصم كرصيد له في حساباته)</span>`;
+    } else {
+        statusBox.innerHTML = `<span style="color:#34d399;"><i class="fas fa-circle-check"></i> تم السداد بالكامل، الحساب مضبوط.</span>`;
+    }
+}
 
 // ===================== إنشاء / تعديل الفاتورة =====================
 window.addInvoiceItemRow = function(selectedCode = '', selectedQty = 1) {
@@ -571,6 +667,13 @@ window.calculateInvoiceTotal = function() {
     let display = document.getElementById('invoiceFinalTotalDisplay');
     if(display) display.innerText = finalTotal.toLocaleString() + ' ج.م';
 
+    // لو المستخدم لسه ما لمسش خانة "المبلغ المدفوع" يدوياً، نتابعها تلقائياً على أساس افتراض السداد الكامل
+    let paidInput = document.getElementById('invoicePaidAmountInput');
+    if(paidInput && !invoicePaidManuallyEdited) {
+        paidInput.value = finalTotal > 0 ? finalTotal : 0;
+    }
+    updatePaymentStatusDisplay(finalTotal);
+
     return finalTotal;
 };
 
@@ -603,12 +706,18 @@ window.openNewInvoiceModal = function() {
     if(oldBalType) oldBalType.value = 'none';
     let oldBalDate = document.getElementById('invoiceOldBalanceDate');
     if(oldBalDate) oldBalDate.value = '';
-    let payStatus = document.getElementById('invoicePaymentStatus');
-    if(payStatus) payStatus.value = 'تم الدفع بالكامل';
-    let remDiv = document.getElementById('remainingDiv');
-    if(remDiv) remDiv.style.display = 'none';
-    let remInput = document.getElementById('invoiceRemainingInput');
-    if(remInput) remInput.value = 0;
+
+    let infoBox = document.getElementById('custDebtInfoBox');
+    if(infoBox) infoBox.style.display = 'none';
+    let includeRow = document.getElementById('includeOldBalanceRow');
+    if(includeRow) includeRow.style.display = 'none';
+    let checkbox = document.getElementById('includeOldBalanceCheckbox');
+    if(checkbox) checkbox.checked = false;
+    window.__selectedCustomerNetDebt = 0;
+
+    invoicePaidManuallyEdited = false;
+    let paidInput = document.getElementById('invoicePaidAmountInput');
+    if(paidInput) paidInput.value = 0;
 
     calculateInvoiceTotal();
 };
@@ -657,19 +766,37 @@ window.openEditInvoiceModal = function(index) {
     document.getElementById('invoiceOldBalanceType').value = inv.oldBalanceType || 'none';
     document.getElementById('invoiceOldBalanceDate').value = inv.oldBalanceDate || '';
 
-    let remaining = inv.remaining || 0;
-    let payStatus = document.getElementById('invoicePaymentStatus');
-    let remDiv = document.getElementById('remainingDiv');
-    let remInput = document.getElementById('invoiceRemainingInput');
-    if(remaining > 0) {
-        payStatus.value = 'لم يدفع';
-        remDiv.style.display = 'block';
-        remInput.value = remaining;
+    // نعرض حالة الرصيد السابق المُضمَّن أصلاً في هذه الفاتورة (لو موجود) مع السماح بإلغائه أو تعديله
+    let infoBox = document.getElementById('custDebtInfoBox');
+    let includeRow = document.getElementById('includeOldBalanceRow');
+    let checkbox = document.getElementById('includeOldBalanceCheckbox');
+    let label = document.getElementById('includeOldBalanceLabel');
+    let hasOldBal = inv.oldBalanceType && inv.oldBalanceType !== 'none' && Number(inv.oldBalance) > 0;
+
+    window.__selectedCustomerNetDebt = hasOldBal ? (inv.oldBalanceType === 'on_him' ? Number(inv.oldBalance) : -Number(inv.oldBalance)) : 0;
+
+    if(hasOldBal) {
+        infoBox.style.display = 'block';
+        if(inv.oldBalanceType === 'on_him') {
+            infoBox.style.background = '#2c1414'; infoBox.style.color = '#fca5a5'; infoBox.style.border = '1px solid #7f1d1d';
+            infoBox.innerHTML = `<i class="fas fa-triangle-exclamation"></i> هذه الفاتورة تتضمن رصيد سابق عليه: ${Number(inv.oldBalance).toLocaleString()} ج.م`;
+            if(label) label.innerText = 'إضافة هذا المبلغ (عليه) إلى إجمالي الفاتورة الحالية';
+        } else {
+            infoBox.style.background = '#0d2c22'; infoBox.style.color = '#6ee7b7'; infoBox.style.border = '1px solid #14532d';
+            infoBox.innerHTML = `<i class="fas fa-circle-check"></i> هذه الفاتورة تتضمن رصيد سابق له: ${Number(inv.oldBalance).toLocaleString()} ج.م`;
+            if(label) label.innerText = 'خصم هذا الرصيد (له) من إجمالي الفاتورة الحالية';
+        }
+        includeRow.style.display = 'flex';
+        checkbox.checked = true;
     } else {
-        payStatus.value = 'تم الدفع بالكامل';
-        remDiv.style.display = 'none';
-        remInput.value = 0;
+        infoBox.style.display = 'none';
+        includeRow.style.display = 'none';
+        checkbox.checked = false;
     }
+
+    invoicePaidManuallyEdited = true; // نحافظ على قيمة "المدفوع" الأصلية بدل ما نعيد حسابها تلقائياً
+    let paidInput = document.getElementById('invoicePaidAmountInput');
+    if(paidInput) paidInput.value = inv.paid || 0;
 
     calculateInvoiceTotal();
 };
@@ -724,6 +851,18 @@ window.createNewInvoice = function(e) {
             let prodObj = inventory.find(i => i.code === oldItem.code);
             if(prodObj) prodObj.qty = Number(prodObj.qty) + Number(oldItem.qty);
         });
+
+        // لو الفاتورة القديمة كانت ماصّة رصيد سابق للعميل وقت إنشائها (وتم تصفيره وقتها)،
+        // نرجّعه الأول عشان نعيد حساب كل حاجة من الصفر بدون أي ازدواج أو ضياع في الأرقام
+        let prevInv = invoices[editingIndex];
+        if(prevInv.oldBalanceType && prevInv.oldBalanceType !== 'none' && Number(prevInv.oldBalance) > 0) {
+            let custRecord = customers.find(cc => cc.name === prevInv.customerName);
+            if(custRecord && (!custRecord.oldBalance || custRecord.oldBalance == 0)) {
+                custRecord.oldBalance = Number(prevInv.oldBalance);
+                custRecord.balanceType = prevInv.oldBalanceType;
+                custRecord.oldBalanceDate = prevInv.oldBalanceDate || prevInv.date;
+            }
+        }
     }
 
     let items = [];
@@ -780,15 +919,14 @@ window.createNewInvoice = function(e) {
     if(oldBalanceType === 'on_him') finalTotal += oldBalance;
     else if(oldBalanceType === 'for_him') finalTotal -= oldBalance;
 
-    let paymentStatus = document.getElementById('invoicePaymentStatus')?.value;
-    let paidAmount = finalTotal;
-    let remainingAmount = 0;
-
-    if(paymentStatus === 'لم يدفع') {
-        remainingAmount = Number(document.getElementById('invoiceRemainingInput')?.value) || 0;
-        paidAmount = finalTotal - remainingAmount;
-        if(paidAmount < 0) paidAmount = 0;
-    }
+    // المبلغ اللي دفعه العميل فعلياً (كاش) بيتحدد من خانة واحدة بس، والمتبقي/الزيادة بيتحسبوا تلقائياً
+    // موجب = لسه متبقي عليه / سالب = دفع زيادة (بتتحول لرصيد له تلقائياً في دليل العملاء)
+    let paidAmount = Number(document.getElementById('invoicePaidAmountInput')?.value) || 0;
+    if(paidAmount < 0) paidAmount = 0;
+    let remainingAmount = finalTotal - paidAmount;
+    let paymentStatusLabel = remainingAmount > 0.5
+        ? `متبقي: ${remainingAmount.toLocaleString()} ج.م`
+        : (remainingAmount < -0.5 ? `دفع زيادة: ${Math.abs(remainingAmount).toLocaleString()} ج.م (رصيد له)` : 'تم الدفع بالكامل');
 
     // خصم الكميات الجديدة فعلياً من المخزون (كل صنف يقل من مكانه الصحيح)
     items.forEach(item => {
@@ -809,7 +947,7 @@ window.createNewInvoice = function(e) {
             items, subtotal, discountPercent, discountAmount,
             oldBalance, oldBalanceType, oldBalanceDate,
             total: finalTotal, paid: paidAmount, remaining: remainingAmount,
-            status: paymentStatus === 'لم يدفع' && remainingAmount > 0 ? `متبقي: ${remainingAmount} ج.م` : paymentStatus,
+            status: paymentStatusLabel,
             // نحافظ على تاريخ الإصدار الأصلي (dateISO) عشان حساب أيام التأخير يفضل دقيق حتى بعد التعديل
             dateISO: existing.dateISO || new Date().toISOString(),
             lastEditedDate: new Date().toLocaleDateString('ar-EG')
@@ -824,7 +962,7 @@ window.createNewInvoice = function(e) {
             items, subtotal, discountPercent, discountAmount,
             oldBalance, oldBalanceType, oldBalanceDate,
             total: finalTotal, paid: paidAmount, remaining: remainingAmount,
-            status: paymentStatus === 'لم يدفع' && remainingAmount > 0 ? `متبقي: ${remainingAmount} ج.م` : paymentStatus,
+            status: paymentStatusLabel,
             date: currentDate,
             dateISO: nowDate.toISOString() // تاريخ دقيق (ISO) يُستخدم لحساب عدد أيام التأخير بدقة في كشف الحساب
         };
@@ -832,8 +970,9 @@ window.createNewInvoice = function(e) {
     }
 
     // مهم جداً: لو الفاتورة دي استوعبت "حساب سابق" للعميل (عليه أو له)، بقى هذا الرصيد
-    // جزء من إجمالي الفاتورة نفسها (total/remaining) من دلوقتي. لازم نصفّر رصيد العميل
-    // المستقل عشان منحسبوش مرتين (مرة جوه الفاتورة ومرة تانية في دليل العملاء).
+    // جزء من إجمالي الفاتورة نفسها (total/remaining) من دلوقتي. لازم:
+    // 1) نصفّر رصيد العميل المستقل عشان منحسبوش مرتين
+    // 2) نُسوّي (نُصفّر المتبقي في) كل فواتيره التانية السابقة، لأن دينها بقى ممثَّل جوه الفاتورة دي بالظبط
     if(oldBalanceType && oldBalanceType !== 'none' && oldBalance > 0) {
         let custRecord = customers.find(cc => cc.name === customerName);
         if(custRecord) {
@@ -841,6 +980,15 @@ window.createNewInvoice = function(e) {
             custRecord.balanceType = 'none';
             custRecord.oldBalanceDate = '';
         }
+
+        let currentInvoiceRef = finalInvoiceObj;
+        invoices.forEach(otherInv => {
+            if(otherInv !== currentInvoiceRef && otherInv.customerName === customerName && Number(otherInv.remaining || 0) !== 0) {
+                otherInv.paid = Number(otherInv.total);
+                otherInv.remaining = 0;
+                otherInv.status = 'تم الدفع بالكامل (ضمن تسوية رصيد سابق)';
+            }
+        });
     }
 
     saveData();
@@ -1027,6 +1175,26 @@ window.closeEditCustomerModal = function() {
     document.getElementById('editCustomerModal').style.display = 'none';
 };
 
+// مسح الحساب السابق (المنفصل) بالكامل لعميل معين، عشان يقدر المستخدم يدخل الرصيد الصحيح من غير ما يتراكم فوق رقم غلط
+window.resetCustomerOldBalance = function() {
+    let index = document.getElementById('editCustIndex').value;
+    let c = customers[index];
+    if(!c) return;
+    if(!confirm(`هل أنت متأكد من مسح "الحساب السابق" المسجل بشكل منفصل لهذا العميل (${c.name})؟\n\nملحوظة: هذا لن يمسح فواتيره أو مشترياته، وإنما يصفّر فقط أي رصيد سابق مستقل كان مُدخلاً يدوياً، عشان تقدر تدخل الرقم الصحيح من جديد بدون ما يتجمع فوق رقم قديم غلط.`)) return;
+
+    c.oldBalance = 0;
+    c.balanceType = 'none';
+    c.oldBalanceDate = '';
+
+    document.getElementById('editCustOldBalance').value = 0;
+    document.getElementById('editCustBalanceType').value = 'none';
+    document.getElementById('editCustOldBalanceDate').value = '';
+
+    saveData();
+    refreshAllData();
+    alert('تم مسح الحساب السابق بالكامل. دلوقتي تقدر تدخل الرصيد الصحيح وتضغط "حفظ التعديلات".');
+};
+
 window.saveEditedCustomer = function(e) {
     e.preventDefault();
     let index = document.getElementById('editCustIndex').value;
@@ -1100,13 +1268,22 @@ window.showInvoiceModal = function(inv) {
     let oldBalPrintHtml = '';
     if(inv.oldBalance && inv.oldBalance > 0) {
         let label = inv.oldBalanceType === 'on_him' ? 'حساب سابق (عليه)' : 'حساب سابق (له)';
-        oldBalPrintHtml = `<p style="margin: 3px 0;">${label}: ${inv.oldBalance.toLocaleString()} ج.م</p>`;
+        let color = inv.oldBalanceType === 'on_him' ? '#e11d48' : '#0284c7';
+        let sign = inv.oldBalanceType === 'on_him' ? '+' : '-';
+        oldBalPrintHtml = `<p style="margin: 3px 0; color:${color};">${label}: ${sign}${inv.oldBalance.toLocaleString()} ج.م</p>`;
     }
 
     let discountPrintHtml = '';
     if(inv.discountPercent && inv.discountPercent > 0) {
         discountPrintHtml = `<p style="margin: 3px 0; color: #10b981;">خصم (${inv.discountPercent}%): -${(inv.discountAmount || 0).toLocaleString()} ج.م</p>`;
     }
+
+    let remainingVal = Number(inv.remaining || 0);
+    let remainingLineHtml = remainingVal > 0.5
+        ? `<p style="margin: 4px 0; color: #e11d48; font-weight: bold;">المتبقي عليه: ${remainingVal.toLocaleString()} ج.م</p>`
+        : (remainingVal < -0.5
+            ? `<p style="margin: 4px 0; color: #059669; font-weight: bold;">له رصيد زيادة: ${Math.abs(remainingVal).toLocaleString()} ج.م</p>`
+            : `<p style="margin: 4px 0; color: #059669; font-weight: bold;">تم السداد بالكامل</p>`);
 
     area.innerHTML = `
         <div style="background: #fff; color: #000; padding: 20px; font-family: Tahoma, sans-serif; direction: rtl; text-align: right; width: 100%; box-sizing: border-box;">
@@ -1145,12 +1322,12 @@ window.showInvoiceModal = function(inv) {
             </table>
 
             <div style="font-size: 13px; border-top: 2px solid #cbd5e1; padding-top: 10px; text-align: left; width: 300px; margin-right: auto;">
-                <p style="margin: 4px 0;">الإجمالي الفرعي: ${(inv.subtotal || inv.total).toLocaleString()} ج.م</p>
+                <p style="margin: 4px 0;">إجمالي المشتريات: ${(inv.subtotal || inv.total).toLocaleString()} ج.م</p>
                 ${discountPrintHtml}
                 ${oldBalPrintHtml}
                 <p style="margin: 6px 0; font-size: 15px; font-weight: bold; color: #0284c7;">الإجمالي النهائي: ${inv.total.toLocaleString()} ج.م</p>
                 <p style="margin: 4px 0;">المدفوع: ${(inv.paid || 0).toLocaleString()} ج.م</p>
-                <p style="margin: 4px 0; color: #e11d48; font-weight: bold;">المتبقي: ${(inv.remaining || 0).toLocaleString()} ج.م</p>
+                ${remainingLineHtml}
             </div>
         </div>
 
@@ -1241,13 +1418,22 @@ window.printInvoice = function() {
     let oldBalPrintHtml = '';
     if(inv.oldBalance && inv.oldBalance > 0) {
         let label = inv.oldBalanceType === 'on_him' ? 'حساب سابق (عليه)' : 'حساب سابق (له)';
-        oldBalPrintHtml = `<p style="margin: 3px 0;">${label}: ${inv.oldBalance.toLocaleString()} ج.م</p>`;
+        let color = inv.oldBalanceType === 'on_him' ? '#e11d48' : '#0284c7';
+        let sign = inv.oldBalanceType === 'on_him' ? '+' : '-';
+        oldBalPrintHtml = `<p style="margin: 3px 0; color:${color};">${label}: ${sign}${inv.oldBalance.toLocaleString()} ج.م</p>`;
     }
 
     let discountPrintHtml = '';
     if(inv.discountPercent && inv.discountPercent > 0) {
         discountPrintHtml = `<p style="margin: 3px 0; color: #10b981;">خصم (${inv.discountPercent}%): -${(inv.discountAmount || 0).toLocaleString()} ج.م</p>`;
     }
+
+    let remainingValPrint = Number(inv.remaining || 0);
+    let remainingLinePrintHtml = remainingValPrint > 0.5
+        ? `<p style="margin: 4px 0; color: #e11d48; font-weight: bold;">المتبقي عليه: ${remainingValPrint.toLocaleString()} ج.م</p>`
+        : (remainingValPrint < -0.5
+            ? `<p style="margin: 4px 0; color: #059669; font-weight: bold;">له رصيد زيادة: ${Math.abs(remainingValPrint).toLocaleString()} ج.م</p>`
+            : `<p style="margin: 4px 0; color: #059669; font-weight: bold;">تم السداد بالكامل</p>`);
 
     let printWindow = window.open('', '_blank', 'height=900,width=1000');
 
@@ -1316,12 +1502,12 @@ window.printInvoice = function() {
                 </table>
 
                 <div style="font-size: 13px; border-top: 2px solid #cbd5e1; padding-top: 10px; text-align: left; width: 300px; margin-right: auto;">
-                    <p style="margin: 4px 0;">الإجمالي الفرعي: ${(inv.subtotal || inv.total).toLocaleString()} ج.م</p>
+                    <p style="margin: 4px 0;">إجمالي المشتريات: ${(inv.subtotal || inv.total).toLocaleString()} ج.م</p>
                     ${discountPrintHtml}
                     ${oldBalPrintHtml}
                     <p style="margin: 6px 0; font-size: 15px; font-weight: bold; color: #0284c7;">الإجمالي النهائي: ${inv.total.toLocaleString()} ج.م</p>
                     <p style="margin: 4px 0;">المدفوع: ${(inv.paid || 0).toLocaleString()} ج.م</p>
-                    <p style="margin: 4px 0; color: #e11d48; font-weight: bold;">المتبقي: ${(inv.remaining || 0).toLocaleString()} ج.م</p>
+                    ${remainingLinePrintHtml}
                 </div>
             </div>
             <script>
