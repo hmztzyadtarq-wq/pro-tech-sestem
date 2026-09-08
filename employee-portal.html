@@ -71,13 +71,14 @@
                 <span>ProTech ERP v2.0</span>
             </div>
             <ul class="nav-links">
+             
                
+                <li class="active" onclickonclick="switchTab('sales', this)"><i class="fas fa-cash-register"></i> المبيعات والفواتير</li>
                
-                <li class="active"onclick="switchTab('sales', this)"><i class="fas fa-cash-register"></i> المبيعات والفواتير</li>
-                 <li onclick="switchTab('inventory', this)"><i class="fas fa-boxes"></i> إدارة المخزون</li>
-                <li onclick="switchTab('purchases', this)"><i class="fas fa-shopping-cart"></i> المشتريات والتوريد</li>
-                <li onclick="switchTab('customers', this)"><i class="fas fa-users"></i> دليل العملاء</li>
-"window.location.href='https://www.facebook.com/ad_center/create/ad/?entry_point=www_pages_launchpoint&page_id=1984681641825368&locale=ar_AR'"><i class="fas fa-facebook"></i>  انشاء اعلان فيس بوك  </li>
+             
+                <!-- زرار إدارة الحضور والمرتبات في القائمة الجانبية -->
+                <li onclick="switchTab('expenses', this)"><i class="fas fa-id-badge"></i> حضور وموظفي الشركة</li>
+              
             </ul>
             <div class="sidebar-footer">
                 <p><i class="fas fa-phone-alt"></i> 01020008299</p>
@@ -521,31 +522,24 @@
                         <input type="number" id="invoiceDiscountPercent" value="0" min="0" max="100" oninput="calculateInvoiceTotal()" style="width: 100%; padding: 6px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 4px;">
                     </div>
                 </div>
-                <div style="background: #0f172a; padding: 10px; border-radius: 6px; margin-bottom: 12px; font-size: 12px;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #fbbf24;">تسجيل حساب سابق (لو يوجد):</label>
-                    <div style="display: flex; gap: 8px; margin-bottom: 6px;">
-                        <input type="number" id="invoiceOldBalance" value="0" placeholder="المبلغ" oninput="calculateInvoiceTotal()" style="flex: 1; padding: 6px; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 4px;">
-                        <select id="invoiceOldBalanceType" onchange="calculateInvoiceTotal()" style="flex: 1; padding: 6px; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 4px;">
-                            <option value="none">بدون حساب سابق</option>
-                            <option value="on_him">حساب سابق (عليه - مدين)</option>
-                            <option value="for_him">حساب سابق (له - دائن)</option>
-                        </select>
-                    </div>
-                    <input type="text" id="invoiceOldBalanceDate" placeholder="تاريخ الحساب السابق (مثال: 2026/01/15)" style="width: 100%; padding: 6px; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 4px;">
+                <!-- تنبيه المديونية/الرصيد السابق للعميل - يظهر تلقائياً بمجرد اختيار العميل -->
+                <div id="custDebtInfoBox" style="display:none; padding:12px 14px; border-radius:8px; margin-bottom:10px; font-size:13px; line-height:1.7; font-weight:bold;"></div>
+                <div id="includeOldBalanceRow" style="display:none; align-items:center; gap:10px; background:#0f172a; padding:10px 12px; border-radius:6px; margin-bottom:12px; border:1px dashed #475569;">
+                    <input type="checkbox" id="includeOldBalanceCheckbox" onchange="toggleIncludeOldBalance()" style="width:18px; height:18px; cursor:pointer; flex-shrink:0;">
+                    <label for="includeOldBalanceCheckbox" id="includeOldBalanceLabel" style="font-size:13px; cursor:pointer; margin:0;">تضمين هذا الرصيد في الفاتورة الحالية</label>
                 </div>
-                <div style="margin-bottom: 12px;">
-                    <label style="display: block; margin-bottom: 5px; font-size: 13px; color: #94a3b8;">حالة الدفع:</label>
-                    <select id="invoicePaymentStatus" onchange="document.getElementById('remainingDiv').style.display = (this.value === 'لم يدفع') ? 'block' : 'none'" style="width: 100%; padding: 8px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 4px;">
-                        <option value="تم الدفع بالكامل">تم الدفع بالكامل</option>
-                        <option value="لم يدفع">متبقي جزء (آجل)</option>
-                    </select>
+                <input type="hidden" id="invoiceOldBalance" value="0">
+                <input type="hidden" id="invoiceOldBalanceType" value="none">
+                <input type="hidden" id="invoiceOldBalanceDate" value="">
+
+                <div style="background: #0f172a; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                    <label style="display: block; margin-bottom: 6px; font-size: 13px; color: #94a3b8;"><i class="fas fa-hand-holding-dollar"></i> المبلغ الذي دفعه العميل الآن (فعلياً كاش):</label>
+                    <input type="number" id="invoicePaidAmountInput" value="0" oninput="handlePaidAmountManualEdit()" style="width: 100%; padding: 10px; background: #1e293b; color: #fff; border: 1px solid #334155; border-radius: 4px; font-size: 15px; font-weight: bold;">
+                    <div id="invoicePaymentStatusDisplay" style="margin-top: 9px; font-size: 13px; font-weight: bold;"></div>
                 </div>
-                <div id="remainingDiv" style="display: none; margin-bottom: 12px;">
-                    <label style="display: block; margin-bottom: 5px; font-size: 13px; color: #f43f5e;">المبلغ المتبقي على العميل:</label>
-                    <input type="number" id="invoiceRemainingInput" value="0" style="width: 100%; padding: 8px; background: #0f172a; color: #fff; border: 1px solid #334155; border-radius: 4px;">
-                </div>
+
                 <div style="background: #0f172a; padding: 12px; border-radius: 6px; text-align: center; margin-bottom: 15px;">
-                    <span style="font-size: 14px; color: #94a3b8;">الإجمالي النهائي للفاتورة:</span>
+                    <span style="font-size: 14px; color: #94a3b8;">الإجمالي المستحق على الفاتورة (شامل أي رصيد سابق مُضمَّن):</span>
                     <h2 id="invoiceFinalTotalDisplay" style="margin: 5px 0 0 0; color: #38bdf8;">0 ج.م</h2>
                 </div>
                 <div style="display: flex; gap: 10px;">
@@ -870,6 +864,9 @@
                         <label>تاريخ الحساب السابق:</label>
                         <input type="text" id="editCustOldBalanceDate" placeholder="مثال: 2026/01/15">
                     </div>
+                    <button type="button" onclick="resetCustomerOldBalance()" style="width:100%; background:#7f1d1d; color:#fecaca; border:1px solid #ef4444; padding:9px; border-radius:6px; font-weight:bold; cursor:pointer; margin-bottom:14px; font-size:13px;">
+                        <i class="fas fa-eraser"></i> مسح الحساب السابق بالكامل (لإدخال رصيد صحيح من جديد)
+                    </button>
                     <button type="submit" class="btn-primary">حفظ التعديلات</button>
                 </form>
             </div>
