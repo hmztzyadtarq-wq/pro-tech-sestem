@@ -61,6 +61,12 @@ let customers = [
 ];
 
 let invoices = [];
+
+// كشف قراءة فقط لقائمة الفواتير (بدون أي صلاحية تعديل أو حذف)
+// يُستخدم في صفحة الموظف المخصصة لإصدار الفواتير فقط (employee-invoice.html)
+window.getAllInvoices = function() {
+    return invoices.slice();
+};
 let purchases = [];
 
 let settings = {
