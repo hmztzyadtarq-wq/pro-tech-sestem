@@ -1,10 +1,8 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>نظام إدارة شركة برو تيك - ProTech ERP Dashboard</title>
     <link rel="stylesheet" href="style.css">
     <!-- Font Awesome Icons -->
@@ -78,6 +76,7 @@
                 <li onclick="switchTab('customers', this)"><i class="fas fa-users"></i> دليل العملاء</li>
                 <!-- زرار إدارة الحضور والمرتبات في القائمة الجانبية -->
                 <li onclick="switchTab('expenses', this)"><i class="fas fa-id-badge"></i> حضور وموظفي الشركة</li>
+                <li onclick="switchTab('expenseSheet', this)"><i class="fas fa-receipt"></i> كشف المصروفات</li>
                 <li onclick="switchTab('settings', this)"><i class="fas fa-cogs"></i> الإعدادات والربط</li>
                 <li onclick="window.location.href='https://hmztzyadtarq-wq.github.io/pro-tech1.com/admin-videos.html'"><i class="fas fa-tachometer-alt"></i>  ادارة الموقع الاكتراوني </li>
                 <li onclick="window.location.href='https://hmztzyadtarq-wq.github.io/pro-tech1.com'"><i class="fas fa-eye"></i>  نظره عامه للموقع  الاكتروني  </li>
@@ -146,6 +145,28 @@
                         <div class="stat-info">
                             <h3>العملاء المسجلين</h3>
                             <span id="statTotalCustomers">0</span> عميل
+                        </div>
+                    </div>
+                </div>
+
+                <!-- المؤشر الدائري: نسبة تحصيل المبيعات -->
+                <div class="gauge-card">
+                    <div class="gauge-visual">
+                        <svg viewBox="0 0 120 120" class="gauge-svg">
+                            <circle cx="60" cy="60" r="52" class="gauge-track"></circle>
+                            <circle cx="60" cy="60" r="52" class="gauge-progress" id="gaugeProgressCircle"></circle>
+                        </svg>
+                        <div class="gauge-center-text">
+                            <span id="gaugePercentText">0%</span>
+                            <small>نسبة التحصيل</small>
+                        </div>
+                    </div>
+                    <div class="gauge-details">
+                        <h3><i class="fas fa-circle-notch"></i> نسبة تحصيل المبيعات</h3>
+                        <p>من إجمالي المبيعات المسجلة، كام اتحصّل فعلياً كاش وكام لسه متبقي على العملاء</p>
+                        <div class="gauge-legend-row">
+                            <span><i class="dot dot-green"></i> تم تحصيله: <b id="gaugePaidAmount">0 ج.م</b></span>
+                            <span><i class="dot dot-red"></i> متبقي على العملاء: <b id="gaugeRemainingAmount">0 ج.م</b></span>
                         </div>
                     </div>
                 </div>
@@ -381,15 +402,88 @@
             </section>
 
             <!-- Settings Tab -->
+            <!-- Expenses Statement Tab -->
+            <section id="tab-expenseSheet" class="tab-content">
+                <div class="page-header-title flex-header">
+                    <div>
+                        <h1>كشف المصروفات</h1>
+                        <p>تسجيل ومتابعة كل المصروفات - العامة للشركة أو الخاصة بكل موظف - وطباعة كشف رسمي بيها</p>
+                    </div>
+                    <button class="btn-primary" onclick="printExpensesSheet()"><i class="fas fa-print"></i> طباعة كشف المصروفات</button>
+                </div>
+
+                <div class="card-table-wrapper" style="padding: 18px; margin-bottom: 20px;">
+                    <form onsubmit="addExpenseEntry(event)">
+                        <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px;">
+                            <div style="flex: 1; min-width: 150px;">
+                                <label style="display:block; font-size:12px; font-weight:bold; color:#334155; margin-bottom:5px;">التاريخ:</label>
+                                <input type="date" id="expenseDateInput" style="width:100%; padding:9px; border:1px solid #cbd5e1; border-radius:6px;">
+                            </div>
+                            <div style="flex: 1; min-width: 150px;">
+                                <label style="display:block; font-size:12px; font-weight:bold; color:#334155; margin-bottom:5px;">المبلغ (ج.م):</label>
+                                <input type="number" id="expenseAmountInput" required min="0" step="0.01" style="width:100%; padding:9px; border:1px solid #cbd5e1; border-radius:6px;">
+                            </div>
+                            <div style="flex: 1; min-width: 150px;">
+                                <label style="display:block; font-size:12px; font-weight:bold; color:#334155; margin-bottom:5px;">نوع المصروف:</label>
+                                <select id="expenseTypeSelect" onchange="toggleExpenseEmployeeSelect()" style="width:100%; padding:9px; border:1px solid #cbd5e1; border-radius:6px;">
+                                    <option value="COMPANY">مصروف عام للشركة</option>
+                                    <option value="EMPLOYEE">خاص بموظف معين</option>
+                                </select>
+                            </div>
+                            <div style="flex: 1; min-width: 150px; display:none;" id="expenseEmployeeSelectWrap">
+                                <label style="display:block; font-size:12px; font-weight:bold; color:#334155; margin-bottom:5px;">الموظف:</label>
+                                <select id="expenseEmployeeSelect" style="width:100%; padding:9px; border:1px solid #cbd5e1; border-radius:6px;">
+                                    <option value="">-- اختر الموظف --</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px;">
+                            <div style="flex: 1; min-width: 200px;">
+                                <label style="display:block; font-size:12px; font-weight:bold; color:#334155; margin-bottom:5px;">الجهة (لمين تم الصرف):</label>
+                                <input type="text" id="expenseTargetInput" required placeholder="مثال: مورد أحبار، إيجار المحل، مواصلات..." style="width:100%; padding:9px; border:1px solid #cbd5e1; border-radius:6px;">
+                            </div>
+                            <div style="flex: 1; min-width: 200px;">
+                                <label style="display:block; font-size:12px; font-weight:bold; color:#334155; margin-bottom:5px;">ملاحظات:</label>
+                                <input type="text" id="expenseNotesInput" placeholder="أي تفاصيل إضافية (اختياري)" style="width:100%; padding:9px; border:1px solid #cbd5e1; border-radius:6px;">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-success"><i class="fas fa-plus-circle"></i> تسجيل المصروف</button>
+                    </form>
+                </div>
+
+                <div class="card-table-wrapper">
+                    <div class="table-toolbar flex-toolbar" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                        <label style="font-size:13px; font-weight:bold; color:#334155;">عرض كشف مصروفات لـ:</label>
+                        <select id="expenseFilterSelect" onchange="renderExpensesTable()" style="padding:8px; border:1px solid #cbd5e1; border-radius:6px; min-width:220px;">
+                            <option value="ALL_COMPANY">كل مصروفات الشركة (عام + كل الموظفين)</option>
+                            <option value="COMPANY_ONLY">مصروفات عامة للشركة فقط</option>
+                        </select>
+                        <span style="margin-right:auto; font-size:14px; font-weight:bold; color:#334155;">إجمالي الكشف الحالي: <span id="expensesTotalDisplay" style="color:#e11d48;">0 ج.م</span></span>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>التاريخ</th>
+                                <th>المبلغ</th>
+                                <th>الجهة</th>
+                                <th>الملاحظات</th>
+                                <th>حذف</th>
+                            </tr>
+                        </thead>
+                        <tbody id="expensesTableBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
             <section id="tab-settings" class="tab-content">
                 <div class="page-header-title">
                     <h1>إعدادات النظام والربط الآلي</h1>
-                    <p>تخصيص بيانات شركة برو تيك ورقم إرسال الفواتير عبر الواتساب (01020008299)</p>
+                    <p>تخصيص بيانات الشركة، بيانات الفاتورة، ورقم إرسال الفواتير عبر الواتساب</p>
                 </div>
                 <div class="settings-card">
                     <form onsubmit="saveSettings(event)">
                         <div class="form-group">
-                            <label>اسم الشركة:</label>
+                            <label>اسم الشركة (يظهر في الفاتورة والموقع):</label>
                             <input type="text" id="companyNameInput" value="شركة برو تيك للأحبار وماكينات الطباعة - ProTech">
                         </div>
                         <div class="form-group">
@@ -397,14 +491,33 @@
                             <input type="text" id="companyOwnerInput" value="وائل غنيم">
                         </div>
                         <div class="form-group">
-                            <label>رقم هاتف الواتساب الأساسي للإرسال التلقائي:</label>
+                            <label>رقم هاتف الواتساب الأساسي (يظهر في الفاتورة وللإرسال التلقائي):</label>
                             <input type="text" id="whatsappNumberInput" value="01020008299">
                         </div>
                         <div class="form-group">
-                            <label>عنوان الشركة:</label>
+                            <label>عنوان الشركة (يظهر في الفاتورة):</label>
                             <input type="text" id="companyAddressInput" value="جمهورية مصر العربية - مدينة بدر">
                         </div>
                         <button type="submit" class="btn-primary">حفظ الإعدادات</button>
+                    </form>
+                </div>
+
+                <div class="settings-card" style="margin-top: 20px;">
+                    <h3 style="font-size: 16px; color: var(--dark); margin-bottom: 16px; display:flex; align-items:center; gap:8px;"><i class="fas fa-key"></i> تغيير كلمة مرور الدخول</h3>
+                    <form onsubmit="changeSystemPassword(event)">
+                        <div class="form-group">
+                            <label>كلمة المرور الحالية:</label>
+                            <input type="password" id="currentPasswordInput" required placeholder="ادخل كلمة المرور الحالية">
+                        </div>
+                        <div class="form-group">
+                            <label>كلمة المرور الجديدة:</label>
+                            <input type="password" id="newPasswordInput" required placeholder="4 حروف/أرقام على الأقل">
+                        </div>
+                        <div class="form-group">
+                            <label>تأكيد كلمة المرور الجديدة:</label>
+                            <input type="password" id="confirmPasswordInput" required placeholder="أعد كتابة كلمة المرور الجديدة">
+                        </div>
+                        <button type="submit" class="btn-primary" style="background:#f59e0b;"><i class="fas fa-shield-halved"></i> تغيير كلمة المرور</button>
                     </form>
                 </div>
             </section>
@@ -511,10 +624,11 @@
                     <table style="width: 100%; border-collapse: collapse;">
                         <thead>
                             <tr style="background: #0f172a; font-size: 12px; color: #94a3b8;">
-                                <th style="padding: 6px; text-align: right; width: 45%;">الصنف</th>
-                                <th style="padding: 6px; text-align: center; width: 20%;">الكمية</th>
-                                <th style="padding: 6px; text-align: center; width: 25%;">السعر</th>
-                                <th style="padding: 6px; text-align: center; width: 10%;">حذف</th>
+                                <th style="padding: 6px; text-align: right; width: 38%;">الصنف</th>
+                                <th style="padding: 6px; text-align: center; width: 15%;">الكمية</th>
+                                <th style="padding: 6px; text-align: center; width: 20%;">السعر</th>
+                                <th style="padding: 6px; text-align: center; width: 18%;">الإجمالي</th>
+                                <th style="padding: 6px; text-align: center; width: 9%;">حذف</th>
                             </tr>
                         </thead>
                         <tbody id="invoiceItemsBody"></tbody>
