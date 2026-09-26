@@ -69,12 +69,16 @@ window.getAllInvoices = function() {
 };
 let purchases = [];
 
+// كشف المصروفات: سجل واحد لكل حركة، إما مصروف عام للشركة (employeeId=null) أو خاص بموظف معين
+let companyExpenses = [];
+
 let settings = {
     companyName: 'Bro Tech',
     owner: 'وائل غنيم',
     whatsapp: '01020008299',
     whatsappNabawy: '01092201111',
-    address: '195 شارع جسر السويس'
+    address: '195 شارع جسر السويس',
+    password: 'protech2026'
 };
 
 let currentInvoiceData = null;
@@ -98,7 +102,8 @@ async function loadDataFromFirebase() {
             if(data.customers && data.customers.length > 0) customers = data.customers;
             if(data.invoices) invoices = data.invoices;
             if(data.purchases) purchases = data.purchases;
-            if(data.settings) settings = data.settings;
+            if(data.companyExpenses) companyExpenses = data.companyExpenses;
+            if(data.settings) settings = { ...settings, ...data.settings };
         } else {
             await saveDataToFirebase();
         }
@@ -108,7 +113,8 @@ async function loadDataFromFirebase() {
         customers = JSON.parse(localStorage.getItem('protech_customers')) || customers;
         invoices = JSON.parse(localStorage.getItem('protech_invoices')) || invoices;
         purchases = JSON.parse(localStorage.getItem('protech_purchases')) || purchases;
-        settings = JSON.parse(localStorage.getItem('protech_settings')) || settings;
+        companyExpenses = JSON.parse(localStorage.getItem('protech_expenses')) || companyExpenses;
+        settings = { ...settings, ...(JSON.parse(localStorage.getItem('protech_settings')) || {}) };
     }
 }
 
@@ -119,6 +125,7 @@ async function saveDataToFirebase() {
             customers,
             invoices,
             purchases,
+            companyExpenses,
             settings,
             updatedAt: new Date().toISOString()
         });
@@ -132,6 +139,7 @@ function saveData() {
     localStorage.setItem('protech_customers', JSON.stringify(customers));
     localStorage.setItem('protech_invoices', JSON.stringify(invoices));
     localStorage.setItem('protech_purchases', JSON.stringify(purchases));
+    localStorage.setItem('protech_expenses', JSON.stringify(companyExpenses));
     localStorage.setItem('protech_settings', JSON.stringify(settings));
     saveDataToFirebase();
 }
@@ -143,8 +151,22 @@ function refreshAllData() {
     renderPurchases();
     renderCustomers();
     populateSelects();
+    renderSettingsForm();
+    renderExpensesTab();
 }
 window.refreshAllData = refreshAllData;
+
+// تعبئة فورم الإعدادات بالقيم المحفوظة فعلياً (بدل ما تفضل القيم الافتراضية ثابتة في الصفحة)
+function renderSettingsForm() {
+    let nameEl = document.getElementById('companyNameInput');
+    let ownerEl = document.getElementById('companyOwnerInput');
+    let whatsappEl = document.getElementById('whatsappNumberInput');
+    let addressEl = document.getElementById('companyAddressInput');
+    if(nameEl) nameEl.value = settings.companyName || '';
+    if(ownerEl) ownerEl.value = settings.owner || '';
+    if(whatsappEl) whatsappEl.value = settings.whatsapp || '';
+    if(addressEl) addressEl.value = settings.address || '';
+}
 
 // ===================== التنقل بين التابات =====================
 window.switchTab = function(tabId, el) {
@@ -223,6 +245,32 @@ function renderDashboard() {
             return sum + (net > 0 ? net : 0);
         }, 0);
         debtsElem.innerText = totalDebts.toLocaleString() + ' ج.م';
+    }
+
+    // ===== المؤشر الدائري: نسبة تحصيل المبيعات (كام اتحصل فعلياً من إجمالي المبيعات) =====
+    let gaugeCircle = document.getElementById('gaugeProgressCircle');
+    if(gaugeCircle) {
+        let totalInvoiced = invoices.reduce((sum, inv) => sum + Number(inv.total || 0), 0);
+        let totalCollected = invoices.reduce((sum, inv) => {
+            let paidClamped = Math.min(Number(inv.paid || 0), Number(inv.total || 0));
+            return sum + Math.max(0, paidClamped);
+        }, 0);
+        let totalOutstanding = Math.max(0, totalInvoiced - totalCollected);
+        let percent = totalInvoiced > 0 ? Math.round((totalCollected / totalInvoiced) * 100) : 100;
+        percent = Math.max(0, Math.min(100, percent));
+
+        const CIRCUMFERENCE = 2 * Math.PI * 52; // نفس نصف قطر الدائرة في الـ SVG (r=52)
+        let offset = CIRCUMFERENCE * (1 - percent / 100);
+        gaugeCircle.style.strokeDasharray = CIRCUMFERENCE.toFixed(1);
+        gaugeCircle.style.strokeDashoffset = offset.toFixed(1);
+        gaugeCircle.style.stroke = percent >= 70 ? '#10b981' : (percent >= 40 ? '#f59e0b' : '#ef4444');
+
+        let percentText = document.getElementById('gaugePercentText');
+        if(percentText) percentText.innerText = percent + '%';
+        let paidAmountEl = document.getElementById('gaugePaidAmount');
+        if(paidAmountEl) paidAmountEl.innerText = totalCollected.toLocaleString() + ' ج.م';
+        let remainingAmountEl = document.getElementById('gaugeRemainingAmount');
+        if(remainingAmountEl) remainingAmountEl.innerText = totalOutstanding.toLocaleString() + ' ج.م';
     }
 
     let recentTbody = document.querySelector('#recentInvoicesTable tbody');
@@ -539,14 +587,16 @@ window.handleCustomerSelectChange = function() {
                 infoBox.style.background = '#2c1414';
                 infoBox.style.color = '#fca5a5';
                 infoBox.style.border = '1px solid #7f1d1d';
-                infoBox.innerHTML = `<i class="fas fa-triangle-exclamation"></i> هذا العميل عليه مبلغ سابق مستحق: ${netDebt.toLocaleString()} ج.م`;
+                infoBox.innerHTML = `<i class="fas fa-triangle-exclamation"></i> هذا العميل عليه مبلغ سابق مستحق: ${netDebt.toLocaleString()} ج.م
+                    <button type="button" onclick="closeCustomerOldBalanceFromInvoice('${val.replace(/'/g, "\\'")}')" style="float:left; background:#7f1d1d; color:#fecaca; border:1px solid #ef4444; padding:4px 10px; border-radius:5px; font-size:11px; cursor:pointer; font-weight:bold;"><i class="fas fa-xmark"></i> إقفال الحساب السابق</button>`;
                 if(includeRow) includeRow.style.display = 'flex';
                 if(label) label.innerText = 'إضافة هذا المبلغ (عليه) إلى إجمالي الفاتورة الحالية';
             } else if(netDebt < -0.001) {
                 infoBox.style.background = '#0d2c22';
                 infoBox.style.color = '#6ee7b7';
                 infoBox.style.border = '1px solid #14532d';
-                infoBox.innerHTML = `<i class="fas fa-circle-check"></i> هذا العميل له رصيد سابق: ${Math.abs(netDebt).toLocaleString()} ج.م`;
+                infoBox.innerHTML = `<i class="fas fa-circle-check"></i> هذا العميل له رصيد سابق: ${Math.abs(netDebt).toLocaleString()} ج.م
+                    <button type="button" onclick="closeCustomerOldBalanceFromInvoice('${val.replace(/'/g, "\\'")}')" style="float:left; background:#14532d; color:#bbf7d0; border:1px solid #10b981; padding:4px 10px; border-radius:5px; font-size:11px; cursor:pointer; font-weight:bold;"><i class="fas fa-xmark"></i> إقفال الحساب السابق</button>`;
                 if(includeRow) includeRow.style.display = 'flex';
                 if(label) label.innerText = 'خصم هذا الرصيد (له) من إجمالي الفاتورة الحالية';
             } else {
@@ -609,6 +659,69 @@ function updatePaymentStatusDisplay(grandTotal) {
     }
 }
 
+// ===================== كومبو بحث قابل لإعادة الاستخدام (عميل / صنف) =====================
+// بيغلف أي <select> بمربع بحث نصي، من غير ما يأثر على قيمة الـ select نفسه أو أي كود بيعتمد عليه
+function attachSearchableSelect(selectEl, placeholder) {
+    if(!selectEl || selectEl.dataset.searchAttached === '1') return;
+    selectEl.dataset.searchAttached = '1';
+    selectEl.style.display = 'none';
+
+    let wrap = document.createElement('div');
+    wrap.style.position = 'relative';
+    wrap.style.width = '100%';
+
+    let input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = placeholder || 'ابحث...';
+    input.setAttribute('dir', 'auto');
+    input.autocomplete = 'off';
+    input.style.cssText = 'width:100%; padding:8px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px; font-size:13px; box-sizing:border-box;';
+
+    let list = document.createElement('div');
+    list.style.cssText = 'display:none; position:absolute; z-index:80; top:100%; right:0; left:0; background:#0f172a; border:1px solid #334155; border-radius:4px; max-height:220px; overflow-y:auto; margin-top:2px; box-shadow:0 8px 20px rgba(0,0,0,0.45);';
+
+    wrap.appendChild(input);
+    wrap.appendChild(list);
+    selectEl.parentNode.insertBefore(wrap, selectEl.nextSibling);
+
+    function syncInputFromSelect() {
+        let opt = selectEl.options[selectEl.selectedIndex];
+        input.value = (opt && opt.value) ? opt.textContent : '';
+    }
+    function renderList(filter) {
+        let q = (filter || '').trim().toLowerCase();
+        let matches = Array.from(selectEl.options).filter(o => o.value && o.textContent.toLowerCase().includes(q));
+        list.innerHTML = '';
+        if(matches.length === 0) {
+            list.innerHTML = '<div style="padding:9px; color:#94a3b8; font-size:12.5px;">لا توجد نتائج مطابقة</div>';
+        } else {
+            matches.slice(0, 80).forEach(o => {
+                let item = document.createElement('div');
+                item.textContent = o.textContent;
+                item.style.cssText = 'padding:9px 10px; cursor:pointer; font-size:13px; border-bottom:1px solid #1e293b; color:#e2e8f0;';
+                item.onmousedown = (e) => {
+                    e.preventDefault();
+                    selectEl.value = o.value;
+                    selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+                    input.value = o.textContent;
+                    list.style.display = 'none';
+                };
+                item.onmouseenter = () => item.style.background = '#1e293b';
+                item.onmouseleave = () => item.style.background = 'transparent';
+                list.appendChild(item);
+            });
+        }
+        list.style.display = 'block';
+    }
+    input.addEventListener('focus', () => renderList(''));
+    input.addEventListener('input', () => renderList(input.value));
+    input.addEventListener('blur', () => setTimeout(() => { list.style.display = 'none'; syncInputFromSelect(); }, 150));
+
+    syncInputFromSelect();
+    selectEl._comboSync = syncInputFromSelect;
+}
+window.attachSearchableSelect = attachSearchableSelect;
+
 // ===================== إنشاء / تعديل الفاتورة =====================
 window.addInvoiceItemRow = function(selectedCode = '', selectedQty = 1) {
     let tbody = document.getElementById('invoiceItemsBody');
@@ -625,6 +738,7 @@ window.addInvoiceItemRow = function(selectedCode = '', selectedQty = 1) {
         <td style="padding: 5px;"><select class="inv-item-code" dir="auto" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px;" onchange="updateRowPrice(this)">${optionsHtml}</select></td>
         <td style="padding: 5px;"><input type="number" class="inv-item-qty" value="${selectedQty}" min="1" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px; text-align:center;" oninput="calculateInvoiceTotal()"></td>
         <td style="padding: 5px;"><input type="number" class="inv-item-price" value="0" style="width:100%; padding:6px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px; text-align:center;" oninput="calculateInvoiceTotal()"></td>
+        <td style="padding: 5px; text-align:center; font-weight:bold; color:#38bdf8; font-size:13px;" class="inv-item-total-cell">0 ج.م</td>
         <td style="padding: 5px; text-align: center;"><button type="button" onclick="this.closest('tr').remove(); calculateInvoiceTotal();" style="background:#f43f5e; color:#fff; border:none; padding:5px 8px; border-radius:4px; cursor:pointer;"><i class="fas fa-trash"></i></button></td>
     `;
     tbody.appendChild(tr);
@@ -633,6 +747,8 @@ window.addInvoiceItemRow = function(selectedCode = '', selectedQty = 1) {
     if(selectedCode && selectEl) {
         window.updateRowPrice(selectEl);
     }
+    if(selectEl) attachSearchableSelect(selectEl, 'ابحث عن الصنف بالاسم...');
+    calculateInvoiceTotal();
     return tr;
 };
 window.updateRowPrice = function(selectElem) {
@@ -653,7 +769,10 @@ window.calculateInvoiceTotal = function() {
     rows.forEach(tr => {
         let qty = Number(tr.querySelector('.inv-item-qty')?.value) || 0;
         let price = Number(tr.querySelector('.inv-item-price')?.value) || 0;
-        subtotal += (qty * price);
+        let lineTotal = qty * price;
+        subtotal += lineTotal;
+        let totalCell = tr.querySelector('.inv-item-total-cell');
+        if(totalCell) totalCell.innerText = lineTotal.toLocaleString() + ' ج.م';
     });
 
     let discountPercent = Number(document.getElementById('invoiceDiscountPercent')?.value) || 0;
@@ -694,7 +813,11 @@ window.openNewInvoiceModal = function() {
     populateSelects();
 
     let custSelect = document.getElementById('invoiceCustomerSelect');
-    if(custSelect) custSelect.value = '';
+    if(custSelect) {
+        attachSearchableSelect(custSelect, 'ابحث باسم العميل أو رقم الهاتف...');
+        custSelect.value = '';
+        if(custSelect._comboSync) custSelect._comboSync();
+    }
     let newDiv = document.getElementById('newCustomerDiv');
     if(newDiv) newDiv.style.display = 'none';
 
@@ -748,7 +871,9 @@ window.openEditInvoiceModal = function(index) {
     let newDiv = document.getElementById('newCustomerDiv');
     let custExists = customers.some(c => c.name === inv.customerName);
     if(custSelect) {
+        attachSearchableSelect(custSelect, 'ابحث باسم العميل أو رقم الهاتف...');
         custSelect.value = custExists ? inv.customerName : 'NEW_CUSTOMER';
+        if(custSelect._comboSync) custSelect._comboSync();
     }
     if(newDiv) {
         newDiv.style.display = custExists ? 'none' : 'block';
@@ -1201,6 +1326,36 @@ window.resetCustomerOldBalance = function() {
     alert('تم مسح الحساب السابق بالكامل. دلوقتي تقدر تدخل الرصيد الصحيح وتضغط "حفظ التعديلات".');
 };
 
+// إقفال سريع للحساب السابق (الرصيد المستقل فقط) من نفس شاشة إنشاء الفاتورة، بدون الحاجة للدخول لتعديل العميل
+window.closeCustomerOldBalanceFromInvoice = function(customerName) {
+    let c = customers.find(cc => cc.name === customerName);
+    if(!c) return;
+    if(!confirm(`هل تريد إقفال "الحساب السابق" المسجل بشكل منفصل لهذا العميل (${c.name})؟\n\nملحوظة: لو عليه فواتير سابقة لسه متبقي منها مبالغ، هتفضل ظاهرة في مديونيته لأنها مبنية على فواتير فعلية وليست رصيد يدوي.`)) return;
+
+    c.oldBalance = 0;
+    c.balanceType = 'none';
+    c.oldBalanceDate = '';
+    saveData();
+
+    // إعادة تحديث تنبيه المديونية في نفس شاشة الفاتورة فوراً
+    window.handleCustomerSelectChange();
+};
+
+// إقفال سريع للحساب السابق (المستقل) لعميل مباشرة من داخل شاشة الفاتورة، بدون الحاجة للذهاب لشاشة تعديل العميل
+window.closeCustomerOldBalanceFromInvoice = function(customerName) {
+    let c = customers.find(cc => cc.name === customerName);
+    if(!c) return;
+    if(!confirm(`هل تريد إقفال "الحساب السابق" المستقل لهذا العميل (${customerName})؟\n\nملحوظة: هذا يصفّر فقط الرصيد السابق اليدوي، ولا يؤثر على أي فواتير غير مسددة له فعلياً - لو باقي عليه متبقي من فواتير سابقة هيفضل ظاهر.`)) return;
+
+    c.oldBalance = 0;
+    c.balanceType = 'none';
+    c.oldBalanceDate = '';
+    saveData();
+
+    // نعيد رسم صندوق تنبيه المديونية في الفاتورة عشان يعكس الرصيد الجديد فوراً
+    window.handleCustomerSelectChange();
+};
+
 window.saveEditedCustomer = function(e) {
     e.preventDefault();
     let index = document.getElementById('editCustIndex').value;
@@ -1295,14 +1450,14 @@ window.showInvoiceModal = function(inv) {
         <div style="background: #fff; color: #000; padding: 20px; font-family: Tahoma, sans-serif; direction: rtl; text-align: right; width: 100%; box-sizing: border-box;">
             
             <div style="text-align: center; margin-bottom: 10px;">
-                <h1 style="margin: 0 0 5px 0; color: #0284c7; font-size: 24px; font-weight: bold;">Bro Tech</h1>
+                <h1 style="margin: 0 0 5px 0; color: #0284c7; font-size: 24px; font-weight: bold;">${settings.companyName || 'Bro Tech'}</h1>
                 <p style="margin: 2px 0; font-size: 13px; color: #475569;">لصيانه و بيع جميع انواع مكن الطباعه</p>
             </div>
 
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; font-size: 13px;">
                 <div>
-                    <p style="margin: 2px 0;"><strong>العنوان:</strong> 195 شارع جسر السويس</p>
-                    <p style="margin: 2px 0;"><strong>الهاتف:</strong> 01020008299</p>
+                    <p style="margin: 2px 0;"><strong>العنوان:</strong> ${settings.address || ''}</p>
+                    <p style="margin: 2px 0;"><strong>الهاتف:</strong> ${settings.whatsapp || ''}</p>
                 </div>
                 <div style="text-align: left;">
                     <p style="margin: 2px 0;"><strong>التاريخ:</strong> ${inv.date}</p>
@@ -1475,14 +1630,14 @@ window.printInvoice = function() {
             <div style="width: 100%; max-width: 800px; margin: 0 auto; background: #fff; padding: 20px; box-sizing: border-box;">
                 
                 <div style="text-align: center; margin-bottom: 10px;">
-                    <h1 style="margin: 0 0 5px 0; color: #0284c7; font-size: 24px; font-weight: bold;">Bro Tech</h1>
+                    <h1 style="margin: 0 0 5px 0; color: #0284c7; font-size: 24px; font-weight: bold;">${settings.companyName || 'Bro Tech'}</h1>
                     <p style="margin: 2px 0; font-size: 13px; color: #475569;">لصيانه و بيع جميع انواع مكن الطباعه</p>
                 </div>
 
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; font-size: 13px;">
                     <div>
-                        <p style="margin: 2px 0;"><strong>العنوان:</strong> 195 شارع جسر السويس</p>
-                        <p style="margin: 2px 0;"><strong>الهاتف:</strong> 01020008299</p>
+                        <p style="margin: 2px 0;"><strong>العنوان:</strong> ${settings.address || ''}</p>
+                        <p style="margin: 2px 0;"><strong>الهاتف:</strong> ${settings.whatsapp || ''}</p>
                     </div>
                     <div style="text-align: left;">
                         <p style="margin: 2px 0;"><strong>التاريخ:</strong> ${inv.date}</p>
@@ -1963,4 +2118,251 @@ window.saveSettings = function(event) {
     settings.address = document.getElementById('companyAddressInput').value.trim();
     saveData();
     alert('تم حفظ إعدادات النظام بنجاح!');
+};
+
+// تغيير كلمة مرور دخول النظام (تُستخدم في login.html)
+window.changeSystemPassword = function(event) {
+    event.preventDefault();
+    let current = document.getElementById('currentPasswordInput').value;
+    let newPass = document.getElementById('newPasswordInput').value;
+    let confirmPass = document.getElementById('confirmPasswordInput').value;
+    let savedPassword = settings.password || 'protech2026';
+
+    if(current !== savedPassword) {
+        alert('كلمة المرور الحالية غير صحيحة!');
+        return;
+    }
+    if(!newPass || newPass.length < 4) {
+        alert('كلمة المرور الجديدة يجب ألا تقل عن 4 حروف/أرقام!');
+        return;
+    }
+    if(newPass !== confirmPass) {
+        alert('كلمة المرور الجديدة وتأكيدها غير متطابقين!');
+        return;
+    }
+
+    settings.password = newPass;
+    saveData();
+    document.getElementById('currentPasswordInput').value = '';
+    document.getElementById('newPasswordInput').value = '';
+    document.getElementById('confirmPasswordInput').value = '';
+    alert('تم تغيير كلمة المرور بنجاح! استخدمها في المرة القادمة لتسجيل الدخول.');
+};
+
+// ===================== كشف المصروفات (عام للشركة + لكل موظف) =====================
+
+// تعبئة قوائم الفلترة/الإضافة (تتغير حسب قائمة الموظفين الحالية) ثم عرض الجدول
+function renderExpensesTab() {
+    let filterSelect = document.getElementById('expenseFilterSelect');
+    let expenseEmpSelect = document.getElementById('expenseEmployeeSelect');
+    if(!filterSelect && !expenseEmpSelect) return; // مش موجودين في الصفحة دي (مثلاً صفحة موظف)
+
+    let currentFilterVal = filterSelect ? filterSelect.value : 'ALL_COMPANY';
+    let empList = (typeof employees !== 'undefined' && employees) ? employees : [];
+
+    if(filterSelect) {
+        let optsHtml = '<option value="ALL_COMPANY">كل مصروفات الشركة (عام + كل الموظفين)</option><option value="COMPANY_ONLY">مصروفات عامة للشركة فقط</option>';
+        empList.forEach(emp => { optsHtml += `<option value="EMP_${emp.id}">${emp.name}</option>`; });
+        filterSelect.innerHTML = optsHtml;
+        if(Array.from(filterSelect.options).some(o => o.value === currentFilterVal)) filterSelect.value = currentFilterVal;
+    }
+    if(expenseEmpSelect) {
+        let optsHtml2 = '<option value="">-- اختر الموظف --</option>';
+        empList.forEach(emp => { optsHtml2 += `<option value="${emp.id}">${emp.name}</option>`; });
+        expenseEmpSelect.innerHTML = optsHtml2;
+    }
+
+    renderExpensesTable();
+}
+
+// عرض/تصفية جدول المصروفات + إجمالي الكشف الحالي (بدون إعادة بناء القوائم عشان يفضل اختيار المستخدم زي ما هو)
+window.renderExpensesTable = function() {
+    let tbody = document.getElementById('expensesTableBody');
+    let totalEl = document.getElementById('expensesTotalDisplay');
+    let filterSelect = document.getElementById('expenseFilterSelect');
+    if(!tbody) return;
+
+    let filterVal = filterSelect ? filterSelect.value : 'ALL_COMPANY';
+    let list = (companyExpenses || []).slice();
+
+    if(filterVal === 'COMPANY_ONLY') {
+        list = list.filter(e => !e.employeeId);
+    } else if(filterVal && filterVal.indexOf('EMP_') === 0) {
+        let empId = filterVal.replace('EMP_', '');
+        list = list.filter(e => String(e.employeeId) === String(empId));
+    }
+
+    list.sort((a, b) => new Date(b.dateISO || b.date) - new Date(a.dateISO || a.date));
+
+    tbody.innerHTML = '';
+    let total = 0;
+    if(list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:15px; color:#64748b;">لا توجد أي مصروفات مسجلة ضمن هذا الكشف</td></tr>`;
+    } else {
+        list.forEach(exp => {
+            total += Number(exp.amount || 0);
+            let targetLabel = exp.employeeName
+                ? `${exp.target} <span style="color:#94a3b8; font-size:11px;">(${exp.employeeName})</span>`
+                : exp.target;
+            tbody.innerHTML += `
+                <tr>
+                    <td>${exp.date}</td>
+                    <td style="font-weight:bold; color:#e11d48;">${Number(exp.amount).toLocaleString()} ج.م</td>
+                    <td>${targetLabel}</td>
+                    <td>${exp.notes || '-'}</td>
+                    <td style="text-align:center;"><button onclick="deleteExpenseEntry('${exp.id}')" style="background:#fee2e2; color:#991b1b; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;"><i class="fas fa-trash"></i></button></td>
+                </tr>
+            `;
+        });
+    }
+    if(totalEl) totalEl.innerText = total.toLocaleString() + ' ج.م';
+};
+
+window.toggleExpenseEmployeeSelect = function() {
+    let typeSelect = document.getElementById('expenseTypeSelect');
+    let wrap = document.getElementById('expenseEmployeeSelectWrap');
+    if(wrap) wrap.style.display = (typeSelect && typeSelect.value === 'EMPLOYEE') ? 'block' : 'none';
+};
+
+window.addExpenseEntry = function(event) {
+    event.preventDefault();
+    let dateInput = document.getElementById('expenseDateInput');
+    let amount = Number(document.getElementById('expenseAmountInput').value);
+    let target = document.getElementById('expenseTargetInput').value.trim();
+    let notes = document.getElementById('expenseNotesInput').value.trim();
+    let typeSelect = document.getElementById('expenseTypeSelect');
+    let empSelect = document.getElementById('expenseEmployeeSelect');
+
+    if(!amount || amount <= 0 || !target) {
+        alert('من فضلك أدخل المبلغ والجهة على الأقل!');
+        return;
+    }
+
+    let employeeId = null, employeeName = null;
+    if(typeSelect && typeSelect.value === 'EMPLOYEE') {
+        if(!empSelect || !empSelect.value) {
+            alert('من فضلك اختر الموظف!');
+            return;
+        }
+        employeeId = empSelect.value;
+        let emp = (employees || []).find(e => String(e.id) === String(employeeId));
+        employeeName = emp ? emp.name : '';
+    }
+
+    let dateVal = (dateInput && dateInput.value) ? dateInput.value : new Date().toISOString().split('T')[0];
+    let dateObj = new Date(dateVal);
+    let displayDate = dateObj.toLocaleDateString('ar-EG');
+
+    companyExpenses.push({
+        id: 'EXP-' + Date.now(),
+        date: displayDate,
+        dateISO: dateObj.toISOString(),
+        amount, target, notes,
+        employeeId, employeeName
+    });
+
+    saveData();
+    refreshAllData();
+
+    document.getElementById('expenseAmountInput').value = '';
+    document.getElementById('expenseTargetInput').value = '';
+    document.getElementById('expenseNotesInput').value = '';
+};
+
+window.deleteExpenseEntry = function(id) {
+    if(!confirm('هل أنت متأكد من حذف هذه الحركة من كشف المصروفات؟')) return;
+    companyExpenses = companyExpenses.filter(e => e.id !== id);
+    saveData();
+    refreshAllData();
+};
+
+// طباعة كشف المصروفات بنفس شكل النموذج الرسمي بالظبط - لو مفيش بيانات، بيطبع فورم فاضي بنفس عدد الصفوف
+window.printExpensesSheet = function() {
+    let filterSelect = document.getElementById('expenseFilterSelect');
+    let filterVal = filterSelect ? filterSelect.value : 'ALL_COMPANY';
+    let list = (companyExpenses || []).slice();
+    let titleSuffix = '';
+
+    if(filterVal === 'COMPANY_ONLY') {
+        list = list.filter(e => !e.employeeId);
+        titleSuffix = ' - مصروفات عامة';
+    } else if(filterVal && filterVal.indexOf('EMP_') === 0) {
+        let empId = filterVal.replace('EMP_', '');
+        list = list.filter(e => String(e.employeeId) === String(empId));
+        let emp = (employees || []).find(e => String(e.id) === String(empId));
+        titleSuffix = emp ? ` - ${emp.name}` : '';
+    }
+
+    list.sort((a, b) => new Date(a.dateISO || a.date) - new Date(b.dateISO || b.date));
+    let total = list.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+    const TOTAL_ROWS = 22;
+    let rowsHtml = '';
+    let rowCount = Math.max(list.length, TOTAL_ROWS);
+    for(let i = 0; i < rowCount; i++) {
+        let exp = list[i];
+        if(exp) {
+            rowsHtml += `
+                <tr>
+                    <td style="padding:6px 8px; border:1px solid #333; text-align:center;">${exp.date}</td>
+                    <td style="padding:6px 8px; border:1px solid #333; text-align:center;">${Number(exp.amount).toLocaleString()}</td>
+                    <td style="padding:6px 8px; border:1px solid #333;">${exp.target}${exp.employeeName ? ' (' + exp.employeeName + ')' : ''}</td>
+                    <td style="padding:6px 8px; border:1px solid #333;">${exp.notes || ''}</td>
+                </tr>
+            `;
+        } else {
+            rowsHtml += `
+                <tr>
+                    <td style="padding:6px 8px; border:1px solid #333; height:26px;">&nbsp;</td>
+                    <td style="padding:6px 8px; border:1px solid #333;">&nbsp;</td>
+                    <td style="padding:6px 8px; border:1px solid #333;">&nbsp;</td>
+                    <td style="padding:6px 8px; border:1px solid #333;">&nbsp;</td>
+                </tr>
+            `;
+        }
+    }
+
+    let printWin = window.open('', '_blank', 'height=1000,width=850');
+    printWin.document.write(`
+        <html lang="ar" dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <title>كشف مصروفات${titleSuffix}</title>
+            <style>
+                body { font-family: Tahoma, Arial, sans-serif; padding: 25px; color:#000; direction: rtl; }
+                h1 { text-align:center; font-size: 22px; margin-bottom: 18px; }
+                table { width: 100%; border-collapse: collapse; }
+                th { background:#f1f1f1; border:1px solid #333; padding:8px; font-size:13px; }
+                td { font-size: 12.5px; }
+                tfoot td { font-weight:bold; background:#f1f1f1; border:1px solid #333; padding:8px; }
+                .footer-tagline { text-align:center; font-size:11px; color:#444; margin-top:14px; }
+                @media print { @page { size: A4; margin: 12mm; } }
+            </style>
+        </head>
+        <body>
+            <h1>كشف مصروفات${titleSuffix}</h1>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:15%;">التاريخ</th>
+                        <th style="width:15%;">المبلغ</th>
+                        <th style="width:35%;">الجهة</th>
+                        <th style="width:35%;">الملاحظات</th>
+                    </tr>
+                </thead>
+                <tbody>${rowsHtml}</tbody>
+                <tfoot>
+                    <tr>
+                        <td style="text-align:center;">الإجمالي</td>
+                        <td style="text-align:center;">${total.toFixed(2)}</td>
+                        <td colspan="2">&nbsp;</td>
+                    </tr>
+                </tfoot>
+            </table>
+            <p class="footer-tagline">${(settings.companyName || 'شركة برو تيك')} لصيانة وبيع جميع أنواع ماكينات الطباعة</p>
+            <script>window.onload = function(){ window.print(); };<\/script>
+        </body>
+        </html>
+    `);
+    printWin.document.close();
 };
