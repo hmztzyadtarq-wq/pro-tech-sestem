@@ -69,6 +69,10 @@ window.getAllInvoices = function() {
 };
 let purchases = [];
 
+// حساب المكن (يدوي ومنفصل عن الفواتير والمخزون)
+let machineEntries = [];
+let machinePayments = [];
+
 // كشف المصروفات: سجل واحد لكل حركة، إما مصروف عام للشركة (employeeId=null) أو خاص بموظف معين
 let companyExpenses = [];
 
@@ -103,6 +107,8 @@ async function loadDataFromFirebase() {
             if(data.invoices) invoices = data.invoices;
             if(data.purchases) purchases = data.purchases;
             if(data.companyExpenses) companyExpenses = data.companyExpenses;
+            if(data.machineEntries) machineEntries = data.machineEntries;
+            if(data.machinePayments) machinePayments = data.machinePayments;
             if(data.settings) settings = { ...settings, ...data.settings };
         } else {
             await saveDataToFirebase();
@@ -114,6 +120,8 @@ async function loadDataFromFirebase() {
         invoices = JSON.parse(localStorage.getItem('protech_invoices')) || invoices;
         purchases = JSON.parse(localStorage.getItem('protech_purchases')) || purchases;
         companyExpenses = JSON.parse(localStorage.getItem('protech_expenses')) || companyExpenses;
+        machineEntries = JSON.parse(localStorage.getItem('protech_machine_entries')) || machineEntries;
+        machinePayments = JSON.parse(localStorage.getItem('protech_machine_payments')) || machinePayments;
         settings = { ...settings, ...(JSON.parse(localStorage.getItem('protech_settings')) || {}) };
     }
 }
@@ -126,6 +134,8 @@ async function saveDataToFirebase() {
             invoices,
             purchases,
             companyExpenses,
+            machineEntries,
+            machinePayments,
             settings,
             updatedAt: new Date().toISOString()
         });
@@ -140,6 +150,8 @@ function saveData() {
     localStorage.setItem('protech_invoices', JSON.stringify(invoices));
     localStorage.setItem('protech_purchases', JSON.stringify(purchases));
     localStorage.setItem('protech_expenses', JSON.stringify(companyExpenses));
+    localStorage.setItem('protech_machine_entries', JSON.stringify(machineEntries));
+    localStorage.setItem('protech_machine_payments', JSON.stringify(machinePayments));
     localStorage.setItem('protech_settings', JSON.stringify(settings));
     saveDataToFirebase();
 }
@@ -153,6 +165,8 @@ function refreshAllData() {
     populateSelects();
     renderSettingsForm();
     renderExpensesTab();
+    renderMachinesTab();
+    renderOverdueAlert();
 }
 window.refreshAllData = refreshAllData;
 
@@ -584,25 +598,25 @@ window.handleCustomerSelectChange = function() {
         if(infoBox) {
             infoBox.style.display = 'block';
             if(netDebt > 0.001) {
-                infoBox.style.background = '#2c1414';
-                infoBox.style.color = '#fca5a5';
-                infoBox.style.border = '1px solid #7f1d1d';
+                infoBox.style.background = '#fef2f2';
+                infoBox.style.color = '#b91c1c';
+                infoBox.style.border = '1px solid #fecaca';
                 infoBox.innerHTML = `<i class="fas fa-triangle-exclamation"></i> هذا العميل عليه مبلغ سابق مستحق: ${netDebt.toLocaleString()} ج.م
-                    <button type="button" onclick="closeCustomerOldBalanceFromInvoice('${val.replace(/'/g, "\\'")}')" style="float:left; background:#7f1d1d; color:#fecaca; border:1px solid #ef4444; padding:4px 10px; border-radius:5px; font-size:11px; cursor:pointer; font-weight:bold;"><i class="fas fa-xmark"></i> إقفال الحساب السابق</button>`;
+                    <button type="button" onclick="closeCustomerOldBalanceFromInvoice('${val.replace(/'/g, "\\'")}')" style="float:left; background:#fee2e2; color:#991b1b; border:1px solid #fca5a5; padding:4px 10px; border-radius:5px; font-size:11px; cursor:pointer; font-weight:bold;"><i class="fas fa-xmark"></i> إقفال الحساب السابق</button>`;
                 if(includeRow) includeRow.style.display = 'flex';
                 if(label) label.innerText = 'إضافة هذا المبلغ (عليه) إلى إجمالي الفاتورة الحالية';
             } else if(netDebt < -0.001) {
-                infoBox.style.background = '#0d2c22';
-                infoBox.style.color = '#6ee7b7';
-                infoBox.style.border = '1px solid #14532d';
+                infoBox.style.background = '#f0fdf4';
+                infoBox.style.color = '#166534';
+                infoBox.style.border = '1px solid #bbf7d0';
                 infoBox.innerHTML = `<i class="fas fa-circle-check"></i> هذا العميل له رصيد سابق: ${Math.abs(netDebt).toLocaleString()} ج.م
-                    <button type="button" onclick="closeCustomerOldBalanceFromInvoice('${val.replace(/'/g, "\\'")}')" style="float:left; background:#14532d; color:#bbf7d0; border:1px solid #10b981; padding:4px 10px; border-radius:5px; font-size:11px; cursor:pointer; font-weight:bold;"><i class="fas fa-xmark"></i> إقفال الحساب السابق</button>`;
+                    <button type="button" onclick="closeCustomerOldBalanceFromInvoice('${val.replace(/'/g, "\\'")}')" style="float:left; background:#dcfce7; color:#166534; border:1px solid #86efac; padding:4px 10px; border-radius:5px; font-size:11px; cursor:pointer; font-weight:bold;"><i class="fas fa-xmark"></i> إقفال الحساب السابق</button>`;
                 if(includeRow) includeRow.style.display = 'flex';
                 if(label) label.innerText = 'خصم هذا الرصيد (له) من إجمالي الفاتورة الحالية';
             } else {
-                infoBox.style.background = '#0f172a';
-                infoBox.style.color = '#94a3b8';
-                infoBox.style.border = '1px solid #334155';
+                infoBox.style.background = '#f8fafc';
+                infoBox.style.color = '#475569';
+                infoBox.style.border = '1px solid #e2e8f0';
                 infoBox.innerHTML = `<i class="fas fa-circle-info"></i> لا يوجد أي رصيد أو مديونية سابقة على هذا العميل.`;
                 if(includeRow) includeRow.style.display = 'none';
             }
@@ -651,11 +665,11 @@ function updatePaymentStatusDisplay(grandTotal) {
     let diff = grandTotal - paid;
 
     if(diff > 0.5) {
-        statusBox.innerHTML = `<span style="color:#f87171;"><i class="fas fa-arrow-down"></i> سيتبقى عليه: ${diff.toLocaleString()} ج.م (يُسجَّل عليه في حساباته)</span>`;
+        statusBox.innerHTML = `<span style="color:#dc2626;"><i class="fas fa-arrow-down"></i> سيتبقى عليه: ${diff.toLocaleString()} ج.م (يُسجَّل عليه في حساباته)</span>`;
     } else if(diff < -0.5) {
-        statusBox.innerHTML = `<span style="color:#34d399;"><i class="fas fa-arrow-up"></i> دفع زيادة: ${Math.abs(diff).toLocaleString()} ج.م (تُخصم كرصيد له في حساباته)</span>`;
+        statusBox.innerHTML = `<span style="color:#059669;"><i class="fas fa-arrow-up"></i> دفع زيادة: ${Math.abs(diff).toLocaleString()} ج.م (تُخصم كرصيد له في حساباته)</span>`;
     } else {
-        statusBox.innerHTML = `<span style="color:#34d399;"><i class="fas fa-circle-check"></i> تم السداد بالكامل، الحساب مضبوط.</span>`;
+        statusBox.innerHTML = `<span style="color:#059669;"><i class="fas fa-circle-check"></i> تم السداد بالكامل، الحساب مضبوط.</span>`;
     }
 }
 
@@ -675,10 +689,10 @@ function attachSearchableSelect(selectEl, placeholder) {
     input.placeholder = placeholder || 'ابحث...';
     input.setAttribute('dir', 'auto');
     input.autocomplete = 'off';
-    input.style.cssText = 'width:100%; padding:8px; background:#1e293b; color:#fff; border:1px solid #334155; border-radius:4px; font-size:13px; box-sizing:border-box;';
+    input.style.cssText = 'width:100%; padding:10px; background:#fff; color:#0f172a; border:1px solid #cbd5e1; border-radius:8px; font-size:14px; box-sizing:border-box;';
 
     let list = document.createElement('div');
-    list.style.cssText = 'display:none; position:absolute; z-index:80; top:100%; right:0; left:0; background:#0f172a; border:1px solid #334155; border-radius:4px; max-height:220px; overflow-y:auto; margin-top:2px; box-shadow:0 8px 20px rgba(0,0,0,0.45);';
+    list.style.cssText = 'display:none; position:absolute; z-index:80; top:100%; right:0; left:0; background:#fff; border:1px solid #cbd5e1; border-radius:8px; max-height:220px; overflow-y:auto; margin-top:2px; box-shadow:0 10px 25px rgba(15,23,42,0.15);';
 
     wrap.appendChild(input);
     wrap.appendChild(list);
@@ -693,12 +707,12 @@ function attachSearchableSelect(selectEl, placeholder) {
         let matches = Array.from(selectEl.options).filter(o => o.value && o.textContent.toLowerCase().includes(q));
         list.innerHTML = '';
         if(matches.length === 0) {
-            list.innerHTML = '<div style="padding:9px; color:#94a3b8; font-size:12.5px;">لا توجد نتائج مطابقة</div>';
+            list.innerHTML = '<div style="padding:9px; color:#64748b; font-size:12.5px;">لا توجد نتائج مطابقة</div>';
         } else {
             matches.slice(0, 80).forEach(o => {
                 let item = document.createElement('div');
                 item.textContent = o.textContent;
-                item.style.cssText = 'padding:9px 10px; cursor:pointer; font-size:13px; border-bottom:1px solid #1e293b; color:#e2e8f0;';
+                item.style.cssText = 'padding:9px 10px; cursor:pointer; font-size:13px; border-bottom:1px solid #f1f5f9; color:#0f172a;';
                 item.onmousedown = (e) => {
                     e.preventDefault();
                     selectEl.value = o.value;
@@ -706,7 +720,7 @@ function attachSearchableSelect(selectEl, placeholder) {
                     input.value = o.textContent;
                     list.style.display = 'none';
                 };
-                item.onmouseenter = () => item.style.background = '#1e293b';
+                item.onmouseenter = () => item.style.background = '#f0f9ff';
                 item.onmouseleave = () => item.style.background = 'transparent';
                 list.appendChild(item);
             });
@@ -909,11 +923,11 @@ window.openEditInvoiceModal = function(index) {
     if(hasOldBal) {
         infoBox.style.display = 'block';
         if(inv.oldBalanceType === 'on_him') {
-            infoBox.style.background = '#2c1414'; infoBox.style.color = '#fca5a5'; infoBox.style.border = '1px solid #7f1d1d';
+            infoBox.style.background = '#fef2f2'; infoBox.style.color = '#b91c1c'; infoBox.style.border = '1px solid #fecaca';
             infoBox.innerHTML = `<i class="fas fa-triangle-exclamation"></i> هذه الفاتورة تتضمن رصيد سابق عليه: ${Number(inv.oldBalance).toLocaleString()} ج.م`;
             if(label) label.innerText = 'إضافة هذا المبلغ (عليه) إلى إجمالي الفاتورة الحالية';
         } else {
-            infoBox.style.background = '#0d2c22'; infoBox.style.color = '#6ee7b7'; infoBox.style.border = '1px solid #14532d';
+            infoBox.style.background = '#f0fdf4'; infoBox.style.color = '#166534'; infoBox.style.border = '1px solid #bbf7d0';
             infoBox.innerHTML = `<i class="fas fa-circle-check"></i> هذه الفاتورة تتضمن رصيد سابق له: ${Number(inv.oldBalance).toLocaleString()} ج.م`;
             if(label) label.innerText = 'خصم هذا الرصيد (له) من إجمالي الفاتورة الحالية';
         }
@@ -1078,6 +1092,8 @@ window.createNewInvoice = function(e) {
             items, subtotal, discountPercent, discountAmount,
             oldBalance, oldBalanceType, oldBalanceDate,
             total: finalTotal, paid: paidAmount, remaining: remainingAmount,
+            // المدفوع وقت الإنشاء = المدفوع الكلي ناقص أي سداد/ترحيل سُجّل بعد كده (عشان كشف الحساب يعرف دفع ساعتها كام)
+            initialPaid: Math.max(0, paidAmount - sumOf(existing.paymentHistory || [], p => p.amount)),
             status: paymentStatusLabel,
             // نحافظ على تاريخ الإصدار الأصلي (dateISO) عشان حساب أيام التأخير يفضل دقيق حتى بعد التعديل
             dateISO: existing.dateISO || new Date().toISOString(),
@@ -1093,6 +1109,7 @@ window.createNewInvoice = function(e) {
             items, subtotal, discountPercent, discountAmount,
             oldBalance, oldBalanceType, oldBalanceDate,
             total: finalTotal, paid: paidAmount, remaining: remainingAmount,
+            initialPaid: paidAmount, // المدفوع وقت إصدار الفاتورة (ثابت، لا يتغير بالسداد اللاحق)
             status: paymentStatusLabel,
             date: currentDate,
             dateISO: nowDate.toISOString() // تاريخ دقيق (ISO) يُستخدم لحساب عدد أيام التأخير بدقة في كشف الحساب
@@ -1113,13 +1130,26 @@ window.createNewInvoice = function(e) {
         }
 
         let currentInvoiceRef = finalInvoiceObj;
+        let carriedNow = new Date();
+        let carriedInvoices = [];
         invoices.forEach(otherInv => {
             if(otherInv !== currentInvoiceRef && otherInv.customerName === customerName && Number(otherInv.remaining || 0) !== 0) {
+                // نثبّت تفاصيل الفاتورة القديمة قبل ما نسوّيها: دفع ساعتها كام + المبلغ اللي اتنقل للفاتورة الجديدة
+                if(otherInv.initialPaid == null) otherInv.initialPaid = invBreakdown(otherInv).initial;
+                let carriedAmt = Number(otherInv.remaining || 0);
+                if(!otherInv.paymentHistory) otherInv.paymentHistory = [];
+                otherInv.paymentHistory.push({
+                    amount: carriedAmt, type: 'carried', toInvoice: currentInvoiceRef.id,
+                    date: carriedNow.toLocaleString('ar-EG'), dateISO: carriedNow.toISOString(),
+                    note: `رُحّل إلى الفاتورة ${currentInvoiceRef.id} (ضمن تسوية رصيد سابق)`
+                });
+                carriedInvoices.push({ id: otherInv.id, amount: carriedAmt });
                 otherInv.paid = Number(otherInv.total);
                 otherInv.remaining = 0;
                 otherInv.status = 'تم الدفع بالكامل (ضمن تسوية رصيد سابق)';
             }
         });
+        if(carriedInvoices.length) currentInvoiceRef.carriedInvoices = carriedInvoices;
     }
 
     saveData();
@@ -1206,62 +1236,7 @@ window.deleteInvoice = function(index) {
     }
 };
 
-// ===================== دليل العملاء =====================
-function renderCustomers() {
-    let tbody = document.getElementById('customersTableBody');
-    if(!tbody) return;
-    tbody.innerHTML = '';
-
-    if(customers.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px; color:#94a3b8;">لا يوجد عملاء مسجلين بعد</td></tr>`;
-        return;
-    }
-
-    customers.forEach((c, index) => {
-        let custInvoices = invoices.filter(i => i.customerName === c.name);
-        let totalSales = custInvoices.reduce((sum, i) => sum + Number(i.total), 0);
-
-        // نفس دالة الحساب المستخدمة في كشف الحساب وفي لوحة المؤشرات، عشان الأرقام تتطابق دايماً
-        let netDebt = getCustomerNetDebt(c.name);
-
-        let debtHtml;
-        if(netDebt > 0) {
-            debtHtml = `<span class="badge-danger"><i class="fas fa-arrow-down"></i> ${netDebt.toLocaleString()} ج.م</span>`;
-        } else if(netDebt < 0) {
-            debtHtml = `<span class="badge-success"><i class="fas fa-arrow-up"></i> له رصيد ${Math.abs(netDebt).toLocaleString()} ج.م</span>`;
-        } else {
-            debtHtml = `<span class="badge-neutral">لا يوجد</span>`;
-        }
-
-        let lastPurchase = custInvoices.length > 0 ? custInvoices[custInvoices.length - 1].date : '—';
-        let encodedName = encodeURIComponent(c.name);
-
-        tbody.innerHTML += `
-            <tr>
-                <td><strong>${c.name}</strong></td>
-                <td>${c.phone || 'غير مسجل'}</td>
-                <td>${debtHtml}</td>
-                <td><strong style="color: #0284c7;">${totalSales.toLocaleString()} ج.م</strong></td>
-                <td>${lastPurchase}</td>
-                <td>
-                    <div class="row-actions">
-                        <button onclick="generateCustomerReportEncoded('${encodedName}')" class="btn-action btn-view-sm" title="كشف حساب تفصيلي"><i class="fas fa-file-invoice"></i> كشف حساب</button>
-                        <button onclick="openEditCustomerModal(${index})" class="btn-action btn-edit-sm" title="تعديل بيانات العميل"><i class="fas fa-edit"></i> تعديل</button>
-                        <button onclick="deleteCustomer(${index})" class="btn-action btn-danger-sm" title="حذف العميل"><i class="fas fa-trash"></i></button>
-                    </div>
-                </td>
-            </tr>
-        `;
-    });
-}
-
-// البحث في دليل العملاء (كان معطوباً - تم إصلاحه)
-window.filterCustomers = function() {
-    let query = document.getElementById('searchCustomers')?.value.toLowerCase().trim() || '';
-    document.querySelectorAll('#customersTableBody tr').forEach(row => {
-        row.style.display = row.innerText.toLowerCase().includes(query) ? '' : 'none';
-    });
-};
+// (دليل العملاء الجديد موجود في قسم v3 بآخر الملف)
 
 window.openAddCustomerModal = function() { document.getElementById('addCustomerModal').style.display = 'flex'; };
 window.closeAddCustomerModal = function() { document.getElementById('addCustomerModal').style.display = 'none'; };
@@ -1377,6 +1352,8 @@ window.saveEditedCustomer = function(e) {
         invoices.forEach(inv => {
             if(inv.customerName === oldName) inv.customerName = newName;
         });
+        machineEntries.forEach(e => { if(e.customerName === oldName) e.customerName = newName; });
+        machinePayments.forEach(p => { if(p.customerName === oldName) p.customerName = newName; });
     }
 
     saveData();
@@ -1793,206 +1770,7 @@ window.openCustomReport = function(type) {
     reportWin.document.close();
 };
 
-window.openCustomerAccountPrompt = function() {
-    let menu = document.getElementById('reportMenuDropdown');
-    if(menu) menu.style.display = 'none';
-
-    let customerNames = [...new Set(invoices.map(inv => inv.customerName))].filter(Boolean);
-
-    if(customerNames.length === 0) {
-        alert('لا توجد فواتير أو عملاء مسجلين حالياً!');
-        return;
-    }
-
-    let customerListStr = customerNames.map((name, index) => `${index + 1} - ${name}`).join('\n');
-    let chosenIndex = prompt(`اختر رقم العميل المطلوب استخراج كشف حسابه:\n\n${customerListStr}`);
-
-    if(!chosenIndex) return;
-    let selectedCustomer = customerNames[Number(chosenIndex) - 1];
-
-    if(!selectedCustomer) {
-        alert('اختيار غير صحيح!');
-        return;
-    }
-
-    window.generateCustomerReport(selectedCustomer);
-};
-
-// فك تشفير اسم العميل القادم من زر "كشف حساب" في جدول دليل العملاء
-window.generateCustomerReportEncoded = function(encodedName) {
-    window.generateCustomerReport(decodeURIComponent(encodedName));
-};
-
-// كشف حساب تفصيلي ودقيق 100% للعميل: كل فاتورة، كل دفعة، كل خصم، بالتواريخ،
-// ورصيد افتتاحي لو موجود، وفي الآخر إجمالي واحد واضح مفيهوش أي ازدواج في الحساب
-window.generateCustomerReport = function(customerName) {
-    let cust = customers.find(c => c.name === customerName);
-    let customerInvoices = invoices.filter(inv => inv.customerName === customerName);
-
-    if(customerInvoices.length === 0 && (!cust || !cust.oldBalance)) {
-        alert('لا توجد أي معاملات أو فواتير مسجلة لهذا العميل حتى الآن.');
-        return;
-    }
-
-    let totalGrossPurchases = 0;   // إجمالي قيمة الأصناف قبل الخصم
-    let totalDiscounts = 0;        // إجمالي الخصومات الممنوحة
-    let totalInitialPaid = 0;      // المدفوع وقت إصدار كل فاتورة
-    let totalLaterPayments = 0;    // دفعات لاحقة (سداد ديون متأخرة)
-    let totalRemainingNow = 0;     // المتبقي الحالي على كل الفواتير
-
-    let rowsHtml = '';
-
-    customerInvoices.forEach(inv => {
-        totalGrossPurchases += Number(inv.subtotal || inv.total || 0);
-        totalDiscounts += Number(inv.discountAmount || 0);
-        totalInitialPaid += Number(inv.paid || 0);
-        totalRemainingNow += Number(inv.remaining || 0);
-
-        let itemsSummary = (inv.items || []).map(it => `${it.name} × ${it.qty}`).join('، ') || '—';
-
-        let oldBalNote = '';
-        if(inv.oldBalance && Number(inv.oldBalance) > 0) {
-            oldBalNote = inv.oldBalanceType === 'on_him'
-                ? `<div style="color:#b45309; font-size:11.5px; margin-top:5px;"><i class="fas fa-clock-rotate-left"></i> شاملة حساب سابق كان عليه: ${Number(inv.oldBalance).toLocaleString()} ج.م (بتاريخ ${inv.oldBalanceDate || '—'})</div>`
-                : `<div style="color:#0369a1; font-size:11.5px; margin-top:5px;"><i class="fas fa-clock-rotate-left"></i> بعد خصم رصيد كان له: ${Number(inv.oldBalance).toLocaleString()} ج.م (بتاريخ ${inv.oldBalanceDate || '—'})</div>`;
-        }
-
-        let remainingColor = Number(inv.remaining || 0) > 0 ? '#e11d48' : '#10b981';
-        let remainingLabel = Number(inv.remaining || 0) > 0 ? `${Number(inv.remaining).toLocaleString()} ج.م` : 'مسدد بالكامل';
-
-        // لو لسه فيه متبقي على الفاتورة، نحسب عدد الأيام اللي فاتت من تاريخ إصدارها (عمر الدين)
-        let agingNote = '';
-        if(Number(inv.remaining || 0) > 0 && inv.dateISO) {
-            let ageDays = daysBetweenISO(inv.dateISO, new Date().toISOString());
-            if(ageDays !== null) {
-                agingNote = `<div style="color:#e11d48; font-size:11.5px; margin-top:4px;"><i class="fas fa-hourglass-half"></i> متأخر عن السداد منذ ${ageDays} يوم</div>`;
-            }
-        }
-
-        rowsHtml += `
-            <tr>
-                <td style="text-align:center; font-weight:bold;">${inv.id}</td>
-                <td style="text-align:center; white-space:nowrap;">${inv.date}</td>
-                <td style="text-align:right; font-size:12.5px;">${itemsSummary}${oldBalNote}</td>
-                <td style="text-align:center;">${Number(inv.total).toLocaleString()} ج.م</td>
-                <td style="text-align:center; color:#10b981;">${Number(inv.paid || 0).toLocaleString()} ج.م</td>
-                <td style="text-align:center; color:${remainingColor}; font-weight:bold;">${remainingLabel}${agingNote}</td>
-            </tr>
-        `;
-
-        if(inv.paymentHistory && inv.paymentHistory.length > 0) {
-            inv.paymentHistory.forEach(p => {
-                totalLaterPayments += Number(p.amount || 0);
-                let lateDaysNote = '';
-                if(p.dateISO && inv.dateISO) {
-                    let lateDays = daysBetweenISO(inv.dateISO, p.dateISO);
-                    if(lateDays !== null) {
-                        lateDaysNote = lateDays > 0
-                            ? ` <span style="color:#b45309;">(بعد ${lateDays} يوم من تاريخ الفاتورة)</span>`
-                            : ` <span style="color:#059669;">(بنفس يوم الفاتورة)</span>`;
-                    }
-                }
-                rowsHtml += `
-                    <tr>
-                        <td colspan="6" style="background:#f0fdf4; color:#166534; font-size:12.5px; text-align:right; padding:8px 14px;">
-                            <i class="fas fa-hand-holding-dollar"></i>
-                            &nbsp;دفعة سداد لاحقة على فاتورة ${inv.id} بتاريخ <strong>${p.date}</strong>: <strong>${Number(p.amount).toLocaleString()} ج.م</strong>${lateDaysNote}
-                            ${p.note ? ' — ' + p.note : ''}
-                        </td>
-                    </tr>
-                `;
-            });
-        }
-    });
-
-    // رصيد افتتاحي مستقل (لسه معلق ومش داخل أي فاتورة حالياً)
-    let standaloneOldBalance = 0;
-    let standaloneRowHtml = '';
-    if(cust && cust.oldBalance && Number(cust.oldBalance) > 0 && cust.balanceType !== 'none') {
-        standaloneOldBalance = cust.balanceType === 'on_him' ? Number(cust.oldBalance) : -Number(cust.oldBalance);
-        let label = cust.balanceType === 'on_him' ? 'رصيد افتتاحي عليه (لسه مش مرتبط بفاتورة)' : 'رصيد افتتاحي له (لسه مش مرتبط بفاتورة)';
-        let color = cust.balanceType === 'on_him' ? '#e11d48' : '#0284c7';
-        standaloneRowHtml = `
-            <tr>
-                <td colspan="3" style="text-align:right; font-weight:bold; color:${color};"><i class="fas fa-circle-exclamation"></i> ${label}</td>
-                <td colspan="3" style="text-align:center; font-weight:bold; color:${color};">${Number(cust.oldBalance).toLocaleString()} ج.م ${cust.oldBalanceDate ? '(' + cust.oldBalanceDate + ')' : ''}</td>
-            </tr>
-        `;
-    }
-
-    let totalPaidAll = totalInitialPaid + totalLaterPayments;
-    // نفس دالة الحساب المستخدمة بالضبط في دليل العملاء ولوحة المؤشرات، عشان الرقم يتطابق 100% في كل مكان
-    let netDebtNow = getCustomerNetDebt(customerName);
-
-    let netDebtHtml = netDebtNow > 0
-        ? `<span style="color:#e11d48;"><i class="fas fa-arrow-down"></i> مطلوب منه: ${netDebtNow.toLocaleString()} ج.م</span>`
-        : netDebtNow < 0
-            ? `<span style="color:#059669;"><i class="fas fa-arrow-up"></i> رصيد له: ${Math.abs(netDebtNow).toLocaleString()} ج.م</span>`
-            : `<span style="color:#059669;"><i class="fas fa-circle-check"></i> الحساب مسدد بالكامل</span>`;
-
-    let reportWin = window.open('', '_blank', 'height=750,width=980');
-    reportWin.document.write(`
-        <html lang="ar" dir="rtl">
-        <head>
-            <meta charset="UTF-8">
-            <title>كشف حساب عميل: ${customerName} - Bro Tech</title>
-            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-            <style>
-                body { font-family: Tahoma, sans-serif; padding: 25px; background: #fff; color: #1e293b; direction: rtl; }
-                table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-                th, td { border: 1px solid #cbd5e1; padding: 9px; font-size: 13px; }
-                th { background: #0f172a; color: #fff; }
-                .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
-                .summary-item { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; text-align: center; }
-                .summary-item span.label { display:block; font-size:11.5px; color:#64748b; margin-bottom:4px; }
-                .summary-item span.value { font-size: 16px; font-weight: bold; }
-                .final-box { background: #0f172a; color: #fff; border-radius: 10px; padding: 16px; text-align: center; margin: 22px 0; font-size: 18px; font-weight: bold; }
-                @media print { .no-print { display: none; } }
-            </style>
-        </head>
-        <body>
-            <div style="text-align: center; margin-bottom: 20px; border-bottom: 3px solid #0284c7; padding-bottom: 14px;">
-                <h1 style="color: #0284c7; margin: 0; font-size: 22px;">Bro Tech - كشف حساب عميل تفصيلي</h1>
-                <p style="font-size: 16px; margin: 8px 0 0; color: #334155;">اسم العميل: <strong>${customerName}</strong></p>
-                <p style="font-size: 12px; color: #94a3b8; margin: 4px 0 0;">تاريخ إصدار الكشف: ${new Date().toLocaleDateString('ar-EG')}</p>
-            </div>
-
-            <div class="summary-grid">
-                <div class="summary-item"><span class="label">إجمالي المشتريات (قبل الخصم)</span><span class="value" style="color:#0284c7;">${totalGrossPurchases.toLocaleString()} ج.م</span></div>
-                <div class="summary-item"><span class="label">إجمالي الخصومات</span><span class="value" style="color:#f59e0b;">${totalDiscounts.toLocaleString()} ج.م</span></div>
-                <div class="summary-item"><span class="label">إجمالي المدفوع (كل الدفعات)</span><span class="value" style="color:#10b981;">${totalPaidAll.toLocaleString()} ج.م</span></div>
-                <div class="summary-item"><span class="label">عدد الفواتير</span><span class="value" style="color:#334155;">${customerInvoices.length}</span></div>
-            </div>
-
-            <table>
-                <thead>
-                    <tr>
-                        <th>رقم الفاتورة</th>
-                        <th>التاريخ</th>
-                        <th>الأصناف المشتراة</th>
-                        <th>إجمالي الفاتورة</th>
-                        <th>المدفوع وقتها</th>
-                        <th>المتبقي حالياً</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${rowsHtml}
-                    ${standaloneRowHtml}
-                </tbody>
-            </table>
-
-            <div class="final-box">
-                الإجمالي النهائي لحساب العميل الآن: ${netDebtHtml}
-            </div>
-
-            <div class="no-print" style="margin-top: 15px; text-align: center;">
-                <button onclick="window.print()" style="background: #0284c7; color: white; border: none; padding: 10px 22px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size:14px;"><i class="fas fa-print"></i> طباعة كشف الحساب / حفظ PDF</button>
-            </div>
-        </body>
-        </html>
-    `);
-    reportWin.document.close();
-};
+// (كشف الحساب الجديد موجود في قسم v3 بآخر الملف)
 
 // ===================== تعديل سداد الفواتير المباشر من الجدول =====================
 window.openInvoicePaymentByIndex = function(index) {
@@ -2366,3 +2144,1236 @@ window.printExpensesSheet = function() {
     `);
     printWin.document.close();
 };
+
+/* =====================================================================
+   ProTech v3 — إضافات جديدة
+   1) كشف حساب تفصيلي (دفع ساعتها كام من كام + السداد اللاحق) مع فلترة وواتساب
+   2) سداد مديونية العميل (سريع FIFO / يدوي) مع إيصال
+   3) أعمار الديون وتنبيه المتأخرين
+   4) حساب المكن (منفصل عن الفواتير) بدفعات ومتبقي
+   5) نسخ احتياطي JSON / Excel + استرجاع
+   6) نموذج فاتورة جديد مبسط وفاتح + إضافة صنف جديد من داخل الفاتورة
+   ===================================================================== */
+
+// ---------- أدوات مساعدة ----------
+const fmt = n => Number(n || 0).toLocaleString();
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const enc = s => encodeURIComponent(s).replace(/'/g, '%27');
+const dec = s => decodeURIComponent(s);
+const sumOf = (arr, fn) => arr.reduce((t, x) => t + Number(fn(x) || 0), 0);
+
+function toLatinDigits(s) {
+    return String(s || '')
+        .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+        .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
+}
+// تاريخ أي سجل (فاتورة / دفعة): نفضل dateISO، وإلا نحلل النص العربي dd/mm/yyyy
+function recDate(rec) {
+    if (!rec) return null;
+    if (rec.dateISO) { let d = new Date(rec.dateISO); if (!isNaN(d.getTime())) return d; }
+    let m = toLatinDigits(rec.date).match(/(\d{1,4})\D+(\d{1,2})\D+(\d{1,4})/);
+    if (m) {
+        let a = +m[1], b = +m[2], c = +m[3];
+        let d = a > 31 ? new Date(a, b - 1, c) : new Date(c, b - 1, a);
+        if (!isNaN(d.getTime())) return d;
+    }
+    return null;
+}
+function ageDaysOf(rec) {
+    let d = recDate(rec);
+    if (!d) return null;
+    let t = new Date(); t.setHours(0, 0, 0, 0);
+    let s = new Date(d); s.setHours(0, 0, 0, 0);
+    return Math.max(0, Math.round((t - s) / 86400000));
+}
+function signedOldOf(inv) {
+    let o = Number(inv.oldBalance || 0);
+    return inv.oldBalanceType === 'on_him' ? o : (inv.oldBalanceType === 'for_him' ? -o : 0);
+}
+function gotoTab(id) {
+    let li = document.querySelector(`.nav-links li[onclick*="'${id}'"]`);
+    window.switchTab(id, li);
+}
+
+// تفصيل الفاتورة: دفع ساعتها كام، سداد لاحق كام، مُرحّل كام
+// initial = المدفوع وقت الإنشاء. لو الفاتورة جديدة بيتخزن في initialPaid، ولو قديمة بنستنتجه (المدفوع - الدفعات اللاحقة)
+function invBreakdown(inv) {
+    let hist = inv.paymentHistory || [];
+    let carriedList = hist.filter(p => p.type === 'carried');
+    let laterList = hist.filter(p => p.type !== 'carried');
+    let laterSum = sumOf(laterList, p => p.amount);
+    let carried = sumOf(carriedList, p => p.amount);
+    let paid = Number(inv.paid || 0);
+    let initial = inv.initialPaid != null ? Number(inv.initialPaid) : Math.max(0, paid - laterSum - carried);
+    let legacySettled = !carriedList.length && /تسوية رصيد/.test(inv.status || '');
+    return {
+        total: Number(inv.total || 0), paid, initial, laterList, laterSum,
+        carriedList, carried, remaining: Number(inv.remaining || 0), legacySettled
+    };
+}
+
+// ---------- بيانات العميل ----------
+function unpaidOf(name) {
+    return invoices.map((inv, idx) => ({ inv, idx }))
+        .filter(x => x.inv.customerName === name && Number(x.inv.remaining || 0) > 0.5)
+        .sort((a, b) => {
+            let da = recDate(a.inv), db = recDate(b.inv);
+            if (da && db && da - db !== 0) return da - db;
+            return a.idx - b.idx;
+        });
+}
+function custOldDebt(c) { return (c && c.balanceType === 'on_him' && Number(c.oldBalance) > 0) ? Number(c.oldBalance) : 0; }
+function machineTotals(name) {
+    let entries = machineEntries.filter(x => x.customerName === name);
+    let payments = machinePayments.filter(x => x.customerName === name);
+    let total = sumOf(entries, e => e.total), paid = sumOf(payments, p => p.amount);
+    return { entries, payments, total, paid, remaining: total - paid };
+}
+function oldestAge(name) {
+    let max = null;
+    unpaidOf(name).forEach(({ inv }) => { let a = ageDaysOf(inv); if (a !== null && (max === null || a > max)) max = a; });
+    return max;
+}
+function bucketOf(days) { return days === null ? 0 : (days > 90 ? 3 : days > 60 ? 2 : days > 30 ? 1 : 0); }
+const BUCKET_LABELS = ['0 – 30 يوم', '31 – 60 يوم', '61 – 90 يوم', 'أكثر من 90 يوم'];
+const BUCKET_COLORS = ['#16a34a', '#d97706', '#ea580c', '#dc2626'];
+
+function agingTotals() {
+    let totals = [0, 0, 0, 0], counts = [0, 0, 0, 0];
+    invoices.forEach(inv => {
+        let r = Number(inv.remaining || 0);
+        if (r > 0.5) { let b = bucketOf(ageDaysOf(inv)); totals[b] += r; counts[b]++; }
+    });
+    return { totals, counts };
+}
+
+// ---------- CSS (بيتحقن مرة واحدة، فيشتغل في لوحة الأدمن وصفحة الموظف) ----------
+const RP_CSS = `
+.rp-wrap{font-family:Tahoma,'Segoe UI',sans-serif;color:#1e293b;direction:rtl;text-align:right}
+.rp-head{text-align:center;border-bottom:3px solid #0284c7;padding-bottom:12px;margin-bottom:14px}
+.rp-head h1{margin:0;color:#0284c7;font-size:22px}
+.rp-head p{margin:4px 0 0;font-size:12.5px;color:#64748b}
+.rp-sum{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0}
+.rp-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px;text-align:center}
+.rp-card span{display:block;font-size:11.5px;color:#64748b;margin-bottom:3px}
+.rp-card b{font-size:16px}
+.rp-table{width:100%;border-collapse:collapse;margin-top:8px}
+.rp-table th{background:#0f172a;color:#fff;font-size:12.5px;padding:8px;border:1px solid #0f172a}
+.rp-table td{border:1px solid #cbd5e1;padding:8px;font-size:12.5px;vertical-align:top}
+.rp-table td.c{text-align:center}
+.rp-table tr.rp-sub td{background:#f8fafc;padding:6px 12px}
+.rp-bar{height:6px;background:#e2e8f0;border-radius:4px;margin-top:5px;overflow:hidden}
+.rp-bar i{display:block;height:100%;background:#10b981}
+.rp-paidof{font-size:13px}
+.rp-paidof b{color:#059669}
+.rp-pay{font-size:12px;color:#166534;padding:2px 0}
+.rp-pay.carried{color:#6d28d9}
+.rp-after{display:inline-block;background:#e0f2fe;color:#075985;border-radius:10px;padding:0 8px;margin-right:6px;font-size:11.5px}
+.rp-note{font-size:11.5px;color:#b45309;margin-top:4px}
+.rp-b{display:inline-block;border-radius:12px;padding:2px 10px;font-size:11.5px;font-weight:700;margin-top:4px}
+.rp-b-ok{background:#dcfce7;color:#166534}.rp-b-no{background:#fee2e2;color:#991b1b}
+.rp-b-part{background:#fef3c7;color:#92400e}.rp-b-carry{background:#ede9fe;color:#5b21b6}
+.rp-h2{font-size:15px;margin:20px 0 4px;color:#0f172a;border-right:4px solid #0284c7;padding-right:8px}
+.rp-final{background:#0f172a;color:#fff;border-radius:10px;padding:14px;margin:18px 0;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center}
+.rp-final span{display:block;font-size:12px;color:#94a3b8}
+.rp-final b{font-size:18px}
+.rp-final .grand{background:#0284c7;border-radius:8px;padding:6px}
+.rp-final .grand span{color:#e0f2fe}
+.rp-sign{display:flex;justify-content:space-between;margin-top:40px;font-size:13px}
+@media (max-width:700px){.rp-sum{grid-template-columns:repeat(2,1fr)}.rp-final{grid-template-columns:1fr}}
+@media print{.no-print{display:none!important}body{padding:0!important}}
+`;
+
+const V3_CSS = RP_CSS + `
+/* ---- عام ---- */
+.v3-btn{border:none;border-radius:7px;padding:8px 14px;font-weight:700;font-size:13px;cursor:pointer;color:#fff;background:#0284c7;display:inline-flex;gap:6px;align-items:center}
+.v3-btn.green{background:#10b981}.v3-btn.gray{background:#64748b}.v3-btn.red{background:#ef4444}.v3-btn.amber{background:#f59e0b}.v3-btn.wa{background:#25d366}
+.v3-btn.sm{padding:5px 10px;font-size:12px}
+.v3-btn:disabled{opacity:.5;cursor:not-allowed}
+.v3-muted{color:#64748b;font-size:12px}
+.v3-in{padding:8px 10px;border:1px solid #cbd5e1;border-radius:7px;font-size:13.5px;background:#fff;color:#0f172a;min-width:0}
+.v3-in:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.18)}
+/* ---- شريط أعمار الديون ---- */
+.aging-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.aging-card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;cursor:pointer;border-top-width:4px}
+.aging-card:hover{box-shadow:0 4px 12px rgba(15,23,42,.08)}
+.aging-card span{display:block;font-size:12px;color:#64748b}
+.aging-card b{font-size:17px;color:#0f172a}
+.aging-card small{color:#94a3b8;font-size:11.5px}
+.aging-card.on{background:#f0f9ff}
+#overdueAlert{background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:12px 16px;margin-bottom:16px;display:none;align-items:center;gap:14px;flex-wrap:wrap}
+#overdueAlert .txt{flex:1;min-width:220px;color:#9a3412;font-size:13.5px;line-height:1.8}
+.cust-sub td{background:#f8fafc!important;padding:10px 16px!important}
+.cust-inv{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:6px 0;border-bottom:1px dashed #e2e8f0;font-size:13px}
+.cust-inv:last-child{border-bottom:none}
+.cust-inv .grow{flex:1;min-width:200px}
+.age-pill{display:inline-block;border-radius:10px;padding:1px 8px;font-size:11.5px;font-weight:700}
+.toggle-unpaid{background:none;border:none;color:#0284c7;cursor:pointer;font-size:12px;font-weight:700;padding:2px 0}
+/* ---- مودال كشف الحساب والسداد ---- */
+.st-card{width:1000px!important;max-width:100%}
+.st-filters{display:flex;gap:8px;flex-wrap:wrap;padding:12px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0;align-items:center}
+.st-filters label{font-size:12.5px;color:#475569;display:flex;gap:5px;align-items:center}
+.cp-card{width:720px!important;max-width:100%}
+.cp-top{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.cp-top div{flex:1;min-width:140px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px;padding:9px 12px;font-size:12.5px;color:#64748b}
+.cp-top b{display:block;font-size:18px;color:#0f172a}
+.cp-modes{display:flex;gap:8px;margin-bottom:12px}
+.cp-modes button{flex:1;padding:10px;border:2px solid #e2e8f0;background:#fff;border-radius:9px;cursor:pointer;font-weight:700;color:#475569;font-size:13px}
+.cp-modes button.on{border-color:#0284c7;background:#e0f2fe;color:#075985}
+.cp-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}
+.cp-table th{background:#f1f5f9;padding:7px;text-align:center;font-size:12px;color:#475569}
+.cp-table td{padding:7px;border-bottom:1px solid #e2e8f0;text-align:center}
+.cp-table input{width:100px;text-align:center}
+.cp-sum{margin-top:12px;padding:10px 14px;border-radius:9px;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;font-weight:700;font-size:13.5px}
+.cp-sum.err{background:#fef2f2;border-color:#fecaca;color:#b91c1c}
+/* ---- حساب المكن ---- */
+.mc-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0}
+.mc-cards div{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:12px;text-align:center}
+.mc-cards span{display:block;font-size:12px;color:#64748b}.mc-cards b{font-size:19px}
+.mc-form{display:grid;grid-template-columns:130px 130px 1fr 80px 110px auto;gap:8px;align-items:end;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:12px}
+.mc-form.pay{grid-template-columns:130px 150px 1fr auto}
+.mc-form label{display:block;font-size:11.5px;color:#64748b;margin-bottom:3px}
+.mc-form .v3-in{width:100%}
+.mc-pick{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 16px}
+.mc-pick .v3-in{flex:1;min-width:220px}
+@media (max-width:820px){.mc-form,.mc-form.pay{grid-template-columns:1fr 1fr}.mc-cards{grid-template-columns:1fr}.aging-strip{grid-template-columns:repeat(2,1fr)}}
+/* ---- النسخ الاحتياطي ---- */
+.bk-card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px;margin-top:20px}
+.bk-card h3{margin:0 0 6px;font-size:16px;color:#0f172a}
+.bk-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+/* ---- نموذج الفاتورة الجديد (فاتح) ---- */
+#newInvoiceModal .v3-inv{width:780px;max-width:100%;background:#fff;color:#0f172a;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;max-height:94vh}
+.v3-inv-head{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid #e2e8f0;background:#f8fafc}
+.v3-inv-head h3{margin:0;font-size:17px;color:#0f172a}
+.v3-inv-head .close-btn{color:#64748b}
+.v3-inv-body{padding:16px 20px;overflow-y:auto;flex:1}
+.v3-inv-foot{padding:12px 20px;border-top:1px solid #e2e8f0;background:#f8fafc;display:flex;gap:10px}
+.v3-inv-foot .save{flex:2;background:#10b981;color:#fff;border:none;border-radius:9px;padding:12px;font-weight:700;font-size:15px;cursor:pointer}
+.v3-inv-foot .cancel{flex:1;background:#e2e8f0;color:#334155;border:none;border-radius:9px;padding:12px;cursor:pointer;font-weight:700}
+.v3-sec{margin-bottom:16px}
+.v3-lab{display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px}
+.v3-sec-head{display:flex;justify-content:space-between;align-items:center}
+.v3-link{background:none;border:none;color:#0284c7;font-weight:700;font-size:12.5px;cursor:pointer}
+#newInvoiceModal select{width:100%;padding:9px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#0f172a}
+.v3-newcust{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px;padding:10px;background:#f0f9ff;border:1px dashed #7dd3fc;border-radius:8px}
+.v3-newcust input{width:100%}
+.v3-info{padding:10px 12px;border-radius:8px;margin-top:8px;font-size:13px;line-height:1.8;font-weight:700}
+.v3-incl{align-items:center;gap:10px;background:#f8fafc;padding:9px 12px;border-radius:8px;margin-top:8px;border:1px dashed #94a3b8}
+.v3-search{position:relative}
+.v3-search>i{position:absolute;right:12px;top:12px;color:#94a3b8;pointer-events:none}
+.v3-search input{width:100%;padding:10px 36px 10px 10px;border:2px solid #bae6fd;border-radius:9px;font-size:14px;background:#fff;color:#0f172a}
+.v3-search input:focus{outline:none;border-color:#0284c7}
+.v3-results{display:none;position:absolute;z-index:90;top:100%;right:0;left:0;background:#fff;border:1px solid #cbd5e1;border-radius:9px;margin-top:3px;max-height:260px;overflow-y:auto;box-shadow:0 10px 25px rgba(15,23,42,.15)}
+.v3-res{display:flex;justify-content:space-between;gap:10px;padding:9px 12px;cursor:pointer;border-bottom:1px solid #f1f5f9;font-size:13.5px}
+.v3-res:hover,.v3-res.act{background:#f0f9ff}
+.v3-res small{color:#64748b}
+.v3-res .pr{font-weight:700;color:#0284c7;white-space:nowrap}
+.v3-newprod{display:none;margin-top:8px;padding:12px;background:#f0fdf4;border:1px dashed #86efac;border-radius:9px}
+.v3-newprod .g{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:8px}
+.v3-newprod label{display:block;font-size:11.5px;color:#475569;margin-bottom:3px}
+.v3-newprod .v3-in{width:100%}
+.v3-items-wrap{margin-top:10px;border:1px solid #e2e8f0;border-radius:9px;overflow:hidden}
+.v3-items{width:100%;border-collapse:collapse}
+.v3-items thead th{background:#f1f5f9;color:#475569;font-size:12px;padding:8px;text-align:center}
+.v3-items thead th:first-child{text-align:right}
+.v3-items td{padding:8px;border-top:1px solid #f1f5f9;text-align:center;vertical-align:middle}
+.v3-items td.nm{text-align:right}
+.v3-items td.nm b{display:block;font-size:13.5px}
+.v3-items td.nm small{color:#94a3b8;font-size:11.5px}
+.v3-items input.inv-item-price{width:90px;padding:6px;border:1px solid #cbd5e1;border-radius:6px;text-align:center}
+.v3-step{display:inline-flex;align-items:center;border:1px solid #cbd5e1;border-radius:7px;overflow:hidden}
+.v3-step button{width:30px;height:32px;border:none;background:#f1f5f9;font-size:16px;cursor:pointer;color:#334155}
+.v3-step input{width:52px;height:32px;border:none;text-align:center;font-size:14px;font-weight:700;background:#fff;color:#0f172a}
+.inv-item-total-cell{font-weight:700;color:#0284c7;font-size:13.5px;white-space:nowrap}
+.v3-del{background:#fee2e2;color:#b91c1c;border:none;border-radius:6px;padding:6px 9px;cursor:pointer}
+.v3-empty{padding:22px;text-align:center;color:#94a3b8;font-size:13.5px}
+.v3-two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.v3-two .box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px}
+.v3-two .v3-in{width:100%}
+.v3-chips{display:flex;gap:6px;margin-top:7px}
+.v3-chips button{border:1px solid #cbd5e1;background:#fff;border-radius:16px;padding:3px 12px;font-size:12px;cursor:pointer;color:#334155}
+.v3-total{background:#0f172a;border-radius:10px;padding:14px;text-align:center;color:#94a3b8;font-size:13px;display:flex;flex-direction:column;justify-content:center}
+.v3-total h2{margin:6px 0 0;color:#38bdf8;font-size:26px}
+@media (max-width:700px){
+ .v3-two{grid-template-columns:1fr}.v3-newcust{grid-template-columns:1fr}.v3-newprod .g{grid-template-columns:1fr 1fr}
+ .v3-items thead{display:none}
+ .v3-items tr{display:grid;grid-template-columns:1fr auto;gap:4px 8px;padding:8px;border-top:1px solid #f1f5f9}
+ .v3-items td{border:none;padding:2px}
+ .v3-items td.nm{grid-column:1/3}
+}
+`;
+
+function injectV3Css() {
+    if (document.getElementById('v3-css')) return;
+    let st = document.createElement('style');
+    st.id = 'v3-css';
+    st.textContent = V3_CSS;
+    document.head.appendChild(st);
+}
+
+function openPrintWindow(title, bodyHtml) {
+    let w = window.open('', '_blank', 'width=1000,height=780');
+    if (!w) { alert('المتصفح منع النافذة المنبثقة. اسمح بالنوافذ المنبثقة لهذا الموقع ثم أعد المحاولة.'); return; }
+    w.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>${esc(title)}</title>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        <style>body{padding:22px;background:#fff}${RP_CSS}</style></head>
+        <body><div class="rp-wrap">${bodyHtml}</div>
+        <div class="no-print" style="text-align:center;margin:20px"><button onclick="window.print()" style="background:#0284c7;color:#fff;border:none;padding:10px 24px;border-radius:7px;font-weight:700;cursor:pointer;font-size:14px">طباعة / حفظ PDF</button></div>
+        </body></html>`);
+    w.document.close();
+}
+function companyHeader(title, subtitle) {
+    return `<div class="rp-head"><h1>${esc(settings.companyName || 'Bro Tech')} — ${esc(title)}</h1>
+        <p>${esc(settings.address || '')} ${settings.whatsapp ? ' | ' + esc(settings.whatsapp) : ''}</p>
+        ${subtitle ? `<p style="font-size:15px;color:#334155;margin-top:8px">${subtitle}</p>` : ''}</div>`;
+}
+
+// =====================================================================
+// 1) كشف الحساب التفصيلي
+// =====================================================================
+let stCurrent = null; // اسم العميل المفتوح كشفه
+
+function statementData(name, f) {
+    f = f || {};
+    let cust = customers.find(c => c.name === name);
+    let rows = invoices.map((inv, idx) => ({ inv, idx })).filter(x => x.inv.customerName === name);
+    rows.sort((a, b) => {
+        let da = recDate(a.inv), db = recDate(b.inv);
+        if (da && db && da - db !== 0) return da - db;
+        return a.idx - b.idx;
+    });
+    rows.forEach(r => r.bd = invBreakdown(r.inv));
+
+    let from = f.from ? new Date(f.from + 'T00:00:00') : null;
+    let to = f.to ? new Date(f.to + 'T23:59:59') : null;
+    let q = (f.q || '').toLowerCase().trim();
+    let inRange = d => (!d) || ((!from || d >= from) && (!to || d <= to));
+
+    rows = rows.filter(r => {
+        if (!inRange(recDate(r.inv))) return false;
+        let rem = r.bd.remaining;
+        if (f.status === 'unpaid' && !(rem > 0.5)) return false;
+        if (f.status === 'paid' && rem > 0.5) return false;
+        if (f.status === 'partial' && !(rem > 0.5 && (r.bd.initial + r.bd.laterSum) > 0.5)) return false;
+        if (q) {
+            let hay = (r.inv.id + ' ' + (r.inv.items || []).map(i => i.name).join(' ')).toLowerCase();
+            if (!hay.includes(q)) return false;
+        }
+        return true;
+    });
+
+    let sums = {
+        count: rows.length,
+        own: sumOf(rows, r => Number(r.inv.total || 0) - signedOldOf(r.inv)),
+        cash: sumOf(rows, r => r.bd.initial + r.bd.laterSum),
+        remaining: sumOf(rows, r => r.bd.remaining)
+    };
+
+    let mt = machineTotals(name);
+    let mach = {
+        entries: mt.entries.filter(e => inRange(recDate(e))),
+        payments: mt.payments.filter(p => inRange(recDate(p))),
+        total: mt.total, paid: mt.paid, remaining: mt.remaining
+    };
+    mach.fTotal = sumOf(mach.entries, e => e.total);
+    mach.fPaid = sumOf(mach.payments, p => p.amount);
+
+    let netDebt = getCustomerNetDebt(name);
+    let oldStandalone = (cust && cust.balanceType !== 'none' && Number(cust.oldBalance) > 0)
+        ? (cust.balanceType === 'on_him' ? Number(cust.oldBalance) : -Number(cust.oldBalance)) : 0;
+    return { cust, rows, sums, mach, netDebt, oldStandalone };
+}
+
+function statementRowHtml(r) {
+    let inv = r.inv, bd = r.bd, total = bd.total;
+    let pct = total > 0 ? Math.min(100, Math.round(bd.initial / total * 100)) : 100;
+
+    let oldNote = '';
+    if (inv.oldBalance && Number(inv.oldBalance) > 0) {
+        let on = inv.oldBalanceType === 'on_him';
+        oldNote = `<div class="rp-note" style="color:${on ? '#b45309' : '#0369a1'}"><i class="fas fa-clock-rotate-left"></i> ${on ? 'شاملة حساب سابق عليه' : 'بعد خصم رصيد كان له'}: ${fmt(inv.oldBalance)} ج.م</div>`;
+    }
+    if (inv.carriedInvoices && inv.carriedInvoices.length) {
+        oldNote += `<div class="rp-note" style="color:#6d28d9"><i class="fas fa-share"></i> رحّلت مديونية الفواتير: ${inv.carriedInvoices.map(c => esc(c.id) + ' (' + fmt(c.amount) + ')').join('، ')}</div>`;
+    }
+
+    let run = total - bd.initial;
+    let histHtml = (inv.paymentHistory || []).map(p => {
+        run -= Number(p.amount || 0);
+        let isC = p.type === 'carried';
+        let after = run > 0.5 ? `بقي ${fmt(run)} من ${fmt(total)}` : 'اكتمل السداد';
+        return `<div class="rp-pay ${isC ? 'carried' : ''}"><i class="fas ${isC ? 'fa-share' : 'fa-hand-holding-dollar'}"></i>
+            ${esc(p.date || '')} — ${isC ? 'رُحّل ' + fmt(p.amount) + ' ج.م إلى فاتورة ' + esc(p.toInvoice || 'أحدث') : 'سدد ' + fmt(p.amount) + ' ج.م'}
+            <span class="rp-after">${after}</span>${(!isC && p.note) ? ' — ' + esc(p.note) : ''}</div>`;
+    }).join('');
+
+    let rem = bd.remaining, status;
+    if (rem <= 0.5) status = (bd.carried > 0.5 || bd.legacySettled) ? ['rp-b-carry', 'سُوّيت ضمن فاتورة أحدث'] : ['rp-b-ok', 'مسددة بالكامل'];
+    else if (bd.initial + bd.laterSum > 0.5) status = ['rp-b-part', 'سداد جزئي'];
+    else status = ['rp-b-no', 'غير مسددة'];
+
+    let ageNote = '';
+    if (rem > 0.5) { let a = ageDaysOf(inv); if (a !== null) ageNote = `<div class="rp-note" style="color:#e11d48"><i class="fas fa-hourglass-half"></i> لها ${a} يوم</div>`; }
+
+    let initCell = bd.legacySettled
+        ? `<span class="rp-note">لم يُسجَّل تفصيل الدفع وقتها</span>`
+        : `<div class="rp-paidof">دفع <b>${fmt(bd.initial)}</b> من ${fmt(total)} ج.م</div>
+           <div class="rp-bar"><i style="width:${pct}%"></i></div>`;
+    let items = (inv.items || []).map(i => `${esc(i.name)} × ${i.qty}`).join('، ') || '—';
+
+    return `<tr>
+        <td class="c" style="white-space:nowrap">${esc(inv.date || '')}</td>
+        <td class="c"><b>${esc(inv.id)}</b></td>
+        <td style="font-size:12px">${items}${oldNote}</td>
+        <td class="c"><b>${fmt(total)}</b></td>
+        <td>${initCell}</td>
+        <td class="c" style="color:${rem > 0.5 ? '#e11d48' : '#059669'}"><b>${rem > 0.5 ? fmt(rem) + ' ج.م' : '0'}</b><br><span class="rp-b ${status[0]}">${status[1]}</span>${ageNote}</td>
+    </tr>${histHtml ? `<tr class="rp-sub"><td colspan="6">${histHtml}</td></tr>` : ''}`;
+}
+
+function buildStatement(name, f) {
+    let D = statementData(name, f);
+    let S = D.sums, M = D.mach;
+    let rowsHtml = D.rows.map(statementRowHtml).join('') ||
+        `<tr><td colspan="6" class="c" style="padding:18px;color:#94a3b8">لا توجد فواتير مطابقة للفلتر الحالي</td></tr>`;
+
+    let standalone = D.oldStandalone
+        ? `<tr><td colspan="3" style="font-weight:700;color:${D.oldStandalone > 0 ? '#e11d48' : '#0284c7'}">${D.oldStandalone > 0 ? 'رصيد افتتاحي عليه' : 'رصيد افتتاحي له'} (غير مرتبط بفاتورة) ${D.cust.oldBalanceDate ? '— ' + esc(D.cust.oldBalanceDate) : ''}</td>
+           <td colspan="3" class="c" style="font-weight:700">${fmt(Math.abs(D.oldStandalone))} ج.م</td></tr>` : '';
+
+    let machHtml = '';
+    if (M.entries.length || M.payments.length) {
+        machHtml = `<div class="rp-h2">حساب المكن (منفصل عن الفواتير)</div>
+        <table class="rp-table"><thead><tr><th>التاريخ</th><th>النوع</th><th>البيان</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead><tbody>
+        ${M.entries.map(e => `<tr><td class="c">${esc(e.date)}</td><td class="c">${esc(e.kind || '')}</td><td>${esc(e.desc)}</td><td class="c">${e.qty}</td><td class="c">${fmt(e.price)}</td><td class="c"><b>${fmt(e.total)}</b></td></tr>`).join('')}
+        ${M.payments.map(p => `<tr class="rp-sub"><td class="c">${esc(p.date)}</td><td class="c" colspan="4" style="color:#166534">دفعة على حساب المكن ${p.note ? '— ' + esc(p.note) : ''}</td><td class="c" style="color:#166534"><b>- ${fmt(p.amount)}</b></td></tr>`).join('')}
+        <tr><td colspan="5" style="font-weight:700">المتبقي على حساب المكن</td><td class="c" style="font-weight:700;color:${M.remaining > 0.5 ? '#e11d48' : '#059669'}">${fmt(M.remaining)} ج.م</td></tr>
+        </tbody></table>`;
+    }
+
+    let grand = D.netDebt + M.remaining;
+    let netTxt = D.netDebt > 0.5 ? fmt(D.netDebt) + ' ج.م' : (D.netDebt < -0.5 ? 'له ' + fmt(Math.abs(D.netDebt)) + ' ج.م' : 'لا يوجد');
+    let grandTxt = grand > 0.5 ? fmt(grand) + ' ج.م' : (grand < -0.5 ? 'له ' + fmt(Math.abs(grand)) + ' ج.م' : 'الحساب مسدد');
+    let oldest = oldestAge(name);
+
+    let html = `
+        <div class="rp-sum">
+            <div class="rp-card"><span>عدد الفواتير</span><b>${S.count}</b></div>
+            <div class="rp-card"><span>قيمة الفواتير</span><b style="color:#0284c7">${fmt(S.own)}</b></div>
+            <div class="rp-card"><span>المدفوع نقداً (ساعتها + لاحقاً)</span><b style="color:#059669">${fmt(S.cash)}</b></div>
+            <div class="rp-card"><span>المتبقي على الفواتير</span><b style="color:#e11d48">${fmt(S.remaining)}</b></div>
+        </div>
+        <table class="rp-table"><thead><tr><th>التاريخ</th><th>الفاتورة</th><th>الأصناف</th><th>إجمالي الفاتورة</th><th>دفع ساعتها (من الإجمالي)</th><th>المتبقي والحالة</th></tr></thead>
+        <tbody>${rowsHtml}${standalone}</tbody></table>
+        ${machHtml}
+        <div class="rp-final">
+            <div><span>مديونية الفواتير الآن</span><b>${netTxt}</b></div>
+            <div><span>حساب المكن الآن</span><b>${M.remaining > 0.5 ? fmt(M.remaining) + ' ج.م' : (M.entries.length || M.payments.length ? 'مسدد' : '—')}</b></div>
+            <div class="grand"><span>إجمالي المطلوب من العميل</span><b>${grandTxt}</b></div>
+        </div>
+        ${oldest !== null && oldest > 30 ? `<p style="color:#b45309;font-size:13px"><i class="fas fa-triangle-exclamation"></i> أقدم فاتورة غير مسددة عمرها ${oldest} يوم.</p>` : ''}`;
+
+    // نص واتساب
+    let unpaid = unpaidOf(name);
+    let lines = [`*${settings.companyName || 'Bro Tech'}* — كشف حساب`, `العميل: ${name}`, ''];
+    if (unpaid.length) {
+        lines.push('الفواتير غير المسددة:');
+        unpaid.forEach(({ inv }) => {
+            let bd = invBreakdown(inv);
+            lines.push(`• ${inv.id} (${inv.date}): دفع ${fmt(bd.initial + bd.laterSum)} من ${fmt(bd.total)} — المتبقي ${fmt(bd.remaining)} ج.م`);
+        });
+    } else lines.push('لا توجد فواتير غير مسددة.');
+    if (D.oldStandalone > 0) lines.push(`رصيد سابق عليه: ${fmt(D.oldStandalone)} ج.م`);
+    if (M.remaining > 0.5) lines.push(`حساب المكن المتبقي: ${fmt(M.remaining)} ج.م`);
+    lines.push('', `*إجمالي المطلوب: ${grandTxt}*`, settings.whatsapp ? `للتواصل: ${settings.whatsapp}` : '');
+    return { html, text: lines.join('\n'), data: D };
+}
+
+function stFilters() {
+    return {
+        from: document.getElementById('stFrom')?.value || '',
+        to: document.getElementById('stTo')?.value || '',
+        status: document.getElementById('stStatus')?.value || 'all',
+        q: document.getElementById('stSearch')?.value || ''
+    };
+}
+window.renderStatement = function () {
+    let body = document.getElementById('stBody');
+    if (!body || !stCurrent) return;
+    body.innerHTML = `<div class="rp-wrap">${buildStatement(stCurrent, stFilters()).html}</div>`;
+};
+window.openStatement = function (name) {
+    injectV3Modals();
+    let sel = document.getElementById('stCustomer');
+    let names = [...new Set([...customers.map(c => c.name), ...invoices.map(i => i.customerName)])].filter(Boolean);
+    if (!names.length) { alert('لا يوجد عملاء مسجلين حالياً.'); return; }
+    sel.innerHTML = names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    stCurrent = names.includes(name) ? name : names[0];
+    sel.value = stCurrent;
+    ['stFrom', 'stTo', 'stSearch'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('stStatus').value = 'all';
+    document.getElementById('stmtModal').style.display = 'flex';
+    window.renderStatement();
+};
+window.stChangeCustomer = function () { stCurrent = document.getElementById('stCustomer').value; window.renderStatement(); };
+window.stClear = function () {
+    ['stFrom', 'stTo', 'stSearch'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('stStatus').value = 'all';
+    window.renderStatement();
+};
+window.closeStatement = function () { document.getElementById('stmtModal').style.display = 'none'; stCurrent = null; };
+window.stPrint = function () {
+    if (!stCurrent) return;
+    let B = buildStatement(stCurrent, stFilters());
+    let f = stFilters();
+    let sub = `العميل: <b>${esc(stCurrent)}</b> — تاريخ الإصدار: ${new Date().toLocaleDateString('ar-EG')}` +
+        ((f.from || f.to) ? `<br><span style="font-size:12.5px;color:#64748b">الفترة: ${f.from || '...'} إلى ${f.to || '...'}</span>` : '');
+    openPrintWindow('كشف حساب ' + stCurrent, companyHeader('كشف حساب عميل تفصيلي', sub) + B.html +
+        `<div class="rp-sign"><div>توقيع المحاسب: ..................</div><div>توقيع العميل: ..................</div></div>`);
+};
+window.stWhats = function () {
+    if (!stCurrent) return;
+    let B = buildStatement(stCurrent, {});
+    let phone = toLatinDigits((customers.find(c => c.name === stCurrent) || {}).phone || '').replace(/\D/g, '');
+    if (phone.startsWith('00')) phone = phone.slice(2);
+    else if (phone.startsWith('0')) phone = '20' + phone.slice(1);
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(B.text)}`, '_blank');
+};
+window.stPay = function () { if (stCurrent) window.openCustPay(enc(stCurrent)); };
+window.generateCustomerReport = function (name) { window.openStatement(name); };
+window.generateCustomerReportEncoded = function (e) { window.openStatement(dec(e)); };
+window.openCustomerAccountPrompt = function () {
+    let menu = document.getElementById('reportMenuDropdown');
+    if (menu) menu.style.display = 'none';
+    window.openStatement();
+};
+window.viewInvoiceByIndex = function (i) { if (invoices[i]) window.showInvoiceModal(invoices[i]); };
+
+// =====================================================================
+// 2) سداد مديونية العميل (سريع FIFO / يدوي)
+// =====================================================================
+let cp = null; // حالة نافذة السداد
+
+window.openCustPay = function (encName, preIdx) {
+    injectV3Modals();
+    let name = dec(encName);
+    let cust = customers.find(c => c.name === name);
+    let items = [];
+    let od = custOldDebt(cust);
+    if (od > 0.5) items.push({ kind: 'old', key: 'old', label: 'رصيد سابق', date: cust.oldBalanceDate || '—', total: od, remaining: od, age: null });
+    unpaidOf(name).forEach(({ inv, idx }) => items.push({
+        kind: 'inv', key: 'i' + idx, idx, label: inv.id, date: inv.date, total: Number(inv.total || 0),
+        remaining: Number(inv.remaining || 0), age: ageDaysOf(inv)
+    }));
+    if (!items.length) { alert('هذا العميل ليس عليه أي مبالغ غير مسددة.'); return; }
+    cp = { name, items, mode: (preIdx !== undefined && preIdx !== null && preIdx !== '') ? 'manual' : 'auto', manual: {} };
+    if (cp.mode === 'manual') {
+        let it = items.find(x => x.idx === Number(preIdx));
+        if (it) cp.manual[it.key] = it.remaining;
+    }
+    document.getElementById('cpTitle').innerHTML = `<i class="fas fa-hand-holding-dollar"></i> سداد مديونية: ${esc(name)}`;
+    document.getElementById('cpNote').value = '';
+    document.getElementById('cpAmount').value = '';
+    document.getElementById('custPayModal').style.display = 'flex';
+    cpSetMode(cp.mode);
+};
+window.closeCustPay = function () { document.getElementById('custPayModal').style.display = 'none'; cp = null; };
+window.cpSetMode = function (mode) {
+    if (!cp) return;
+    cp.mode = mode;
+    document.getElementById('cpModeAuto').classList.toggle('on', mode === 'auto');
+    document.getElementById('cpModeManual').classList.toggle('on', mode === 'manual');
+    document.getElementById('cpAutoBox').style.display = mode === 'auto' ? 'flex' : 'none';
+    let due = sumOf(cp.items, x => x.remaining);
+    document.getElementById('cpDue').innerText = fmt(due) + ' ج.م';
+    document.getElementById('cpCount').innerText = cp.items.length;
+    document.getElementById('cpHint').innerText = mode === 'auto'
+        ? 'اكتب المبلغ اللي العميل دفعه، وهيتوزع تلقائياً على الأقدم فالأحدث.'
+        : 'اكتب المبلغ قدّام كل فاتورة هتسددها (أو اضغط "كامل").';
+    document.getElementById('cpRows').innerHTML = cp.items.map(it => `
+        <tr><td>${esc(it.date)}</td><td><b>${esc(it.label)}</b></td><td>${fmt(it.total)}</td><td style="color:#e11d48;font-weight:700">${fmt(it.remaining)}</td>
+        <td>${it.age === null ? '—' : `<span class="age-pill" style="background:${BUCKET_COLORS[bucketOf(it.age)]}20;color:${BUCKET_COLORS[bucketOf(it.age)]}">${it.age} يوم</span>`}</td>
+        <td>${mode === 'auto'
+            ? `<b id="cpA_${it.key}">0</b>`
+            : `<input type="number" class="v3-in" min="0" max="${it.remaining}" id="cpM_${it.key}" value="${cp.manual[it.key] || ''}" oninput="cpRecalc()"> <button type="button" class="v3-btn sm green" onclick="cpFull('${it.key}')">كامل</button>`}</td></tr>`).join('');
+    cpRecalc();
+};
+window.cpFull = function (key) {
+    let it = cp.items.find(x => x.key === key);
+    let el = document.getElementById('cpM_' + key);
+    if (it && el) { el.value = it.remaining; cpRecalc(); }
+};
+window.cpPayAll = function () {
+    document.getElementById('cpAmount').value = sumOf(cp.items, x => x.remaining);
+    cpRecalc();
+};
+function cpAllocs() {
+    let allocs = [], total = 0, excess = 0;
+    if (cp.mode === 'auto') {
+        let left = Number(document.getElementById('cpAmount').value) || 0;
+        cp.items.forEach(it => {
+            let a = Math.max(0, Math.min(it.remaining, left));
+            left -= a; allocs.push({ it, amount: a }); total += a;
+        });
+        excess = Math.max(0, left);
+    } else {
+        cp.items.forEach(it => {
+            let v = Number(document.getElementById('cpM_' + it.key)?.value) || 0;
+            if (v > it.remaining + 0.001) excess += v - it.remaining;
+            let a = Math.max(0, Math.min(it.remaining, v));
+            allocs.push({ it, amount: a }); total += a;
+        });
+    }
+    return { allocs, total, excess };
+}
+window.cpRecalc = function () {
+    if (!cp) return;
+    let R = cpAllocs();
+    if (cp.mode === 'auto') R.allocs.forEach(a => { let el = document.getElementById('cpA_' + a.it.key); if (el) el.innerText = fmt(a.amount); });
+    let sum = document.getElementById('cpSummary'), btn = document.getElementById('cpConfirm');
+    let dueAfter = sumOf(cp.items, x => x.remaining) - R.total;
+    if (R.excess > 0.001) {
+        sum.className = 'cp-sum err';
+        sum.innerHTML = `<i class="fas fa-triangle-exclamation"></i> المبلغ أكبر من المستحق بـ ${fmt(R.excess)} ج.م — عدّل المبلغ.`;
+        btn.disabled = true;
+    } else {
+        sum.className = 'cp-sum';
+        sum.innerHTML = R.total > 0
+            ? `سيتم تسجيل سداد <b>${fmt(R.total)} ج.م</b> — يتبقى على العميل <b>${fmt(dueAfter)} ج.م</b>`
+            : 'اكتب مبلغ السداد لتظهر التفاصيل.';
+        btn.disabled = R.total <= 0;
+    }
+};
+window.cpConfirm = function () {
+    if (!cp) return;
+    let R = cpAllocs();
+    if (R.total <= 0 || R.excess > 0.001) return;
+    let note = document.getElementById('cpNote').value.trim();
+    let now = new Date();
+    let receiptNo = 'RC-' + String(Date.now()).slice(-6);
+    let cust = customers.find(c => c.name === cp.name);
+    let receiptLines = [];
+
+    R.allocs.filter(a => a.amount > 0).forEach(a => {
+        if (a.it.kind === 'inv') {
+            let inv = invoices[a.it.idx];
+            if (inv.initialPaid == null) inv.initialPaid = invBreakdown(inv).initial; // نثبّت "دفع ساعتها" قبل أي تعديل
+            inv.paid = Number(inv.paid || 0) + a.amount;
+            inv.remaining = Math.max(0, Number(inv.remaining || 0) - a.amount);
+            inv.status = inv.remaining <= 0.5 ? 'تم الدفع بالكامل' : `متبقي: ${inv.remaining} ج.م`;
+            if (!inv.paymentHistory) inv.paymentHistory = [];
+            inv.paymentHistory.push({ amount: a.amount, type: 'cash', date: now.toLocaleString('ar-EG'), dateISO: now.toISOString(), note, receiptNo });
+            receiptLines.push({ label: inv.id, date: inv.date, total: Number(inv.total), paid: a.amount, left: inv.remaining });
+        } else if (cust) {
+            cust.oldBalance = Math.max(0, Number(cust.oldBalance) - a.amount);
+            if (!cust.balancePayments) cust.balancePayments = [];
+            cust.balancePayments.push({ amount: a.amount, date: now.toLocaleString('ar-EG'), dateISO: now.toISOString(), note, receiptNo });
+            if (cust.oldBalance <= 0.5) { cust.oldBalance = 0; cust.balanceType = 'none'; cust.oldBalanceDate = ''; }
+            receiptLines.push({ label: 'رصيد سابق', date: a.it.date, total: a.it.total, paid: a.amount, left: cust.oldBalance });
+        }
+    });
+
+    saveData();
+    refreshAllData();
+    let name = cp.name, total = R.total;
+    window.closeCustPay();
+    if (stCurrent) window.renderStatement();
+
+    // إيصال استلام
+    let netAfter = getCustomerNetDebt(name);
+    let body = companyHeader('إيصال استلام نقدية', `رقم الإيصال: <b>${receiptNo}</b> — ${now.toLocaleString('ar-EG')}`) +
+        `<p style="font-size:14px">استلمنا من السيد/ة: <b>${esc(name)}</b> مبلغ <b>${fmt(total)} ج.م</b> سداداً على:</p>
+        <table class="rp-table"><thead><tr><th>البند</th><th>التاريخ</th><th>إجمالي الفاتورة</th><th>المسدد الآن</th><th>المتبقي بعد السداد</th></tr></thead><tbody>
+        ${receiptLines.map(l => `<tr><td class="c"><b>${esc(l.label)}</b></td><td class="c">${esc(l.date)}</td><td class="c">${fmt(l.total)}</td><td class="c" style="color:#059669"><b>${fmt(l.paid)}</b></td><td class="c" style="color:${l.left > 0.5 ? '#e11d48' : '#059669'}">${l.left > 0.5 ? fmt(l.left) : 'مسددة'}</td></tr>`).join('')}
+        </tbody></table>
+        ${note ? `<p class="rp-note" style="color:#475569">ملاحظة: ${esc(note)}</p>` : ''}
+        <div class="rp-final" style="grid-template-columns:1fr 1fr"><div><span>المبلغ المستلم</span><b>${fmt(total)} ج.م</b></div><div class="grand"><span>إجمالي المتبقي على العميل (فواتير)</span><b>${netAfter > 0.5 ? fmt(netAfter) + ' ج.م' : 'لا يوجد'}</b></div></div>
+        <div class="rp-sign"><div>المستلم: ..................</div><div>العميل: ..................</div></div>`;
+    openPrintWindow('إيصال ' + receiptNo, body);
+};
+
+// =====================================================================
+// 3) دليل العملاء الجديد + أعمار الديون
+// =====================================================================
+let custExpanded = new Set();
+
+function renderAgingStrip() {
+    let box = document.getElementById('custAgingStrip');
+    if (!box) return;
+    let A = agingTotals();
+    let cur = document.getElementById('custDebtFilter')?.value || 'all';
+    let keys = ['', 'over30', 'over60', 'over90'];
+    box.innerHTML = A.totals.map((t, i) => `
+        <div class="aging-card ${cur === keys[i] ? 'on' : ''}" style="border-top-color:${BUCKET_COLORS[i]}" onclick="setCustFilter('${i === 0 ? 'debt' : keys[i]}')">
+            <span>${BUCKET_LABELS[i]}</span><b>${fmt(t)} ج.م</b><br><small>${A.counts[i]} فاتورة غير مسددة</small>
+        </div>`).join('');
+}
+window.setCustFilter = function (v) {
+    let sel = document.getElementById('custDebtFilter');
+    if (sel) sel.value = (sel.value === v) ? 'all' : v;
+    renderCustomers();
+};
+window.toggleCustUnpaid = function (e) {
+    let n = dec(e);
+    custExpanded.has(n) ? custExpanded.delete(n) : custExpanded.add(n);
+    renderCustomers();
+};
+window.filterCustomers = function () { renderCustomers(); };
+
+function renderCustomers() {
+    let tbody = document.getElementById('customersTableBody');
+    if (!tbody) return;
+    renderAgingStrip();
+    let q = (document.getElementById('searchCustomers')?.value || '').toLowerCase().trim();
+    let flt = document.getElementById('custDebtFilter')?.value || 'all';
+    let html = '', shown = 0;
+
+    customers.forEach((c, index) => {
+        if (q && !((c.name || '').toLowerCase().includes(q) || (c.phone || '').includes(q))) return;
+        let unpaid = unpaidOf(c.name);
+        let netDebt = getCustomerNetDebt(c.name);
+        let mt = machineTotals(c.name);
+        let oldest = oldestAge(c.name);
+
+        if (flt === 'debt' && !(netDebt > 0.5 || mt.remaining > 0.5)) return;
+        if (flt === 'over30' && !(oldest !== null && oldest > 30)) return;
+        if (flt === 'over60' && !(oldest !== null && oldest > 60)) return;
+        if (flt === 'over90' && !(oldest !== null && oldest > 90)) return;
+        if (flt === 'credit' && !(netDebt < -0.5)) return;
+        shown++;
+
+        let custInvoices = invoices.filter(i => i.customerName === c.name);
+        let totalSales = sumOf(custInvoices, i => i.total);
+        let lastPurchase = custInvoices.length ? custInvoices[custInvoices.length - 1].date : '—';
+        let en = enc(c.name);
+
+        let debtHtml = netDebt > 0.5 ? `<span class="badge-danger"><i class="fas fa-arrow-down"></i> ${fmt(netDebt)} ج.م</span>`
+            : netDebt < -0.5 ? `<span class="badge-success"><i class="fas fa-arrow-up"></i> له رصيد ${fmt(Math.abs(netDebt))} ج.م</span>`
+                : `<span class="badge-neutral">لا يوجد</span>`;
+        let ageHtml = '';
+        if (unpaid.length) {
+            let col = BUCKET_COLORS[bucketOf(oldest)];
+            ageHtml = `<div style="margin-top:5px"><button class="toggle-unpaid" onclick="toggleCustUnpaid('${en}')"><i class="fas fa-chevron-${custExpanded.has(c.name) ? 'up' : 'down'}"></i> ${unpaid.length} فاتورة غير مسددة</button>
+                ${oldest !== null ? `<span class="age-pill" style="background:${col}20;color:${col}">أقدمها ${oldest} يوم</span>` : ''}</div>`;
+        }
+        let machHtml = mt.remaining > 0.5 ? `<span class="badge-danger">${fmt(mt.remaining)} ج.م</span>`
+            : ((mt.entries.length) ? `<span class="badge-success">مسدد</span>` : '<span class="badge-neutral">—</span>');
+        let grand = netDebt + mt.remaining;
+        let grandHtml = grand > 0.5 ? `<strong style="color:#b91c1c">${fmt(grand)} ج.م</strong>` : (grand < -0.5 ? `<strong style="color:#059669">له ${fmt(Math.abs(grand))}</strong>` : `<span class="badge-neutral">0</span>`);
+
+        html += `<tr>
+            <td><strong>${esc(c.name)}</strong><div class="v3-muted">مشترياته: ${fmt(totalSales)} ج.م</div></td>
+            <td>${esc(c.phone || 'غير مسجل')}</td>
+            <td>${debtHtml}${ageHtml}</td>
+            <td>${machHtml}</td>
+            <td>${grandHtml}</td>
+            <td>${esc(lastPurchase)}</td>
+            <td><div class="row-actions">
+                ${(netDebt > 0.5) ? `<button onclick="openCustPay('${en}')" class="btn-action btn-pay-sm" title="تسجيل سداد"><i class="fas fa-hand-holding-dollar"></i> سداد</button>` : ''}
+                <button onclick="generateCustomerReportEncoded('${en}')" class="btn-action btn-view-sm" title="كشف حساب تفصيلي"><i class="fas fa-file-invoice"></i> كشف</button>
+                <button onclick="mcOpenFor('${en}')" class="btn-action" style="background:#7c3aed" title="حساب المكن"><i class="fas fa-gears"></i> مكن</button>
+                <button onclick="openEditCustomerModal(${index})" class="btn-action btn-edit-sm" title="تعديل"><i class="fas fa-edit"></i></button>
+                <button onclick="deleteCustomer(${index})" class="btn-action btn-danger-sm" title="حذف"><i class="fas fa-trash"></i></button>
+            </div></td></tr>`;
+
+        if (custExpanded.has(c.name) && unpaid.length) {
+            html += `<tr class="cust-sub"><td colspan="7">${unpaid.map(({ inv, idx }) => {
+                let bd = invBreakdown(inv), a = ageDaysOf(inv), col = BUCKET_COLORS[bucketOf(a)];
+                return `<div class="cust-inv"><div class="grow"><b>${esc(inv.id)}</b> — ${esc(inv.date)}
+                    <span class="v3-muted">| دفع ${fmt(bd.initial + bd.laterSum)} من ${fmt(bd.total)} ج.م</span></div>
+                    <span style="color:#e11d48;font-weight:700">المتبقي ${fmt(bd.remaining)} ج.م</span>
+                    ${a !== null ? `<span class="age-pill" style="background:${col}20;color:${col}">${a} يوم</span>` : ''}
+                    <button class="v3-btn sm green" onclick="openCustPay('${en}', ${idx})"><i class="fas fa-hand-holding-dollar"></i> سدّد</button>
+                    <button class="v3-btn sm gray" onclick="viewInvoiceByIndex(${idx})"><i class="fas fa-eye"></i></button></div>`;
+            }).join('')}</td></tr>`;
+        }
+    });
+
+    tbody.innerHTML = html || `<tr><td colspan="7" style="text-align:center;padding:20px;color:#94a3b8">لا يوجد عملاء مطابقين</td></tr>`;
+}
+
+// تنبيه المتأخرين في لوحة المؤشرات
+function renderOverdueAlert() {
+    let tab = document.getElementById('tab-dashboard');
+    if (!tab) return;
+    let box = document.getElementById('overdueAlert');
+    if (!box) { box = document.createElement('div'); box.id = 'overdueAlert'; tab.insertBefore(box, tab.firstChild); }
+    let list = customers.map(c => ({ name: c.name, age: oldestAge(c.name), amt: sumOf(unpaidOf(c.name).filter(x => (ageDaysOf(x.inv) || 0) > 30), x => x.inv.remaining) }))
+        .filter(x => x.age !== null && x.age > 30).sort((a, b) => b.age - a.age);
+    if (!list.length) { box.style.display = 'none'; return; }
+    box.style.display = 'flex';
+    box.innerHTML = `<i class="fas fa-bell" style="font-size:22px;color:#ea580c"></i>
+        <div class="txt"><b>${list.length} عميل متأخر في السداد أكثر من 30 يوم</b> — إجمالي المتأخر ${fmt(sumOf(list, x => x.amt))} ج.م<br>
+        ${list.slice(0, 3).map(x => `${esc(x.name)} (${x.age} يوم)`).join(' • ')}${list.length > 3 ? ' ...' : ''}</div>
+        <button class="v3-btn amber" onclick="showOverdue()">عرض المتأخرين</button>`;
+}
+
+window.showOverdue = function () {
+    gotoTab('customers');
+    let sel = document.getElementById('custDebtFilter');
+    if (sel) sel.value = 'over30';
+    renderCustomers();
+};
+window.openStatementEnc = function (e) { window.openStatement(dec(e)); };
+
+// =====================================================================
+// 4) حساب المكن (منفصل تماماً عن الفواتير والمخزون)
+// =====================================================================
+let mcSel = null;
+
+function mcCards(t) {
+    return `<div class="mc-cards">
+        <div><span>إجمالي الحساب</span><b style="color:#0284c7">${fmt(t.total)} ج.م</b></div>
+        <div><span>المدفوع</span><b style="color:#059669">${fmt(t.paid)} ج.م</b></div>
+        <div><span>المتبقي</span><b style="color:${t.remaining > 0.5 ? '#e11d48' : '#059669'}">${fmt(t.remaining)} ج.م</b></div></div>`;
+}
+function todayInput() { let d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function dateFromInput(v) {
+    let d = v ? new Date(v + 'T12:00:00') : new Date();
+    return { date: d.toLocaleDateString('ar-EG'), dateISO: d.toISOString() };
+}
+
+function renderMachinesTab() {
+    let root = document.getElementById('mcRoot');
+    if (!root) return;
+    if (mcSel) { root.innerHTML = mcDetailHtml(mcSel); return; }
+
+    let names = [...new Set([...machineEntries.map(e => e.customerName), ...machinePayments.map(p => p.customerName)])];
+    let rows = names.map(n => ({ n, t: machineTotals(n) }));
+    let all = { total: sumOf(rows, r => r.t.total), paid: sumOf(rows, r => r.t.paid), remaining: sumOf(rows, r => r.t.remaining) };
+    root.innerHTML = `
+        <div class="page-header-title"><h1>حساب المكن</h1>
+        <p>حساب يدوي منفصل عن الفواتير والمخزون: مكن، صيانة، قطع غيار — اكتب البند وسعره والبرنامج يحسب إجمالي كل عميل</p></div>
+        ${mcCards(all)}
+        <div class="mc-pick"><input class="v3-in" id="mcPick" list="mcCustList" placeholder="اكتب اسم العميل (موجود أو جديد) لفتح حساب المكن…" onkeydown="if(event.key==='Enter')mcOpen()">
+            <datalist id="mcCustList">${customers.map(c => `<option value="${esc(c.name)}">`).join('')}</datalist>
+            <button class="v3-btn" onclick="mcOpen()"><i class="fas fa-folder-open"></i> فتح / بدء حساب</button></div>
+        <div class="card-table-wrapper"><div class="table-responsive"><table class="data-table"><thead><tr>
+            <th>العميل</th><th>عدد البنود</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th><th></th></tr></thead><tbody>
+        ${rows.map(r => `<tr><td><strong>${esc(r.n)}</strong></td><td>${r.t.entries.length}</td><td>${fmt(r.t.total)}</td><td style="color:#059669">${fmt(r.t.paid)}</td>
+            <td>${r.t.remaining > 0.5 ? `<span class="badge-danger">${fmt(r.t.remaining)} ج.م</span>` : '<span class="badge-success">مسدد</span>'}</td>
+            <td><button class="v3-btn sm" onclick="mcOpenFor('${enc(r.n)}')">فتح الحساب</button></td></tr>`).join('') ||
+        '<tr><td colspan="6" style="text-align:center;padding:20px;color:#94a3b8">لا توجد حسابات مكن بعد. اكتب اسم عميل فوق وابدأ.</td></tr>'}
+        </tbody></table></div></div>`;
+}
+
+function mcDetailHtml(name) {
+    let t = machineTotals(name);
+    let kinds = ['مكنة', 'صيانة', 'قطع غيار', 'أخرى'];
+    return `
+        <div class="page-header-title flex-header"><div><h1><i class="fas fa-gears"></i> حساب المكن: ${esc(name)}</h1>
+        <p>بنود يدوية — لا تؤثر على الفواتير ولا المخزون</p></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="v3-btn gray" onclick="mcBack()"><i class="fas fa-arrow-right"></i> كل الحسابات</button>
+            <button class="v3-btn" onclick="mcPrint()"><i class="fas fa-print"></i> طباعة فاتورة المكن</button>
+            <button class="v3-btn wa" onclick="mcWhats()"><i class="fab fa-whatsapp"></i> واتساب</button>
+            <button class="v3-btn amber" onclick="openStatement(mcSelName())"><i class="fas fa-file-invoice"></i> الكشف الشامل</button>
+        </div></div>
+        ${mcCards(t)}
+        <h3 class="rp-h2">إضافة بند</h3>
+        <div class="mc-form">
+            <div><label>التاريخ</label><input class="v3-in" type="date" id="mcDate" value="${todayInput()}"></div>
+            <div><label>النوع</label><select class="v3-in" id="mcKind">${kinds.map(k => `<option>${k}</option>`).join('')}</select></div>
+            <div><label>البند (مثلاً: مكنة بورده / هيد)</label><input class="v3-in" id="mcDesc" placeholder="اسم المنتج أو الخدمة" onkeydown="if(event.key==='Enter')document.getElementById('mcPrice').focus()"></div>
+            <div><label>الكمية</label><input class="v3-in" type="number" id="mcQty" value="1" min="1" oninput="mcPreview()"></div>
+            <div><label>السعر</label><input class="v3-in" type="number" id="mcPrice" min="0" placeholder="0" oninput="mcPreview()" onkeydown="if(event.key==='Enter')mcAddEntry()"></div>
+            <button class="v3-btn green" onclick="mcAddEntry()"><i class="fas fa-plus"></i> إضافة <span id="mcPrev"></span></button>
+        </div>
+        <div class="card-table-wrapper"><div class="table-responsive"><table class="data-table"><thead><tr>
+            <th>التاريخ</th><th>النوع</th><th>البند</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th><th></th></tr></thead><tbody>
+        ${t.entries.map(e => `<tr><td>${esc(e.date)}</td><td>${esc(e.kind || '')}</td><td>${esc(e.desc)}</td><td>${e.qty}</td><td>${fmt(e.price)}</td><td><b>${fmt(e.total)}</b></td>
+            <td><button class="btn-action btn-danger-sm" onclick="mcDelEntry('${e.id}')"><i class="fas fa-trash"></i></button></td></tr>`).join('') ||
+        '<tr><td colspan="7" style="text-align:center;padding:16px;color:#94a3b8">لا توجد بنود</td></tr>'}
+        </tbody></table></div></div>
+        <h3 class="rp-h2">تسجيل دفعة</h3>
+        <div class="mc-form pay">
+            <div><label>التاريخ</label><input class="v3-in" type="date" id="mcPayDate" value="${todayInput()}"></div>
+            <div><label>المبلغ</label><input class="v3-in" type="number" id="mcPayAmt" min="0" placeholder="0" onkeydown="if(event.key==='Enter')mcAddPay()"></div>
+            <div><label>ملاحظة</label><input class="v3-in" id="mcPayNote" placeholder="اختياري"></div>
+            <button class="v3-btn green" onclick="mcAddPay()"><i class="fas fa-hand-holding-dollar"></i> تسجيل الدفعة</button>
+        </div>
+        ${t.payments.length ? `<div class="card-table-wrapper"><div class="table-responsive"><table class="data-table"><thead><tr><th>التاريخ</th><th>المبلغ</th><th>ملاحظة</th><th></th></tr></thead><tbody>
+        ${t.payments.map(p => `<tr><td>${esc(p.date)}</td><td style="color:#059669"><b>${fmt(p.amount)}</b></td><td>${esc(p.note || '')}</td>
+            <td><button class="btn-action btn-danger-sm" onclick="mcDelPay('${p.id}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')}
+        </tbody></table></div></div>` : ''}`;
+}
+
+window.mcSelName = function () { return mcSel; };
+window.mcPreview = function () {
+    let q = Number(document.getElementById('mcQty')?.value) || 0, p = Number(document.getElementById('mcPrice')?.value) || 0;
+    let el = document.getElementById('mcPrev');
+    if (el) el.innerText = q * p ? '(' + fmt(q * p) + ')' : '';
+};
+window.mcOpen = function () {
+    let n = (document.getElementById('mcPick')?.value || '').trim();
+    if (!n) { alert('اكتب اسم العميل أولاً.'); return; }
+    if (!customers.some(c => c.name === n)) {
+        if (!confirm(`"${n}" غير مسجل في دليل العملاء. هل تريد إضافته كعميل جديد؟`)) return;
+        customers.push({ name: n, phone: '', address: '', oldBalance: 0, balanceType: 'none', oldBalanceDate: '' });
+        saveData(); refreshAllData();
+    }
+    mcSel = n; renderMachinesTab();
+};
+window.mcOpenFor = function (e) { mcSel = dec(e); gotoTab('machines'); renderMachinesTab(); };
+window.mcBack = function () { mcSel = null; renderMachinesTab(); };
+window.mcAddEntry = function () {
+    let desc = document.getElementById('mcDesc').value.trim();
+    let qty = Number(document.getElementById('mcQty').value) || 0;
+    let price = Number(document.getElementById('mcPrice').value);
+    if (!desc) { alert('اكتب اسم البند.'); document.getElementById('mcDesc').focus(); return; }
+    if (qty <= 0 || isNaN(price) || price < 0) { alert('راجع الكمية والسعر.'); return; }
+    let d = dateFromInput(document.getElementById('mcDate').value);
+    machineEntries.push({ id: 'ME-' + Date.now(), customerName: mcSel, ...d, kind: document.getElementById('mcKind').value, desc, qty, price, total: qty * price });
+    saveData(); renderMachinesTab(); renderCustomers();
+    setTimeout(() => document.getElementById('mcDesc')?.focus(), 30);
+};
+window.mcDelEntry = function (id) {
+    if (!confirm('حذف هذا البند؟')) return;
+    machineEntries = machineEntries.filter(e => e.id !== id);
+    saveData(); renderMachinesTab(); renderCustomers();
+};
+window.mcAddPay = function () {
+    let amt = Number(document.getElementById('mcPayAmt').value) || 0;
+    if (amt <= 0) { alert('اكتب مبلغ الدفعة.'); return; }
+    let t = machineTotals(mcSel);
+    if (amt > t.remaining + 0.5 && !confirm(`الدفعة (${fmt(amt)}) أكبر من المتبقي (${fmt(t.remaining)}). هل تريد المتابعة؟`)) return;
+    let d = dateFromInput(document.getElementById('mcPayDate').value);
+    machinePayments.push({ id: 'MP-' + Date.now(), customerName: mcSel, amount: amt, ...d, note: document.getElementById('mcPayNote').value.trim() });
+    saveData(); renderMachinesTab(); renderCustomers();
+};
+window.mcDelPay = function (id) {
+    if (!confirm('حذف هذه الدفعة؟')) return;
+    machinePayments = machinePayments.filter(p => p.id !== id);
+    saveData(); renderMachinesTab(); renderCustomers();
+};
+function mcInvoiceHtml(name) {
+    let t = machineTotals(name);
+    return companyHeader('فاتورة / كشف حساب المكن', `العميل: <b>${esc(name)}</b> — ${new Date().toLocaleDateString('ar-EG')}`) +
+        `<table class="rp-table"><thead><tr><th>التاريخ</th><th>النوع</th><th>البند</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead><tbody>
+        ${t.entries.map(e => `<tr><td class="c">${esc(e.date)}</td><td class="c">${esc(e.kind || '')}</td><td>${esc(e.desc)}</td><td class="c">${e.qty}</td><td class="c">${fmt(e.price)}</td><td class="c"><b>${fmt(e.total)}</b></td></tr>`).join('')}
+        ${t.payments.map(p => `<tr class="rp-sub"><td class="c">${esc(p.date)}</td><td colspan="4" style="color:#166534">دفعة ${p.note ? '— ' + esc(p.note) : ''}</td><td class="c" style="color:#166534"><b>- ${fmt(p.amount)}</b></td></tr>`).join('')}
+        </tbody></table>
+        <div class="rp-final"><div><span>إجمالي البنود</span><b>${fmt(t.total)} ج.م</b></div><div><span>المدفوع</span><b>${fmt(t.paid)} ج.م</b></div><div class="grand"><span>المتبقي</span><b>${fmt(t.remaining)} ج.م</b></div></div>
+        <div class="rp-sign"><div>المحاسب: ..................</div><div>العميل: ..................</div></div>`;
+}
+window.mcPrint = function () { if (mcSel) openPrintWindow('حساب المكن ' + mcSel, mcInvoiceHtml(mcSel)); };
+window.mcWhats = function () {
+    let t = machineTotals(mcSel);
+    let lines = [`*${settings.companyName || 'Bro Tech'}* — حساب المكن`, `العميل: ${mcSel}`, ''];
+    t.entries.forEach(e => lines.push(`• ${e.desc} (${e.kind || ''}) × ${e.qty} = ${fmt(e.total)} ج.م`));
+    lines.push('', `الإجمالي: ${fmt(t.total)} ج.م`, `المدفوع: ${fmt(t.paid)} ج.م`, `*المتبقي: ${fmt(t.remaining)} ج.م*`);
+    let phone = toLatinDigits((customers.find(c => c.name === mcSel) || {}).phone || '').replace(/\D/g, '');
+    if (phone.startsWith('00')) phone = phone.slice(2); else if (phone.startsWith('0')) phone = '20' + phone.slice(1);
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(lines.join('\n'))}`, '_blank');
+};
+
+// =====================================================================
+// 5) نسخ احتياطي JSON / Excel + استرجاع
+// =====================================================================
+function backupPayload() {
+    let { password, ...safeSettings } = settings; // لا نصدّر كلمة المرور
+    return {
+        _app: 'ProTech', _version: 3, exportedAt: new Date().toISOString(),
+        inventory, customers, invoices, purchases, companyExpenses, machineEntries, machinePayments, settings: safeSettings
+    };
+}
+function downloadBlob(blob, name) {
+    let a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+function stamp() { return new Date().toISOString().slice(0, 10); }
+
+window.exportBackupJSON = function () {
+    downloadBlob(new Blob([JSON.stringify(backupPayload(), null, 2)], { type: 'application/json' }), `protech-backup-${stamp()}.json`);
+};
+window.exportBackupExcel = function () {
+    const build = () => {
+        let wb = XLSX.utils.book_new();
+        const add = (name, rows) => XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows.length ? rows : [{ ملاحظة: 'لا توجد بيانات' }]), name);
+        add('العملاء', customers.map(c => ({ الاسم: c.name, الهاتف: c.phone, العنوان: c.address, 'رصيد سابق': c.oldBalance, النوع: c.balanceType, 'مديونية حالية': getCustomerNetDebt(c.name), 'متبقي المكن': machineTotals(c.name).remaining })));
+        add('الفواتير', invoices.map(i => { let b = invBreakdown(i); return { الرقم: i.id, التاريخ: i.date, العميل: i.customerName, الإجمالي: i.total, 'دفع ساعتها': b.initial, 'سداد لاحق': b.laterSum, مُرحّل: b.carried, المتبقي: i.remaining, الحالة: i.status }; }));
+        add('بنود الفواتير', invoices.flatMap(i => (i.items || []).map(it => ({ الفاتورة: i.id, العميل: i.customerName, الصنف: it.name, الكمية: it.qty, السعر: it.price, الإجمالي: it.total }))));
+        add('دفعات الفواتير', invoices.flatMap(i => (i.paymentHistory || []).map(p => ({ الفاتورة: i.id, العميل: i.customerName, التاريخ: p.date, المبلغ: p.amount, النوع: p.type === 'carried' ? 'مُرحّل' : 'نقدي', ملاحظة: p.note || '' }))));
+        add('المخزون', inventory.map(p => ({ الكود: p.code, الصنف: p.name, الكمية: p.qty, الوحدة: p.unit, السعر: p.price })));
+        add('المشتريات', purchases.map(p => ({ ...p })));
+        add('المصروفات', companyExpenses.map(p => ({ ...p })));
+        add('حساب المكن', machineEntries.map(e => ({ العميل: e.customerName, التاريخ: e.date, النوع: e.kind, البند: e.desc, الكمية: e.qty, السعر: e.price, الإجمالي: e.total })));
+        add('دفعات المكن', machinePayments.map(p => ({ العميل: p.customerName, التاريخ: p.date, المبلغ: p.amount, ملاحظة: p.note || '' })));
+        XLSX.writeFile(wb, `protech-backup-${stamp()}.xlsx`);
+    };
+    if (window.XLSX) return build();
+    let s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = build;
+    s.onerror = () => alert('تعذر تحميل مكتبة Excel (تحقق من الإنترنت). استخدم نسخة JSON مؤقتاً.');
+    document.head.appendChild(s);
+};
+window.importBackupJSON = function (ev) {
+    let file = ev.target.files[0];
+    ev.target.value = '';
+    if (!file) return;
+    let reader = new FileReader();
+    reader.onload = () => {
+        try {
+            let d = JSON.parse(reader.result);
+            if (!Array.isArray(d.customers) || !Array.isArray(d.invoices)) throw new Error('bad');
+            if (!confirm(`سيتم استبدال كل البيانات الحالية بالنسخة (${d.invoices.length} فاتورة، ${d.customers.length} عميل). هل أنت متأكد؟`)) return;
+            if (!confirm('تأكيد أخير: هذا الإجراء لا يمكن التراجع عنه. يُنصح بتصدير نسخة من البيانات الحالية أولاً. المتابعة؟')) return;
+            if (Array.isArray(d.inventory)) inventory = d.inventory;
+            customers = d.customers; invoices = d.invoices;
+            purchases = d.purchases || []; companyExpenses = d.companyExpenses || [];
+            machineEntries = d.machineEntries || []; machinePayments = d.machinePayments || [];
+            if (d.settings) settings = { ...settings, ...d.settings, password: settings.password };
+            saveData(); refreshAllData();
+            alert('تم استرجاع النسخة الاحتياطية بنجاح.');
+        } catch (e) { alert('الملف غير صالح. اختر ملف نسخة احتياطية JSON صادر من البرنامج.'); }
+    };
+    reader.readAsText(file);
+};
+function injectBackupCard() {
+    let tab = document.getElementById('tab-settings');
+    if (!tab || document.getElementById('backupCard')) return;
+    let card = document.createElement('div');
+    card.id = 'backupCard'; card.className = 'bk-card';
+    card.innerHTML = `<h3><i class="fas fa-database"></i> النسخ الاحتياطي</h3>
+        <p class="v3-muted">صدّر كل البيانات (العملاء، الفواتير والدفعات، المخزون، المكن...) كنسخة تحفظها على جهازك. لا تتضمن كلمة المرور.</p>
+        <div class="bk-row">
+            <button class="v3-btn" onclick="exportBackupJSON()"><i class="fas fa-file-code"></i> تصدير JSON</button>
+            <button class="v3-btn green" onclick="exportBackupExcel()"><i class="fas fa-file-excel"></i> تصدير Excel</button>
+            <button class="v3-btn gray" onclick="document.getElementById('bkFile').click()"><i class="fas fa-upload"></i> استرجاع من JSON</button>
+            <input type="file" id="bkFile" accept=".json,application/json" style="display:none" onchange="importBackupJSON(event)">
+        </div>`;
+    tab.appendChild(card);
+}
+
+// =====================================================================
+// 6) نموذج الفاتورة الجديد (فاتح وبسيط) + إضافة صنف جديد من داخله
+// =====================================================================
+function injectInvoiceModalV2() {
+    let modal = document.getElementById('newInvoiceModal');
+    if (!modal || modal.dataset.v3) return;
+    modal.dataset.v3 = '1';
+    modal.innerHTML = `
+    <div class="modal-content v3-inv">
+      <div class="v3-inv-head"><h3 id="invoiceFormTitle"><i class="fas fa-file-invoice-dollar"></i> إنشاء فاتورة مبيعات جديدة</h3>
+        <span class="close-btn" onclick="closeNewInvoiceModal()">&times;</span></div>
+      <div class="v3-inv-body">
+        <input type="hidden" id="editingInvoiceIndex" value="">
+        <div class="v3-sec">
+          <label class="v3-lab">1) العميل</label>
+          <select id="invoiceCustomerSelect" onchange="handleCustomerSelectChange()"><option value="">-- اختر عميل مسجل --</option></select>
+          <div id="newCustomerDiv" class="v3-newcust" style="display:none">
+            <input class="v3-in" type="text" id="newCustomerName" placeholder="اسم العميل الجديد">
+            <input class="v3-in" type="text" id="newCustomerPhone" placeholder="رقم الهاتف">
+            <input class="v3-in" type="text" id="newCustomerAddress" placeholder="العنوان">
+          </div>
+          <div id="custDebtInfoBox" class="v3-info" style="display:none"></div>
+          <div id="includeOldBalanceRow" class="v3-incl" style="display:none">
+            <input type="checkbox" id="includeOldBalanceCheckbox" onchange="toggleIncludeOldBalance()" style="width:18px;height:18px;cursor:pointer">
+            <label for="includeOldBalanceCheckbox" id="includeOldBalanceLabel" style="cursor:pointer;margin:0;font-size:13px">تضمين هذا الرصيد في الفاتورة الحالية</label>
+          </div>
+          <input type="hidden" id="invoiceOldBalance" value="0">
+          <input type="hidden" id="invoiceOldBalanceType" value="none">
+          <input type="hidden" id="invoiceOldBalanceDate" value="">
+        </div>
+
+        <div class="v3-sec">
+          <div class="v3-sec-head"><label class="v3-lab">2) الأصناف</label>
+            <button type="button" class="v3-link" onclick="inv2ToggleNew()"><i class="fas fa-plus"></i> صنف جديد مش في المخزن</button></div>
+          <div class="v3-search"><i class="fas fa-search"></i>
+            <input type="text" id="inv2Search" autocomplete="off" placeholder="ابحث عن صنف بالاسم أو الكود ثم اضغط عليه لإضافته…"
+              oninput="inv2Search()" onfocus="inv2Search()" onblur="setTimeout(()=>{let r=document.getElementById('inv2Results');if(r)r.style.display='none'},180)" onkeydown="inv2SearchKey(event)">
+            <div class="v3-results" id="inv2Results"></div></div>
+          <div class="v3-newprod" id="inv2NewProd">
+            <div class="g">
+              <div><label>اسم الصنف الجديد</label><input class="v3-in" id="inv2NpName" placeholder="مثال: رأس طباعة"></div>
+              <div><label>سعر البيع</label><input class="v3-in" type="number" id="inv2NpPrice" min="0" placeholder="0"></div>
+              <div><label>الوحدة</label><select class="v3-in" id="inv2NpUnit"><option>قطعة</option><option>لتر</option><option>لفة</option><option>علبة</option><option>كيلو</option><option>متر</option></select></div>
+              <div><label>المتوفر بالمخزن</label><input class="v3-in" type="number" id="inv2NpStock" min="0" value="10"></div>
+            </div>
+            <div style="margin-top:10px;display:flex;gap:8px"><button type="button" class="v3-btn green sm" onclick="inv2SaveNew()"><i class="fas fa-check"></i> حفظ في المخزن وإضافته للفاتورة</button>
+              <button type="button" class="v3-btn gray sm" onclick="inv2ToggleNew(false)">إلغاء</button></div>
+          </div>
+          <div class="v3-items-wrap">
+            <table class="v3-items"><thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th><th></th></tr></thead>
+              <tbody id="invoiceItemsBody"></tbody></table>
+            <div class="v3-empty" id="inv2Empty"><i class="fas fa-box-open" style="font-size:22px;display:block;margin-bottom:6px"></i>لسه ماضفتش أي صنف — ابحث فوق واختار الصنف</div>
+          </div>
+        </div>
+
+        <div class="v3-sec v3-two">
+          <div class="box">
+            <label class="v3-lab">خصم % (اختياري)</label>
+            <input class="v3-in" type="number" id="invoiceDiscountPercent" value="0" min="0" max="100" oninput="calculateInvoiceTotal()">
+            <label class="v3-lab" style="margin-top:12px">3) المدفوع الآن (كاش)</label>
+            <input class="v3-in" type="number" id="invoicePaidAmountInput" value="0" oninput="handlePaidAmountManualEdit()" style="font-weight:700;font-size:15px">
+            <div class="v3-chips"><button type="button" onclick="inv2PayFull()">دفع كامل</button><button type="button" onclick="inv2PayNone()">آجل (لم يدفع)</button></div>
+            <div id="invoicePaymentStatusDisplay" style="margin-top:9px;font-size:13px;font-weight:700"></div>
+          </div>
+          <div class="v3-total"><span>الإجمالي المستحق على الفاتورة</span><h2 id="invoiceFinalTotalDisplay">0 ج.م</h2></div>
+        </div>
+      </div>
+      <div class="v3-inv-foot">
+        <button type="button" class="save" id="invoiceSubmitBtn" onclick="createNewInvoice(event)"><i class="fas fa-save"></i> حفظ وعرض الفاتورة</button>
+        <button type="button" class="cancel" onclick="closeNewInvoiceModal()">إلغاء</button>
+      </div>
+    </div>`;
+}
+
+// صف صنف جديد في الفاتورة. الحقول الأساسية (inv-item-code / qty / price) نفس أسماء الكود القديم عشان الحفظ والتعديل يشتغلوا كما هم
+window.addInvoiceItemRow = function (selectedCode = '', selectedQty = 1) {
+    let tbody = document.getElementById('invoiceItemsBody');
+    if (!tbody || !selectedCode) return null;
+    let p = inventory.find(i => i.code === selectedCode);
+    let tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td class="nm"><b>${esc(p ? p.name : selectedCode)}</b><small>${esc(selectedCode)}${p ? ' · متاح ' + p.qty + ' ' + esc(p.unit || '') : ''}</small>
+            <input type="hidden" class="inv-item-code" value="${esc(selectedCode)}"></td>
+        <td><div class="v3-step"><button type="button" onclick="inv2Step(this,1)">+</button>
+            <input type="number" class="inv-item-qty" min="1" value="${selectedQty}" oninput="calculateInvoiceTotal()">
+            <button type="button" onclick="inv2Step(this,-1)">−</button></div></td>
+        <td><input type="number" class="inv-item-price" value="${p ? p.price : 0}" oninput="calculateInvoiceTotal()"></td>
+        <td class="inv-item-total-cell">0 ج.م</td>
+        <td><button type="button" class="v3-del" onclick="this.closest('tr').remove();calculateInvoiceTotal()"><i class="fas fa-trash"></i></button></td>`;
+    tbody.appendChild(tr);
+    calculateInvoiceTotal();
+    return tr;
+};
+window.updateRowPrice = function () { calculateInvoiceTotal(); };
+window.inv2Step = function (btn, d) {
+    let inp = btn.parentNode.querySelector('.inv-item-qty');
+    inp.value = Math.max(1, (Number(inp.value) || 1) + d);
+    calculateInvoiceTotal();
+};
+
+let inv2Matches = [], inv2Active = 0;
+window.inv2Search = function () {
+    let inp = document.getElementById('inv2Search'), box = document.getElementById('inv2Results');
+    if (!inp || !box) return;
+    let q = inp.value.toLowerCase().trim();
+    inv2Matches = inventory.map((p, i) => ({ p, i }))
+        .filter(x => !q || (x.p.name || '').toLowerCase().includes(q) || (x.p.code || '').toLowerCase().includes(q)).slice(0, 40);
+    inv2Active = 0;
+    let html = inv2Matches.map((x, k) => `<div class="v3-res ${k === 0 ? 'act' : ''}" onmousedown="event.preventDefault();inv2Pick(${x.i})">
+        <div>${esc(x.p.name)}<br><small>${esc(x.p.code)} · متاح ${x.p.qty} ${esc(x.p.unit || '')}</small></div><div class="pr">${fmt(x.p.price)} ج.م</div></div>`).join('');
+    if (!inv2Matches.length) html = `<div class="v3-res" onmousedown="event.preventDefault();inv2ToggleNew(true,'${enc(inp.value.trim())}')"><div>مفيش صنف بالاسم ده — <b style="color:#0284c7">+ أضفه كصنف جديد</b></div></div>`;
+    box.innerHTML = html; box.style.display = 'block';
+};
+window.inv2SearchKey = function (e) {
+    let box = document.getElementById('inv2Results');
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        inv2Active = Math.max(0, Math.min(inv2Matches.length - 1, inv2Active + (e.key === 'ArrowDown' ? 1 : -1)));
+        box.querySelectorAll('.v3-res').forEach((el, k) => el.classList.toggle('act', k === inv2Active));
+    } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (inv2Matches[inv2Active]) window.inv2Pick(inv2Matches[inv2Active].i);
+    } else if (e.key === 'Escape') box.style.display = 'none';
+};
+window.inv2Pick = function (i) {
+    let p = inventory[i];
+    if (!p) return;
+    let existing = Array.from(document.querySelectorAll('#invoiceItemsBody tr')).find(tr => tr.querySelector('.inv-item-code').value === p.code);
+    if (existing) window.inv2Step(existing.querySelector('.v3-step button'), 1);
+    else window.addInvoiceItemRow(p.code, 1);
+    let inp = document.getElementById('inv2Search');
+    inp.value = ''; document.getElementById('inv2Results').style.display = 'none'; inp.focus();
+};
+window.inv2ToggleNew = function (show, encName) {
+    let box = document.getElementById('inv2NewProd');
+    let open = (show === undefined) ? box.style.display === 'none' || !box.style.display : show;
+    box.style.display = open ? 'block' : 'none';
+    if (open) {
+        if (encName) document.getElementById('inv2NpName').value = dec(encName);
+        document.getElementById('inv2Results').style.display = 'none';
+        setTimeout(() => document.getElementById('inv2NpName').focus(), 30);
+    }
+};
+window.inv2SaveNew = function () {
+    let name = document.getElementById('inv2NpName').value.trim();
+    let price = Number(document.getElementById('inv2NpPrice').value);
+    let stock = Number(document.getElementById('inv2NpStock').value) || 0;
+    let unit = document.getElementById('inv2NpUnit').value;
+    if (!name) { alert('اكتب اسم الصنف.'); return; }
+    if (isNaN(price) || price < 0) { alert('اكتب سعر البيع.'); return; }
+    if (inventory.some(p => (p.name || '').trim() === name) && !confirm('يوجد صنف بنفس الاسم في المخزن. هل تريد إضافة صنف جديد بنفس الاسم؟')) return;
+    let code, n = Date.now() % 1000000;
+    do { code = 'PR-' + (n++); } while (inventory.some(p => p.code === code));
+    inventory.push({ code, name, qty: stock, unit, price });
+    saveData(); renderInventory(); renderDashboard();
+    window.addInvoiceItemRow(code, 1);
+    ['inv2NpName', 'inv2NpPrice'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('inv2NpStock').value = 10;
+    window.inv2ToggleNew(false);
+};
+window.inv2PayFull = function () { invoicePaidManuallyEdited = false; calculateInvoiceTotal(); };
+window.inv2PayNone = function () { document.getElementById('invoicePaidAmountInput').value = 0; window.handlePaidAmountManualEdit(); };
+function inv2SyncEmpty() {
+    let empty = document.getElementById('inv2Empty'), tb = document.getElementById('invoiceItemsBody');
+    if (empty && tb) empty.style.display = tb.children.length ? 'none' : 'block';
+}
+// نلف الدوال الأصلية عشان نحدّث حالة "فاضي" ونصفّر البحث عند فتح فاتورة جديدة
+(function () {
+    let origCalc = window.calculateInvoiceTotal;
+    window.calculateInvoiceTotal = function () { let r = origCalc.apply(this, arguments); inv2SyncEmpty(); return r; };
+    let origNew = window.openNewInvoiceModal;
+    window.openNewInvoiceModal = function () {
+        origNew.apply(this, arguments);
+        let s = document.getElementById('inv2Search'); if (s) s.value = '';
+        window.inv2ToggleNew(false);
+        inv2SyncEmpty();
+    };
+})();
+
+// =====================================================================
+// حقن المودالات (كشف الحساب + السداد) — مرة واحدة
+// =====================================================================
+function injectV3Modals() {
+    if (document.getElementById('stmtModal')) return;
+    let wrap = document.createElement('div');
+    wrap.innerHTML = `
+    <div id="stmtModal" class="modal" style="display:none"><div class="modal-content st-card">
+        <div class="modal-header"><h2><i class="fas fa-file-invoice"></i> كشف حساب العميل</h2><span class="close-btn" onclick="closeStatement()">&times;</span></div>
+        <div class="st-filters">
+            <select id="stCustomer" class="v3-in" onchange="stChangeCustomer()" style="min-width:170px"></select>
+            <label>من <input type="date" class="v3-in" id="stFrom" onchange="renderStatement()"></label>
+            <label>إلى <input type="date" class="v3-in" id="stTo" onchange="renderStatement()"></label>
+            <select id="stStatus" class="v3-in" onchange="renderStatement()">
+                <option value="all">كل الفواتير</option><option value="unpaid">عليها متبقي</option>
+                <option value="partial">سداد جزئي</option><option value="paid">مسددة بالكامل</option></select>
+            <input type="search" class="v3-in" id="stSearch" placeholder="رقم فاتورة أو صنف…" oninput="renderStatement()">
+            <button class="v3-btn gray sm" onclick="stClear()">مسح الفلتر</button>
+        </div>
+        <div class="modal-body" id="stBody"></div>
+        <div class="modal-footer">
+            <button class="v3-btn green" onclick="stPay()"><i class="fas fa-hand-holding-dollar"></i> تسجيل سداد</button>
+            <button class="v3-btn wa" onclick="stWhats()"><i class="fab fa-whatsapp"></i> إرسال واتساب</button>
+            <button class="v3-btn" onclick="stPrint()"><i class="fas fa-print"></i> طباعة / PDF</button>
+            <button class="v3-btn gray" onclick="closeStatement()">إغلاق</button>
+        </div></div></div>
+
+    <div id="custPayModal" class="modal" style="display:none"><div class="modal-content cp-card">
+        <div class="modal-header"><h2 id="cpTitle">سداد</h2><span class="close-btn" onclick="closeCustPay()">&times;</span></div>
+        <div class="modal-body">
+            <div class="cp-top"><div>إجمالي المستحق<b id="cpDue">0</b></div><div>عدد البنود غير المسددة<b id="cpCount">0</b></div></div>
+            <div class="cp-modes"><button id="cpModeAuto" onclick="cpSetMode('auto')"><i class="fas fa-bolt"></i> سداد سريع (الأقدم أولاً)</button>
+                <button id="cpModeManual" onclick="cpSetMode('manual')"><i class="fas fa-list-check"></i> أختار الفواتير بنفسي</button></div>
+            <p id="cpHint" class="v3-muted" style="margin-bottom:8px"></p>
+            <div id="cpAutoBox" style="display:flex;gap:8px"><input type="number" class="v3-in" id="cpAmount" min="0" placeholder="المبلغ المدفوع" oninput="cpRecalc()" style="flex:1;font-size:16px;font-weight:700">
+                <button class="v3-btn gray" onclick="cpPayAll()">سداد الكل</button></div>
+            <table class="cp-table"><thead><tr><th>التاريخ</th><th>الفاتورة</th><th>الإجمالي</th><th>المتبقي</th><th>العمر</th><th>يُسدَّد الآن</th></tr></thead><tbody id="cpRows"></tbody></table>
+            <div id="cpSummary" class="cp-sum"></div>
+            <input type="text" class="v3-in" id="cpNote" placeholder="ملاحظة على الدفعة (اختياري)" style="width:100%;margin-top:10px">
+        </div>
+        <div class="modal-footer"><button class="v3-btn gray" onclick="closeCustPay()">إلغاء</button>
+            <button class="v3-btn green" id="cpConfirm" onclick="cpConfirm()"><i class="fas fa-check"></i> تأكيد السداد وطباعة الإيصال</button></div>
+    </div></div>`;
+    while (wrap.firstChild) document.body.appendChild(wrap.firstChild);
+}
+
+// ---------- تشغيل ----------
+injectV3Css();
+injectInvoiceModalV2();
+injectBackupCard();
