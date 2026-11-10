@@ -74,6 +74,7 @@
                 <li onclick="switchTab('sales', this)"><i class="fas fa-cash-register"></i> المبيعات والفواتير</li>
                 <li onclick="switchTab('purchases', this)"><i class="fas fa-shopping-cart"></i> المشتريات والتوريد</li>
                 <li onclick="switchTab('customers', this)"><i class="fas fa-users"></i> دليل العملاء</li>
+                <li onclick="switchTab('machines', this)"><i class="fas fa-gears"></i> حساب المكن</li>
                 <!-- زرار إدارة الحضور والمرتبات في القائمة الجانبية -->
                 <li onclick="switchTab('expenses', this)"><i class="fas fa-id-badge"></i> حضور وموظفي الشركة</li>
                 <li onclick="switchTab('expenseSheet', this)"><i class="fas fa-receipt"></i> كشف المصروفات</li>
@@ -337,9 +338,18 @@
                     </div>
                     <button class="btn-primary" onclick="openAddCustomerModal()"><i class="fas fa-user-plus"></i> إضافة عميل جديد</button>
                 </div>
+                <div id="custAgingStrip" class="aging-strip"></div>
                 <div class="card-table-wrapper">
-                    <div class="table-toolbar">
-                        <input type="text" id="searchCustomers" placeholder="بحث بالاسم أو رقم الهاتف..." onkeyup="filterCustomers()">
+                    <div class="table-toolbar flex-toolbar">
+                        <input type="text" id="searchCustomers" placeholder="بحث بالاسم أو رقم الهاتف..." onkeyup="filterCustomers()" style="flex:1;min-width:200px">
+                        <select id="custDebtFilter" onchange="filterCustomers()" style="padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13.5px;background:#fff">
+                            <option value="all">كل العملاء</option>
+                            <option value="debt">عليهم مديونية (فواتير أو مكن)</option>
+                            <option value="over30">متأخرين أكثر من 30 يوم</option>
+                            <option value="over60">متأخرين أكثر من 60 يوم</option>
+                            <option value="over90">متأخرين أكثر من 90 يوم</option>
+                            <option value="credit">لهم رصيد</option>
+                        </select>
                     </div>
                     <div class="table-responsive">
                     <table class="data-table">
@@ -347,8 +357,9 @@
                             <tr>
                                 <th>اسم العميل</th>
                                 <th>رقم الهاتف / الواتساب</th>
-                                <th>المديونية الحالية (عليه)</th>
-                                <th>إجمالي المشتريات</th>
+                                <th>مديونية الفواتير</th>
+                                <th>حساب المكن</th>
+                                <th>الإجمالي المطلوب</th>
                                 <th>آخر عملية شراء</th>
                                 <th>الإجراءات</th>
                             </tr>
@@ -359,6 +370,11 @@
                     </table>
                     </div>
                 </div>
+            </section>
+
+            <!-- Machines Account Tab: كل المحتوى بيتبني من script.js -->
+            <section id="tab-machines" class="tab-content">
+                <div id="mcRoot"></div>
             </section>
 
             <!-- Expenses & Attendance Tab (تم تعديل الترتيب ليصبح الكروت مصغرة بالأعلى والجدول بالأسفل + إضافة كشف الغياب والتقرير الشامل) -->
