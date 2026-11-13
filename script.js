@@ -167,6 +167,7 @@ function refreshAllData() {
     renderExpensesTab();
     renderMachinesTab();
     renderOverdueAlert();
+    renderDashAging();
 }
 window.refreshAllData = refreshAllData;
 
@@ -273,11 +274,8 @@ function renderDashboard() {
         let percent = totalInvoiced > 0 ? Math.round((totalCollected / totalInvoiced) * 100) : 100;
         percent = Math.max(0, Math.min(100, percent));
 
-        const CIRCUMFERENCE = 2 * Math.PI * 52; // نفس نصف قطر الدائرة في الـ SVG (r=52)
-        let offset = CIRCUMFERENCE * (1 - percent / 100);
-        gaugeCircle.style.strokeDasharray = CIRCUMFERENCE.toFixed(1);
-        gaugeCircle.style.strokeDashoffset = offset.toFixed(1);
-        gaugeCircle.style.stroke = percent >= 70 ? '#10b981' : (percent >= 40 ? '#f59e0b' : '#ef4444');
+        gaugeCircle.style.width = percent + '%';
+        gaugeCircle.style.background = percent >= 70 ? '#34d399' : (percent >= 40 ? '#fbbf24' : '#f87171');
 
         let percentText = document.getElementById('gaugePercentText');
         if(percentText) percentText.innerText = percent + '%';
@@ -3377,3 +3375,15 @@ function injectV3Modals() {
 injectV3Css();
 injectInvoiceModalV2();
 injectBackupCard();
+
+// أعمار الديون في لوحة المؤشرات (شرائط بدل الدائرة القديمة)
+function renderDashAging() {
+    let box = document.getElementById('dashAging');
+    if (!box) return;
+    let A = agingTotals(), max = Math.max(1, ...A.totals), all = sumOf(A.totals, x => x);
+    box.innerHTML = `<h3><i class="fas fa-hourglass-half" style="color:#ea580c"></i> أعمار الديون على العملاء <span class="v3-muted" style="margin-right:auto;font-weight:600">${fmt(all)} ج.م</span></h3>` +
+        A.totals.map((t, i) => `<div class="ag-row"><span>${BUCKET_LABELS[i]}</span>
+            <div class="bar"><i style="width:${Math.round(t / max * 100)}%;background:${BUCKET_COLORS[i]}"></i></div>
+            <b>${fmt(t)} ج.م</b></div>`).join('') +
+        (all <= 0 ? '<p class="v3-muted" style="margin-top:6px"><i class="fas fa-circle-check" style="color:#10b981"></i> مفيش مديونيات معلّقة.</p>' : '');
+}
