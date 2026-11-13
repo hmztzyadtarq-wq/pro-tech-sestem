@@ -1,6 +1,7 @@
 /* =========================================================
    ProTech ERP — Professional Modern Styling (نسخة محسّنة)
    ========================================================= */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
 :root {
     --primary: #1e3a8a;
     --primary-light: #3b82f6;
@@ -732,4 +733,130 @@ body {
 /* منع تكبير الصفحة بالإصبع مع الحفاظ على إمكانية التمرير */
 @media screen and (max-width: 768px) {
     div, section, header, main { max-width: 100%; box-sizing: border-box; }
+}
+
+/* =====================================================================
+   v4 — تصميم مضغوط ومنظم للّاب توب (خط Cairo + قائمة مقسمة + مؤشرات جديدة)
+   ===================================================================== */
+:root { --sidebar-width: 232px; --radius: 12px; --accent: #0284c7; }
+
+* { font-family: 'Cairo', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+html { font-size: 14px; }
+body { font-size: 13.5px; line-height: 1.55; -webkit-font-smoothing: antialiased; background: #f1f5f9; }
+
+/* ---- منع التمرير الأفقي للصفحة كلها ---- */
+.main-content { min-width: 0; padding: 18px 22px; width: calc(100% - var(--sidebar-width)); }
+.tab-content { min-width: 0; }
+
+/* ---- القائمة الجانبية: أقسام + حجم أصغر ---- */
+.brand-header { padding: 14px 14px; }
+.logo-circle { width: 38px; height: 38px; font-size: 16px; margin-bottom: 6px; }
+.brand-header h1 { font-size: 16px; }
+.sidebar .nav-links { padding: 8px 8px 14px; }
+.nav-links li { padding: 9px 12px; margin-bottom: 2px; font-size: 13.5px; gap: 10px; }
+.nav-links li i { width: 17px; font-size: 14px; }
+.nav-links li.nav-section {
+    padding: 14px 12px 5px; margin: 0; font-size: 11px; font-weight: 700; letter-spacing: .4px;
+    color: #64748b; cursor: default; pointer-events: none; border-right: none; background: none;
+}
+.nav-links li.nav-section:first-child { padding-top: 6px; }
+.nav-links li.ext { font-size: 12.5px; padding: 7px 12px; color: #94a3b8; }
+.nav-links li.ext i { font-size: 12px; }
+.sidebar-footer { padding: 10px 14px; font-size: 12px; }
+.sidebar-footer button { padding: 7px 10px !important; font-size: 12.5px; }
+
+/* ---- الشريط العلوي ---- */
+.top-bar { padding: 9px 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(15,23,42,.06); }
+.search-global { padding: 7px 13px; }
+.search-global input { font-size: 13px; }
+.avatar { width: 32px; height: 32px; font-size: 12px; }
+.badge-live { padding: 4px 10px; font-size: 11.5px; }
+
+/* ---- عناوين الصفحات ---- */
+.page-header-title { margin-bottom: 14px; }
+.page-header-title h1 { font-size: 19px; margin-bottom: 2px; }
+.page-header-title p { font-size: 12.5px; }
+
+/* ---- الجداول: بدون سكرول أفقي ---- */
+.data-table { min-width: 0; }
+.data-table th, .data-table td { padding: 9px 11px; font-size: 13px; white-space: normal; vertical-align: middle; }
+.data-table th { font-size: 12.5px; white-space: nowrap; }
+.data-table td:nth-child(2) { white-space: normal; }
+.table-toolbar { padding: 10px 14px; }
+.table-toolbar input { padding: 7px 12px; font-size: 13px; width: 280px; }
+.row-actions { flex-wrap: wrap; gap: 4px; }
+.btn-action { padding: 5px 9px !important; font-size: 12px !important; border-radius: 6px; white-space: nowrap; }
+.badge-success, .badge-danger, .badge-neutral { padding: 3px 9px; font-size: 11.5px; }
+.btn-primary, .btn-success, .btn-secondary { padding: 8px 16px; font-size: 13px; }
+.modal-header h2 { font-size: 15px; }
+
+/* ---- كروت المؤشرات ---- */
+.stats-grid { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.stat-card {
+    position: relative; overflow: hidden; padding: 14px 16px; gap: 12px; border-radius: 14px;
+    border: 1px solid #e8edf3; box-shadow: 0 1px 2px rgba(15,23,42,.04);
+}
+.stat-card::after { content: ''; position: absolute; top: 0; right: 0; bottom: 0; width: 4px; background: var(--k, #3b82f6); }
+.stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(15,23,42,.08); }
+.stat-card:nth-child(1) { --k: #3b82f6; } .stat-card:nth-child(2) { --k: #10b981; }
+.stat-card:nth-child(3) { --k: #f59e0b; } .stat-card:nth-child(4) { --k: #8b5cf6; }
+.stat-card:nth-child(5) { --k: #14b8a6; } .stat-card:nth-child(6) { --k: #ef4444; }
+.stat-icon { width: 42px; height: 42px; font-size: 17px; border-radius: 12px; opacity: .95; }
+.stat-info h3 { font-size: 12px; margin-bottom: 1px; }
+.stat-info span { font-size: 19px; line-height: 1.25; }
+.stat-info { color: #94a3b8; font-size: 11.5px; }
+
+/* ---- صف التحصيل + أعمار الديون ---- */
+.dash-row { display: grid; grid-template-columns: 1.1fr 1fr; gap: 12px; margin-bottom: 14px; }
+.collect-card, .aging-dash {
+    background: #fff; border: 1px solid #e8edf3; border-radius: 14px; padding: 16px 18px;
+    box-shadow: 0 1px 2px rgba(15,23,42,.04);
+}
+.collect-card { background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); border: none; color: #fff; }
+.collect-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.collect-top h3 { font-size: 15px; color: #fff; display: flex; gap: 8px; align-items: center; }
+.collect-top p { font-size: 12px; color: #bfdbfe; margin-top: 3px; }
+.collect-pct { font-size: 34px; font-weight: 800; line-height: 1; color: #fff; }
+.collect-bar { height: 10px; background: rgba(255,255,255,.18); border-radius: 10px; margin: 14px 0 12px; overflow: hidden; }
+.collect-bar i { display: block; height: 100%; width: 0; border-radius: 10px; background: #34d399; transition: width .8s ease; }
+.collect-nums { display: flex; gap: 12px; }
+.collect-nums > div { flex: 1; background: rgba(255,255,255,.1); border-radius: 10px; padding: 8px 12px; }
+.collect-nums span { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #bfdbfe; }
+.collect-nums b { font-size: 15px; color: #fff; }
+.collect-nums .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.dot-green { background: #34d399; } .dot-red { background: #f87171; }
+.aging-dash h3 { font-size: 14.5px; color: #0f172a; margin-bottom: 10px; display: flex; gap: 8px; align-items: center; }
+.ag-row { display: grid; grid-template-columns: 92px 1fr auto; gap: 10px; align-items: center; margin-bottom: 8px; font-size: 12.5px; color: #475569; }
+.ag-row .bar { height: 8px; background: #f1f5f9; border-radius: 8px; overflow: hidden; }
+.ag-row .bar i { display: block; height: 100%; border-radius: 8px; }
+.ag-row b { color: #0f172a; font-size: 12.5px; min-width: 78px; text-align: left; }
+
+/* ---- باقي اللوحة ---- */
+.analytics-card-large { padding: 16px 18px; margin-bottom: 14px; border-radius: 14px; }
+.card-header-flex { margin-bottom: 10px; }
+.card-header-flex h2 { font-size: 14.5px; }
+.chart-container { height: 240px; }
+.dashboard-grid-two { gap: 12px; }
+.sub-card { padding: 14px 16px; border-radius: 14px; }
+.sub-card h3 { font-size: 14px; margin-bottom: 10px; }
+#recentInvoicesTable { width: 100%; border-collapse: collapse; }
+#recentInvoicesTable th { background: #f8fafc; color: #64748b; font-size: 12px; padding: 8px 10px; text-align: right; border-bottom: 1px solid #e2e8f0; }
+#recentInvoicesTable td { padding: 8px 10px; font-size: 13px; border-bottom: 1px solid #f1f5f9; }
+#overdueAlert { border-radius: 12px; padding: 10px 14px; margin-bottom: 12px; }
+
+@media (max-width: 1280px) {
+    :root { --sidebar-width: 212px; }
+    .main-content { padding: 14px 16px; }
+    .data-table th, .data-table td { padding: 8px 8px; font-size: 12.5px; }
+    .nav-links li { font-size: 13px; padding: 8px 10px; }
+}
+@media (max-width: 992px) {
+    :root { --sidebar-width: 0px; }
+    .dash-row { grid-template-columns: 1fr; }
+    .main-content { width: 100%; }
+}
+@media (max-width: 768px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .collect-pct { font-size: 28px; }
+    .collect-nums { flex-direction: column; }
 }
