@@ -75,6 +75,9 @@
 
                 <li class="nav-section">المبيعات والعملاء</li>
                 <li onclick="switchTab('sales', this)"><i class="fas fa-cash-register"></i> المبيعات والفواتير</li>
+                <li onclick="switchTab('archive', this)"><i class="fas fa-box-archive"></i> أرشيف الفواتير</li>
+                <li onclick="switchTab('returns', this)"><i class="fas fa-rotate-left"></i> المرتجعات</li>
+                <li onclick="switchTab('consign', this)"><i class="fas fa-suitcase-rolling"></i> بضاعة الأمانة</li>
                 <li onclick="switchTab('customers', this)"><i class="fas fa-users"></i> دليل العملاء</li>
                 <li onclick="switchTab('machines', this)"><i class="fas fa-gears"></i> حساب المكن</li>
 
@@ -381,6 +384,10 @@
             </section>
 
             <!-- Machines Account Tab: كل المحتوى بيتبني من script.js -->
+            <section id="tab-returns" class="tab-content"><div id="rtRoot"></div></section>
+            <section id="tab-archive" class="tab-content"><div id="arRoot"></div></section>
+            <section id="tab-consign" class="tab-content"><div id="cnRoot"></div></section>
+
             <section id="tab-machines" class="tab-content">
                 <div id="mcRoot"></div>
             </section>
@@ -500,50 +507,7 @@
             </section>
 
             <section id="tab-settings" class="tab-content">
-                <div class="page-header-title">
-                    <h1>إعدادات النظام والربط الآلي</h1>
-                    <p>تخصيص بيانات الشركة، بيانات الفاتورة، ورقم إرسال الفواتير عبر الواتساب</p>
-                </div>
-                <div class="settings-card">
-                    <form onsubmit="saveSettings(event)">
-                        <div class="form-group">
-                            <label>اسم الشركة (يظهر في الفاتورة والموقع):</label>
-                            <input type="text" id="companyNameInput" value="شركة برو تيك للأحبار وماكينات الطباعة - ProTech">
-                        </div>
-                        <div class="form-group">
-                            <label>صاحب الشركة / المدير:</label>
-                            <input type="text" id="companyOwnerInput" value="وائل غنيم">
-                        </div>
-                        <div class="form-group">
-                            <label>رقم هاتف الواتساب الأساسي (يظهر في الفاتورة وللإرسال التلقائي):</label>
-                            <input type="text" id="whatsappNumberInput" value="01020008299">
-                        </div>
-                        <div class="form-group">
-                            <label>عنوان الشركة (يظهر في الفاتورة):</label>
-                            <input type="text" id="companyAddressInput" value="جمهورية مصر العربية - مدينة بدر">
-                        </div>
-                        <button type="submit" class="btn-primary">حفظ الإعدادات</button>
-                    </form>
-                </div>
-
-                <div class="settings-card" style="margin-top: 20px;">
-                    <h3 style="font-size: 16px; color: var(--dark); margin-bottom: 16px; display:flex; align-items:center; gap:8px;"><i class="fas fa-key"></i> تغيير كلمة مرور الدخول</h3>
-                    <form onsubmit="changeSystemPassword(event)">
-                        <div class="form-group">
-                            <label>كلمة المرور الحالية:</label>
-                            <input type="password" id="currentPasswordInput" required placeholder="ادخل كلمة المرور الحالية">
-                        </div>
-                        <div class="form-group">
-                            <label>كلمة المرور الجديدة:</label>
-                            <input type="password" id="newPasswordInput" required placeholder="4 حروف/أرقام على الأقل">
-                        </div>
-                        <div class="form-group">
-                            <label>تأكيد كلمة المرور الجديدة:</label>
-                            <input type="password" id="confirmPasswordInput" required placeholder="أعد كتابة كلمة المرور الجديدة">
-                        </div>
-                        <button type="submit" class="btn-primary" style="background:#f59e0b;"><i class="fas fa-shield-halved"></i> تغيير كلمة المرور</button>
-                    </form>
-                </div>
+                <div id="stRoot"></div>
             </section>
         </main>
     </div>
