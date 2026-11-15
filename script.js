@@ -1,7 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-analytics.js";
-import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, collection, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -19,7 +19,7 @@ const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const db = getFirestore(app);
 
-const LOW_STOCK_THRESHOLD = 20;
+// حد تنبيه المخزون بيتحدد من الإعدادات (lowStockLimit)
 
 // حالة نموذج الفاتورة: هل المستخدم عدّل "المبلغ المدفوع" يدوياً؟ (لو لأ، بنفترض سداد كامل تلقائياً ونتابع الإجمالي)
 let invoicePaidManuallyEdited = false;
@@ -92,6 +92,11 @@ let mainChartInstance = null;
 // Load data from Firebase on startup
 window.onload = async function() {
     await loadDataFromFirebase();
+    await ensureArchiveLoaded();
+    ensureArchiveBackfill();
+    applyAppearance();
+    fillSettingsV5(true);
+    resetIdle();
     refreshAllData();
     initChart();
 };
@@ -102,13 +107,16 @@ async function loadDataFromFirebase() {
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
             const data = docSnap.data();
-            if(data.inventory && data.inventory.length > 0) inventory = data.inventory;
-            if(data.customers && data.customers.length > 0) customers = data.customers;
+            if(Array.isArray(data.inventory)) inventory = data.inventory;
+            if(Array.isArray(data.customers)) customers = data.customers;
             if(data.invoices) invoices = data.invoices;
             if(data.purchases) purchases = data.purchases;
             if(data.companyExpenses) companyExpenses = data.companyExpenses;
             if(data.machineEntries) machineEntries = data.machineEntries;
             if(data.machinePayments) machinePayments = data.machinePayments;
+            if(data.returnsLog) returnsLog = data.returnsLog;
+            if(data.consignments) consignments = data.consignments;
+            if(data.stocktakes) stocktakes = data.stocktakes;
             if(data.settings) settings = { ...settings, ...data.settings };
         } else {
             await saveDataToFirebase();
@@ -122,6 +130,9 @@ async function loadDataFromFirebase() {
         companyExpenses = JSON.parse(localStorage.getItem('protech_expenses')) || companyExpenses;
         machineEntries = JSON.parse(localStorage.getItem('protech_machine_entries')) || machineEntries;
         machinePayments = JSON.parse(localStorage.getItem('protech_machine_payments')) || machinePayments;
+        returnsLog = JSON.parse(localStorage.getItem('protech_returns')) || returnsLog;
+        consignments = JSON.parse(localStorage.getItem('protech_consignments')) || consignments;
+        stocktakes = JSON.parse(localStorage.getItem('protech_stocktakes')) || stocktakes;
         settings = { ...settings, ...(JSON.parse(localStorage.getItem('protech_settings')) || {}) };
     }
 }
@@ -136,6 +147,9 @@ async function saveDataToFirebase() {
             companyExpenses,
             machineEntries,
             machinePayments,
+            returnsLog,
+            consignments,
+            stocktakes,
             settings,
             updatedAt: new Date().toISOString()
         });
@@ -152,6 +166,9 @@ function saveData() {
     localStorage.setItem('protech_expenses', JSON.stringify(companyExpenses));
     localStorage.setItem('protech_machine_entries', JSON.stringify(machineEntries));
     localStorage.setItem('protech_machine_payments', JSON.stringify(machinePayments));
+    localStorage.setItem('protech_returns', JSON.stringify(returnsLog));
+    localStorage.setItem('protech_consignments', JSON.stringify(consignments));
+    localStorage.setItem('protech_stocktakes', JSON.stringify(stocktakes));
     localStorage.setItem('protech_settings', JSON.stringify(settings));
     saveDataToFirebase();
 }
@@ -168,6 +185,11 @@ function refreshAllData() {
     renderMachinesTab();
     renderOverdueAlert();
     renderDashAging();
+    renderBackupAlert();
+    renderReturnsTab();
+    renderArchiveTab();
+    renderConsignTab();
+    fillSettingsV5();
 }
 window.refreshAllData = refreshAllData;
 
@@ -208,7 +230,7 @@ window.switchTab = function(tabId, el) {
 // ===================== لوحة المؤشرات =====================
 function renderDashboard() {
     let totalStock = inventory.reduce((sum, item) => sum + Number(item.qty), 0);
-    let totalSales = invoices.reduce((sum, inv) => sum + Number(inv.total), 0);
+    let totalSales = invoices.reduce((sum, inv) => sum + Number(inv.total), 0) - returnsTotals().value; // صافي بعد المرتجعات
     let totalPurchases = purchases.reduce((sum, p) => sum + Number(p.cost), 0);
     let totalProfit = totalSales - totalPurchases;
 
@@ -265,11 +287,10 @@ function renderDashboard() {
     // ===== المؤشر الدائري: نسبة تحصيل المبيعات (كام اتحصل فعلياً من إجمالي المبيعات) =====
     let gaugeCircle = document.getElementById('gaugeProgressCircle');
     if(gaugeCircle) {
-        let totalInvoiced = invoices.reduce((sum, inv) => sum + Number(inv.total || 0), 0);
-        let totalCollected = invoices.reduce((sum, inv) => {
-            let paidClamped = Math.min(Number(inv.paid || 0), Number(inv.total || 0));
-            return sum + Math.max(0, paidClamped);
-        }, 0);
+        // المبيعات الصافية (بدون تكرار الأرصدة المرحّلة، وبعد المرتجعات) مقابل النقدية المستلمة فعلياً
+        let totalInvoiced = invoices.reduce((sum, inv) => sum + Number(inv.total || 0) - signedOldOf(inv), 0) - returnsTotals().value;
+        let totalCollected = invoices.reduce((sum, inv) => { let b = invBreakdown(inv); return sum + b.initial + b.laterSum; }, 0) - returnsTotals().cash;
+        totalCollected = Math.max(0, totalCollected);
         let totalOutstanding = Math.max(0, totalInvoiced - totalCollected);
         let percent = totalInvoiced > 0 ? Math.round((totalCollected / totalInvoiced) * 100) : 100;
         percent = Math.max(0, Math.min(100, percent));
@@ -306,7 +327,7 @@ function renderDashboard() {
     let alertsList = document.getElementById('lowStockAlertsList');
     if(alertsList) {
         alertsList.innerHTML = '';
-        let lowItems = inventory.filter(i => Number(i.qty) < LOW_STOCK_THRESHOLD);
+        let lowItems = inventory.filter(i => Number(i.qty) < lowStockLimit());
         if(lowItems.length === 0) {
             alertsList.innerHTML = '<p style="color:#10b981; font-size:14px;"><i class="fas fa-check-circle"></i> جميع الأصناف في المخزون متوفرة.</p>';
         } else {
@@ -319,7 +340,7 @@ function renderDashboard() {
 
 // طباعة قائمة المنتجات الناقصة (بجانب لوحة تنبيهات نقص المخزون)
 window.printLowStockReport = function() {
-    let lowItems = inventory.filter(i => Number(i.qty) < LOW_STOCK_THRESHOLD);
+    let lowItems = inventory.filter(i => Number(i.qty) < lowStockLimit());
     let todayStr = new Date().toLocaleDateString('ar-EG');
 
     let rowsHtml = '';
@@ -355,7 +376,7 @@ window.printLowStockReport = function() {
         <body>
             <div style="text-align:center; margin-bottom:20px;">
                 <h2 style="color:#0284c7; margin:0;">Bro Tech - قائمة المنتجات التي قربت تخلص</h2>
-                <p style="color:#64748b; margin:5px 0;">تاريخ التقرير: ${todayStr} | حد التنبيه: أقل من ${LOW_STOCK_THRESHOLD} وحدة</p>
+                <p style="color:#64748b; margin:5px 0;">تاريخ التقرير: ${todayStr} | حد التنبيه: أقل من ${lowStockLimit()} وحدة</p>
             </div>
             <table>
                 <thead>
@@ -387,7 +408,7 @@ function renderInventory() {
         return;
     }
     inventory.forEach((item, index) => {
-        let lowClass = Number(item.qty) < LOW_STOCK_THRESHOLD ? 'style="color:#e11d48; font-weight:bold;"' : '';
+        let lowClass = Number(item.qty) < lowStockLimit() ? 'style="color:#e11d48; font-weight:bold;"' : '';
         tbody.innerHTML += `
             <tr>
                 <td>${item.code}</td>
@@ -1099,7 +1120,7 @@ window.createNewInvoice = function(e) {
         };
         invoices[editingIndex] = finalInvoiceObj;
     } else {
-        let invoiceId = 'INV-' + Math.floor(1000 + Math.random() * 9000);
+        let invoiceId = nextInvoiceId();
         let nowDate = new Date();
         let currentDate = nowDate.toLocaleDateString('ar-EG');
         finalInvoiceObj = {
@@ -1150,6 +1171,7 @@ window.createNewInvoice = function(e) {
         if(carriedInvoices.length) currentInvoiceRef.carriedInvoices = carriedInvoices;
     }
 
+    if(!isEditing) archiveAdd(finalInvoiceObj);
     saveData();
     refreshAllData();
     window.closeNewInvoiceModal();
@@ -1425,7 +1447,7 @@ window.showInvoiceModal = function(inv) {
         <div style="background: #fff; color: #000; padding: 20px; font-family: Tahoma, sans-serif; direction: rtl; text-align: right; width: 100%; box-sizing: border-box;">
             
             <div style="text-align: center; margin-bottom: 10px;">
-                <h1 style="margin: 0 0 5px 0; color: #0284c7; font-size: 24px; font-weight: bold;">${settings.companyName || 'Bro Tech'}</h1>
+                ${settings.logo ? `<img src="${settings.logo}" style="height:54px;display:block;margin:0 auto 6px">` : ''}<h1 style="margin: 0 0 5px 0; color: #0284c7; font-size: 24px; font-weight: bold;">${settings.companyName || 'Bro Tech'}</h1>
                 <p style="margin: 2px 0; font-size: 13px; color: #475569;">لصيانه و بيع جميع انواع مكن الطباعه</p>
             </div>
 
@@ -1465,6 +1487,7 @@ window.showInvoiceModal = function(inv) {
                 <p style="margin: 4px 0;">المدفوع: ${(inv.paid || 0).toLocaleString()} ج.م</p>
                 ${remainingLineHtml}
             </div>
+            ${settings.invFooter ? `<p style="text-align:center; font-size:12px; color:#64748b; margin-top:14px; border-top:1px dashed #cbd5e1; padding-top:8px;">${settings.invFooter}</p>` : ''}
         </div>
 
         <div class="no-print" style="text-align: center; margin-top: 15px; padding: 10px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
@@ -1605,7 +1628,7 @@ window.printInvoice = function() {
             <div style="width: 100%; max-width: 800px; margin: 0 auto; background: #fff; padding: 20px; box-sizing: border-box;">
                 
                 <div style="text-align: center; margin-bottom: 10px;">
-                    <h1 style="margin: 0 0 5px 0; color: #0284c7; font-size: 24px; font-weight: bold;">${settings.companyName || 'Bro Tech'}</h1>
+                    ${settings.logo ? `<img src="${settings.logo}" style="height:54px;display:block;margin:0 auto 6px">` : ''}<h1 style="margin: 0 0 5px 0; color: #0284c7; font-size: 24px; font-weight: bold;">${settings.companyName || 'Bro Tech'}</h1>
                     <p style="margin: 2px 0; font-size: 13px; color: #475569;">لصيانه و بيع جميع انواع مكن الطباعه</p>
                 </div>
 
@@ -2198,15 +2221,17 @@ function gotoTab(id) {
 function invBreakdown(inv) {
     let hist = inv.paymentHistory || [];
     let carriedList = hist.filter(p => p.type === 'carried');
-    let laterList = hist.filter(p => p.type !== 'carried');
+    let returnList = hist.filter(p => p.type === 'return');
+    let laterList = hist.filter(p => p.type !== 'carried' && p.type !== 'return'); // سداد نقدي فقط
     let laterSum = sumOf(laterList, p => p.amount);
     let carried = sumOf(carriedList, p => p.amount);
+    let returned = sumOf(returnList, p => p.amount);
     let paid = Number(inv.paid || 0);
-    let initial = inv.initialPaid != null ? Number(inv.initialPaid) : Math.max(0, paid - laterSum - carried);
+    let initial = inv.initialPaid != null ? Number(inv.initialPaid) : Math.max(0, paid - laterSum - carried - returned);
     let legacySettled = !carriedList.length && /تسوية رصيد/.test(inv.status || '');
     return {
         total: Number(inv.total || 0), paid, initial, laterList, laterSum,
-        carriedList, carried, remaining: Number(inv.remaining || 0), legacySettled
+        carriedList, carried, returnList, returned, remaining: Number(inv.remaining || 0), legacySettled
     };
 }
 
@@ -2421,8 +2446,9 @@ function openPrintWindow(title, bodyHtml) {
     w.document.close();
 }
 function companyHeader(title, subtitle) {
-    return `<div class="rp-head"><h1>${esc(settings.companyName || 'Bro Tech')} — ${esc(title)}</h1>
-        <p>${esc(settings.address || '')} ${settings.whatsapp ? ' | ' + esc(settings.whatsapp) : ''}</p>
+    let extra = [settings.address, settings.whatsapp, settings.email, settings.taxNo ? 'س.ت/ض: ' + settings.taxNo : ''].filter(Boolean).map(esc).join(' | ');
+    return `<div class="rp-head">${settings.logo ? `<img src="${settings.logo}" style="height:56px;display:block;margin:0 auto 6px">` : ''}
+        <h1>${esc(settings.companyName || 'Bro Tech')} — ${esc(title)}</h1><p>${extra}</p>
         ${subtitle ? `<p style="font-size:15px;color:#334155;margin-top:8px">${subtitle}</p>` : ''}</div>`;
 }
 
@@ -2498,15 +2524,18 @@ function statementRowHtml(r) {
     let run = total - bd.initial;
     let histHtml = (inv.paymentHistory || []).map(p => {
         run -= Number(p.amount || 0);
-        let isC = p.type === 'carried';
+        let isC = p.type === 'carried', isR = p.type === 'return';
         let after = run > 0.5 ? `بقي ${fmt(run)} من ${fmt(total)}` : 'اكتمل السداد';
-        return `<div class="rp-pay ${isC ? 'carried' : ''}"><i class="fas ${isC ? 'fa-share' : 'fa-hand-holding-dollar'}"></i>
-            ${esc(p.date || '')} — ${isC ? 'رُحّل ' + fmt(p.amount) + ' ج.م إلى فاتورة ' + esc(p.toInvoice || 'أحدث') : 'سدد ' + fmt(p.amount) + ' ج.م'}
-            <span class="rp-after">${after}</span>${(!isC && p.note) ? ' — ' + esc(p.note) : ''}</div>`;
+        let what = isC ? 'رُحّل ' + fmt(p.amount) + ' ج.م إلى فاتورة ' + esc(p.toInvoice || 'أحدث')
+            : isR ? 'مرتجع ' + esc(p.returnNo || '') + ' بقيمة ' + fmt(p.amount) + ' ج.م'
+                : 'سدد ' + fmt(p.amount) + ' ج.م';
+        return `<div class="rp-pay ${isC || isR ? 'carried' : ''}"><i class="fas ${isC ? 'fa-share' : (isR ? 'fa-rotate-left' : 'fa-hand-holding-dollar')}"></i>
+            ${esc(p.date || '')} — ${what}
+            <span class="rp-after">${after}</span>${(!isC && !isR && p.note) ? ' — ' + esc(p.note) : ''}</div>`;
     }).join('');
 
     let rem = bd.remaining, status;
-    if (rem <= 0.5) status = (bd.carried > 0.5 || bd.legacySettled) ? ['rp-b-carry', 'سُوّيت ضمن فاتورة أحدث'] : ['rp-b-ok', 'مسددة بالكامل'];
+    if (rem <= 0.5) status = (bd.carried > 0.5 || bd.legacySettled) ? ['rp-b-carry', 'سُوّيت ضمن فاتورة أحدث'] : (bd.returned > 0.5 ? ['rp-b-carry', 'سُوّيت بمرتجع'] : ['rp-b-ok', 'مسددة بالكامل']);
     else if (bd.initial + bd.laterSum > 0.5) status = ['rp-b-part', 'سداد جزئي'];
     else status = ['rp-b-no', 'غير مسددة'];
 
@@ -2563,7 +2592,7 @@ function buildStatement(name, f) {
         </div>
         <table class="rp-table"><thead><tr><th>التاريخ</th><th>الفاتورة</th><th>الأصناف</th><th>إجمالي الفاتورة</th><th>دفع ساعتها (من الإجمالي)</th><th>المتبقي والحالة</th></tr></thead>
         <tbody>${rowsHtml}${standalone}</tbody></table>
-        ${machHtml}
+        ${machHtml}${stmtExtras(name)}
         <div class="rp-final">
             <div><span>مديونية الفواتير الآن</span><b>${netTxt}</b></div>
             <div><span>حساب المكن الآن</span><b>${M.remaining > 0.5 ? fmt(M.remaining) + ' ج.م' : (M.entries.length || M.payments.length ? 'مسدد' : '—')}</b></div>
@@ -2896,12 +2925,13 @@ function renderOverdueAlert() {
     if (!tab) return;
     let box = document.getElementById('overdueAlert');
     if (!box) { box = document.createElement('div'); box.id = 'overdueAlert'; tab.insertBefore(box, tab.firstChild); }
-    let list = customers.map(c => ({ name: c.name, age: oldestAge(c.name), amt: sumOf(unpaidOf(c.name).filter(x => (ageDaysOf(x.inv) || 0) > 30), x => x.inv.remaining) }))
-        .filter(x => x.age !== null && x.age > 30).sort((a, b) => b.age - a.age);
+    let OD = overdueDays();
+    let list = customers.map(c => ({ name: c.name, age: oldestAge(c.name), amt: sumOf(unpaidOf(c.name).filter(x => (ageDaysOf(x.inv) || 0) > OD), x => x.inv.remaining) }))
+        .filter(x => x.age !== null && x.age > OD).sort((a, b) => b.age - a.age);
     if (!list.length) { box.style.display = 'none'; return; }
     box.style.display = 'flex';
     box.innerHTML = `<i class="fas fa-bell" style="font-size:22px;color:#ea580c"></i>
-        <div class="txt"><b>${list.length} عميل متأخر في السداد أكثر من 30 يوم</b> — إجمالي المتأخر ${fmt(sumOf(list, x => x.amt))} ج.م<br>
+        <div class="txt"><b>${list.length} عميل متأخر في السداد أكثر من ${OD} يوم</b> — إجمالي المتأخر ${fmt(sumOf(list, x => x.amt))} ج.م<br>
         ${list.slice(0, 3).map(x => `${esc(x.name)} (${x.age} يوم)`).join(' • ')}${list.length > 3 ? ' ...' : ''}</div>
         <button class="v3-btn amber" onclick="showOverdue()">عرض المتأخرين</button>`;
 }
@@ -3072,7 +3102,8 @@ function backupPayload() {
     let { password, ...safeSettings } = settings; // لا نصدّر كلمة المرور
     return {
         _app: 'ProTech', _version: 3, exportedAt: new Date().toISOString(),
-        inventory, customers, invoices, purchases, companyExpenses, machineEntries, machinePayments, settings: safeSettings
+        inventory, customers, invoices, purchases, companyExpenses, machineEntries, machinePayments,
+        returnsLog, consignments, stocktakes, invoiceArchive, settings: safeSettings
     };
 }
 function downloadBlob(blob, name) {
@@ -3099,6 +3130,9 @@ window.exportBackupExcel = function () {
         add('المصروفات', companyExpenses.map(p => ({ ...p })));
         add('حساب المكن', machineEntries.map(e => ({ العميل: e.customerName, التاريخ: e.date, النوع: e.kind, البند: e.desc, الكمية: e.qty, السعر: e.price, الإجمالي: e.total })));
         add('دفعات المكن', machinePayments.map(p => ({ العميل: p.customerName, التاريخ: p.date, المبلغ: p.amount, ملاحظة: p.note || '' })));
+        add('المرتجعات', returnsLog.map(r => ({ الرقم: r.id, التاريخ: r.date, العميل: r.customerName, الفاتورة: r.invoiceId, الأصناف: r.items.map(i => i.name + ' × ' + i.qty).join('، '), القيمة: r.total, التسوية: RT_SETTLE[r.settlement], السبب: r.reason })));
+        add('بضاعة الأمانة', consignments.map(c => ({ الرقم: c.id, التاريخ: c.date, العميل: c.customerName, الأصناف: c.items.map(i => i.name + ' × ' + i.qty).join('، '), الحالة: c.status, الفاتورة: c.invoiceId || '' })));
+        add('أرشيف الفواتير', invoiceArchive.map(a => ({ الرقم: a.id, التاريخ: a.date, العميل: a.customerName, الإجمالي: a.total, 'دفع وقت الإصدار': a.paidAtIssue })));
         XLSX.writeFile(wb, `protech-backup-${stamp()}.xlsx`);
     };
     if (window.XLSX) return build();
@@ -3374,7 +3408,6 @@ function injectV3Modals() {
 // ---------- تشغيل ----------
 injectV3Css();
 injectInvoiceModalV2();
-injectBackupCard();
 
 // أعمار الديون في لوحة المؤشرات (شرائط بدل الدائرة القديمة)
 function renderDashAging() {
@@ -3387,3 +3420,1207 @@ function renderDashAging() {
             <b>${fmt(t)} ج.م</b></div>`).join('') +
         (all <= 0 ? '<p class="v3-muted" style="margin-top:6px"><i class="fas fa-circle-check" style="color:#10b981"></i> مفيش مديونيات معلّقة.</p>' : '');
 }
+
+/* =====================================================================
+   ProTech v5 — المرتجعات، أرشيف الفواتير، بضاعة الأمانة، الإعدادات الكاملة،
+   المظهر (فاتح/داكن)، الجرد السنوي، نسخ احتياطي حقيقي، ومسح البيانات
+   ===================================================================== */
+
+let returnsLog = [];      // المرتجعات
+let consignments = [];    // بضاعة الأمانة (عهدة السفر)
+let stocktakes = [];      // سجل الجرد
+let invoiceArchive = [];  // أرشيف الفواتير (نسخ للقراءة فقط) — بيتخزن في مستند منفصل
+
+function lowStockLimit() { return Number(settings && settings.lowStock) > 0 ? Number(settings.lowStock) : 20; }
+function overdueDays() { return Number(settings && settings.overdueDays) > 0 ? Number(settings.overdueDays) : 30; }
+function pad4(n) { return String(n).padStart(4, '0'); }
+function nextSeq(list, prefix) {
+    let max = 0;
+    list.forEach(x => { let m = String(x.id || '').match(/(\d+)$/); if (m) max = Math.max(max, +m[1]); });
+    return prefix + pad4(max + 1);
+}
+function nextInvoiceId() {
+    let prefix = (settings && settings.invPrefix) || 'INV-';
+    let id, tries = 0;
+    do { id = prefix + Math.floor(1000 + Math.random() * 9000); tries++; }
+    while ((invoices.some(i => i.id === id) || invoiceArchive.some(a => a.id === id)) && tries < 200);
+    return id;
+}
+function todayAr() { return new Date().toLocaleDateString('ar-EG'); }
+function toast(msg, kind) {
+    let box = document.getElementById('v5Toasts');
+    if (!box) { box = document.createElement('div'); box.id = 'v5Toasts'; document.body.appendChild(box); }
+    let t = document.createElement('div');
+    t.className = 'v5-toast ' + (kind || '');
+    t.textContent = msg;
+    box.appendChild(t);
+    setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 3600);
+}
+
+// ---------- المرتجعات: إجماليات تدخل في لوحة المؤشرات ----------
+function returnsTotals() {
+    return {
+        value: sumOf(returnsLog, r => r.total),
+        cash: sumOf(returnsLog.filter(r => r.settlement === 'cash'), r => r.total)
+    };
+}
+// أرصدة العميل: نطرح "credit" من الرصيد (موجب = عليه / سالب = له)
+function addCustomerCredit(cust, v) {
+    if (!cust || !(v > 0)) return;
+    let cur = cust.balanceType === 'on_him' ? Number(cust.oldBalance || 0) : (cust.balanceType === 'for_him' ? -Number(cust.oldBalance || 0) : 0);
+    cur -= v;
+    if (cur > 0.5) { cust.oldBalance = cur; cust.balanceType = 'on_him'; }
+    else if (cur < -0.5) { cust.oldBalance = -cur; cust.balanceType = 'for_him'; }
+    else { cust.oldBalance = 0; cust.balanceType = 'none'; }
+    if (!cust.oldBalanceDate && cust.balanceType !== 'none') cust.oldBalanceDate = todayAr();
+    if (cust.balanceType === 'none') cust.oldBalanceDate = '';
+}
+
+// =====================================================================
+// تخزين الأرشيف (مستند Firestore مستقل عشان ما يكبرش المستند الرئيسي)
+// =====================================================================
+async function loadArchive() {
+    try {
+        const snap = await getDoc(doc(db, "protech_data", "archive_store"));
+        if (snap.exists() && Array.isArray(snap.data().invoices)) { invoiceArchive = snap.data().invoices; return; }
+    } catch (e) { console.error('archive load', e); }
+    try { invoiceArchive = JSON.parse(localStorage.getItem('protech_archive')) || invoiceArchive; } catch (e) { }
+}
+async function saveArchive() {
+    try { localStorage.setItem('protech_archive', JSON.stringify(invoiceArchive)); } catch (e) { }
+    try { await setDoc(doc(db, "protech_data", "archive_store"), { invoices: invoiceArchive, updatedAt: new Date().toISOString() }); }
+    catch (e) { console.error('archive save', e); }
+}
+function archiveSnapshot(inv, backfilled) {
+    let b = invBreakdown(inv);
+    return {
+        id: inv.id, customerName: inv.customerName, customerPhone: inv.customerPhone || '',
+        date: inv.date, dateISO: inv.dateISO || '',
+        items: (inv.items || []).map(i => ({ name: i.name, qty: i.qty, price: i.price, total: i.total })),
+        subtotal: inv.subtotal, discountPercent: inv.discountPercent || 0, discountAmount: inv.discountAmount || 0,
+        oldBalance: inv.oldBalance || 0, oldBalanceType: inv.oldBalanceType || 'none',
+        total: Number(inv.total || 0), paidAtIssue: backfilled ? b.initial : Number(inv.initialPaid != null ? inv.initialPaid : inv.paid || 0),
+        carriedInvoices: inv.carriedInvoices || [], savedAt: new Date().toISOString(),
+        backfilled: !!backfilled, source: inv.fromConsignment ? 'أمانة ' + inv.fromConsignment : ''
+    };
+}
+let archivePromise = null;
+function ensureArchiveLoaded() { if (!archivePromise) archivePromise = loadArchive(); return archivePromise; }
+function archiveAdd(inv) {
+    if (!inv) return;
+    // لازم الأرشيف يتحمّل الأول قبل أي كتابة، عشان ما نمسحش نسخ قديمة (مثلاً من صفحة الموظف)
+    ensureArchiveLoaded().then(() => {
+        if (invoiceArchive.some(a => a.id === inv.id)) return; // الأرشيف لا يُعدَّل أبداً
+        invoiceArchive.push(archiveSnapshot(inv, false));
+        saveArchive();
+    });
+}
+function ensureArchiveBackfill() {
+    let added = 0;
+    invoices.forEach(inv => {
+        if (!invoiceArchive.some(a => a.id === inv.id)) { invoiceArchive.push(archiveSnapshot(inv, true)); added++; }
+    });
+    if (added) saveArchive();
+}
+
+// =====================================================================
+// المظهر: فاتح / داكن / تلقائي + حجم المحتوى + لون التمييز
+// =====================================================================
+const ACCENTS = { blue: ['#1e3a8a', '#3b82f6'], teal: ['#115e59', '#14b8a6'], purple: ['#5b21b6', '#8b5cf6'], rose: ['#9f1239', '#f43f5e'], orange: ['#9a3412', '#f97316'] };
+function currentTheme() { return localStorage.getItem('protech_theme') || (settings && settings.theme) || 'light'; }
+function applyAppearance() {
+    let t = currentTheme();
+    let dark = t === 'dark' || (t === 'auto' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.classList.toggle('theme-dark', !!dark);
+    let z = Number(localStorage.getItem('protech_zoom') || (settings && settings.uiZoom) || 100);
+    document.documentElement.style.setProperty('--ui-zoom', String(z / 100));
+    let a = ACCENTS[localStorage.getItem('protech_accent') || (settings && settings.accent) || 'blue'] || ACCENTS.blue;
+    document.documentElement.style.setProperty('--primary', a[0]);
+    document.documentElement.style.setProperty('--primary-light', a[1]);
+    document.documentElement.style.setProperty('--accent', a[1]);
+    let ic = document.getElementById('themeToggleBtn');
+    if (ic) ic.innerHTML = dark ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+}
+window.setTheme = function (t) {
+    localStorage.setItem('protech_theme', t); settings.theme = t; saveData(); applyAppearance(); fillSettingsV5(true);
+};
+window.setZoom = function (z) {
+    localStorage.setItem('protech_zoom', String(z)); settings.uiZoom = z; saveData(); applyAppearance(); fillSettingsV5(true);
+};
+window.setAccent = function (k) {
+    localStorage.setItem('protech_accent', k); settings.accent = k; saveData(); applyAppearance(); fillSettingsV5(true);
+};
+window.toggleThemeQuick = function () { window.setTheme(document.documentElement.classList.contains('theme-dark') ? 'light' : 'dark'); };
+function injectThemeButton() {
+    let box = document.querySelector('.user-profile');
+    if (!box || document.getElementById('themeToggleBtn')) return;
+    let b = document.createElement('button');
+    b.id = 'themeToggleBtn'; b.className = 'theme-btn'; b.title = 'تغيير المود (فاتح / داكن)';
+    b.onclick = window.toggleThemeQuick;
+    box.insertBefore(b, box.firstChild);
+    applyAppearance();
+}
+if (window.matchMedia) {
+    try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (currentTheme() === 'auto') applyAppearance(); }); } catch (e) { }
+}
+
+// تسجيل خروج تلقائي عند الخمول
+let idleTimer = null;
+function resetIdle() {
+    clearTimeout(idleTimer);
+    let m = Number(settings && settings.idleMin);
+    if (m > 0 && typeof window.logoutSystem === 'function') idleTimer = setTimeout(() => window.logoutSystem(), m * 60000);
+}
+['click', 'keydown', 'mousemove', 'touchstart'].forEach(ev => document.addEventListener(ev, resetIdle, { passive: true }));
+
+// =====================================================================
+// صفحة الإعدادات الاحترافية
+// =====================================================================
+let stDirty = false;
+function injectSettingsV5() {
+    let root = document.getElementById('stRoot');
+    if (!root || root.dataset.built) return;
+    root.dataset.built = '1';
+    root.innerHTML = `
+    <div class="page-header-title"><h1><i class="fas fa-sliders"></i> الإعدادات</h1><p>تحكم كامل في بيانات الشركة والفواتير والمظهر والأمان والبيانات</p></div>
+    <div class="stx">
+      <div class="stx-nav" id="stxNav">
+        <button class="on" data-p="company" onclick="stxGo('company')"><i class="fas fa-building"></i> بيانات الشركة</button>
+        <button data-p="invoice" onclick="stxGo('invoice')"><i class="fas fa-file-invoice"></i> الفواتير والتنبيهات</button>
+        <button data-p="look" onclick="stxGo('look')"><i class="fas fa-palette"></i> المظهر</button>
+        <button data-p="security" onclick="stxGo('security')"><i class="fas fa-shield-halved"></i> الأمان</button>
+        <button data-p="data" onclick="stxGo('data')"><i class="fas fa-database"></i> البيانات والنسخ</button>
+        <button data-p="danger" onclick="stxGo('danger')" style="color:#dc2626"><i class="fas fa-triangle-exclamation"></i> منطقة الخطر</button>
+      </div>
+      <div>
+        <div class="stx-panel on" id="stx-company">
+          <div class="stx-card"><h3>بيانات الشركة</h3><div class="sub">بتظهر في الفواتير والكشوف والإيصالات المطبوعة</div>
+            <form onsubmit="saveSettings(event)">
+              <div class="stx-grid">
+                <div class="stx-field"><label>اسم الشركة</label><input type="text" id="companyNameInput"></div>
+                <div class="stx-field"><label>صاحب الشركة / المدير</label><input type="text" id="companyOwnerInput"></div>
+                <div class="stx-field"><label>واتساب الشركة الأساسي</label><input type="text" id="whatsappNumberInput"></div>
+                <div class="stx-field"><label>واتساب استلام الفواتير (المحاسب)</label><input type="text" id="stNabawy"><small>بيتبعتله زرار "واتساب" في الفاتورة</small></div>
+                <div class="stx-field" style="grid-column:1/-1"><label>العنوان</label><input type="text" id="companyAddressInput"></div>
+                <div class="stx-field"><label>البريد الإلكتروني</label><input type="text" id="stEmail"></div>
+                <div class="stx-field"><label>السجل التجاري / الرقم الضريبي</label><input type="text" id="stTaxNo"></div>
+              </div>
+              <div style="margin-top:14px"><button type="submit" class="btn-primary"><i class="fas fa-save"></i> حفظ بيانات الشركة</button></div>
+            </form>
+          </div>
+          <div class="stx-card"><h3>شعار الشركة</h3><div class="sub">بيظهر في القائمة الجانبية وفي الكشوف والإيصالات المطبوعة</div>
+            <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+              <div id="stLogoPrev" class="logo-prev"></div>
+              <input type="file" id="stLogoFile" accept="image/*" style="display:none" onchange="stxLogo(event)">
+              <button class="v3-btn" onclick="document.getElementById('stLogoFile').click()"><i class="fas fa-image"></i> رفع شعار</button>
+              <button class="v3-btn gray" onclick="stxLogoRemove()">إزالة</button>
+            </div></div>
+        </div>
+
+        <div class="stx-panel" id="stx-invoice">
+          <div class="stx-card"><h3>الفواتير</h3><div class="sub">تخصيص ترقيم الفاتورة وملاحظة أسفلها</div>
+            <div class="stx-grid">
+              <div class="stx-field"><label>بادئة رقم الفاتورة</label><input type="text" id="stInvPrefix" placeholder="INV-"><small>مثال: INV- أو BT-</small></div>
+              <div class="stx-field"><label>حد تنبيه نقص المخزون (وحدة)</label><input type="number" id="stLowStock" min="1"></div>
+              <div class="stx-field" style="grid-column:1/-1"><label>ملاحظة أسفل الفاتورة</label><textarea id="stInvFooter" rows="2" placeholder="مثال: البضاعة المباعة لا ترد ولا تستبدل بعد 14 يوم"></textarea></div>
+            </div></div>
+          <div class="stx-card"><h3>تنبيهات التحصيل</h3><div class="sub">العميل بيتحسب متأخر لما فاتورته تعدي عدد الأيام ده</div>
+            <div class="stx-grid"><div class="stx-field"><label>التنبيه للمتأخرين بعد (يوم)</label><input type="number" id="stOverdue" min="1"></div></div>
+            <div style="margin-top:14px"><button class="btn-primary" onclick="saveSettings(event)"><i class="fas fa-save"></i> حفظ</button></div></div>
+        </div>
+
+        <div class="stx-panel" id="stx-look">
+          <div class="stx-card"><h3>المود</h3><div class="sub">يتحفظ على الجهاز ويتطبق فوراً. فيه كمان زرار سريع في الشريط العلوي</div>
+            <div class="stx-opt" id="stThemeOpt">
+              <label data-t="light" onclick="setTheme('light')"><i class="fas fa-sun"></i><br>فاتح</label>
+              <label data-t="dark" onclick="setTheme('dark')"><i class="fas fa-moon"></i><br>داكن</label>
+              <label data-t="auto" onclick="setTheme('auto')"><i class="fas fa-circle-half-stroke"></i><br>تلقائي (حسب الجهاز)</label>
+            </div></div>
+          <div class="stx-card"><h3>حجم المحتوى</h3><div class="sub">كبّر أو صغّر الصفحات بما يناسب شاشتك</div>
+            <div class="stx-opt" id="stZoomOpt">
+              <label data-z="90" onclick="setZoom(90)">صغير 90%</label><label data-z="100" onclick="setZoom(100)">عادي 100%</label>
+              <label data-z="110" onclick="setZoom(110)">كبير 110%</label><label data-z="125" onclick="setZoom(125)">أكبر 125%</label>
+            </div></div>
+          <div class="stx-card"><h3>لون التمييز</h3><div class="sub">لون الأزرار والعناصر النشطة</div>
+            <div class="swatches" id="stSwatches">${Object.keys(ACCENTS).map(k => `<span class="swatch" data-k="${k}" style="background:${ACCENTS[k][1]}" onclick="setAccent('${k}')"></span>`).join('')}</div></div>
+        </div>
+
+        <div class="stx-panel" id="stx-security">
+          <div class="stx-card"><h3><i class="fas fa-key"></i> تغيير كلمة مرور الدخول</h3><div class="sub">استخدم كلمة قوية ولا تشاركها</div>
+            <form onsubmit="changeSystemPassword(event)">
+              <div class="stx-grid">
+                <div class="stx-field"><label>كلمة المرور الحالية</label><input type="password" id="currentPasswordInput" required></div><div></div>
+                <div class="stx-field"><label>كلمة المرور الجديدة</label><input type="password" id="newPasswordInput" required placeholder="4 حروف/أرقام على الأقل"></div>
+                <div class="stx-field"><label>تأكيد كلمة المرور الجديدة</label><input type="password" id="confirmPasswordInput" required></div>
+              </div>
+              <div style="margin-top:14px"><button type="submit" class="btn-primary" style="background:#f59e0b"><i class="fas fa-shield-halved"></i> تغيير كلمة المرور</button></div>
+            </form></div>
+          <div class="stx-card"><h3>تسجيل الخروج التلقائي</h3><div class="sub">لو سيبت الجهاز من غير استخدام، البرنامج يقفل لوحده</div>
+            <div class="stx-grid"><div class="stx-field"><label>بعد خمول (دقيقة) — 0 = أبداً</label><input type="number" id="stIdle" min="0"></div></div>
+            <div style="margin-top:14px"><button class="btn-primary" onclick="saveSettings(event)"><i class="fas fa-save"></i> حفظ</button></div></div>
+        </div>
+
+        <div class="stx-panel" id="stx-data">
+          <div class="stx-card"><h3><i class="fas fa-cloud-arrow-down"></i> النسخ الاحتياطي</h3>
+            <div class="sub" id="stBackupStatus">—</div>
+            <div class="bk-row">
+              <button class="v3-btn green" onclick="createBackupNow()"><i class="fas fa-download"></i> إنشاء نسخة احتياطية الآن (تنزيل + حفظ سحابي)</button>
+              <button class="v3-btn" onclick="exportBackupExcel()"><i class="fas fa-file-excel"></i> تصدير Excel</button>
+              <button class="v3-btn gray" onclick="document.getElementById('bkFile').click()"><i class="fas fa-upload"></i> استرجاع من ملف</button>
+              <input type="file" id="bkFile" accept=".json,application/json" style="display:none" onchange="importBackupJSON(event)">
+            </div>
+            <div class="stx-grid" style="margin-top:14px"><div class="stx-field"><label>تذكير بالنسخ الاحتياطي كل (يوم)</label><input type="number" id="stBackupDays" min="1"></div></div>
+            <div style="margin-top:12px"><button class="btn-primary" onclick="saveSettings(event)"><i class="fas fa-save"></i> حفظ</button></div>
+          </div>
+          <div class="stx-card"><h3><i class="fas fa-clock-rotate-left"></i> النسخ السحابية المحفوظة</h3><div class="sub">آخر 10 نسخ محفوظة على السحابة — تقدر تنزّل أو ترجّع أي نسخة</div>
+            <div id="stCloudList"><button class="v3-btn gray" onclick="loadCloudBackups()">عرض النسخ السحابية</button></div></div>
+          <div class="stx-card"><h3><i class="fas fa-clipboard-check"></i> الجرد السنوي</h3><div class="sub">جرد المخزون فعلياً، تسوية الفروقات، وتقرير ملخص السنة</div>
+            <button class="v3-btn amber" onclick="openStocktake()"><i class="fas fa-boxes-stacked"></i> فتح الجرد السنوي</button></div>
+        </div>
+
+        <div class="stx-panel" id="stx-danger">
+          <div class="stx-card stx-danger"><h3 style="color:#b91c1c"><i class="fas fa-triangle-exclamation"></i> تنظيف البيانات وبدء حساب جديد</h3>
+            <div class="sub">بتختار إيه اللي يتمسح. قبل أي مسح البرنامج بينزّل نسخة احتياطية تلقائياً.</div>
+            <button class="v3-btn red" onclick="openResetModal()"><i class="fas fa-broom"></i> تنظيف / مسح البيانات</button></div>
+        </div>
+      </div>
+    </div>`;
+    root.addEventListener('input', () => { stDirty = true; });
+}
+window.stxGo = function (p) {
+    document.querySelectorAll('#stxNav button').forEach(b => b.classList.toggle('on', b.dataset.p === p));
+    document.querySelectorAll('.stx-panel').forEach(x => x.classList.toggle('on', x.id === 'stx-' + p));
+    if (p === 'data') renderBackupStatus();
+};
+function fillSettingsV5(force) {
+    if (!document.getElementById('stRoot')) return;
+    const set = (id, v) => { let el = document.getElementById(id); if (el && (force || !stDirty)) el.value = v == null ? '' : v; };
+    set('stNabawy', settings.whatsappNabawy); set('stEmail', settings.email); set('stTaxNo', settings.taxNo);
+    set('stInvPrefix', settings.invPrefix || 'INV-'); set('stLowStock', lowStockLimit());
+    set('stInvFooter', settings.invFooter); set('stOverdue', overdueDays());
+    set('stIdle', settings.idleMin || 0); set('stBackupDays', settings.backupDays || 7);
+    let t = currentTheme();
+    document.querySelectorAll('#stThemeOpt label').forEach(l => l.classList.toggle('on', l.dataset.t === t));
+    let z = String(localStorage.getItem('protech_zoom') || settings.uiZoom || 100);
+    document.querySelectorAll('#stZoomOpt label').forEach(l => l.classList.toggle('on', l.dataset.z === z));
+    let a = localStorage.getItem('protech_accent') || settings.accent || 'blue';
+    document.querySelectorAll('#stSwatches .swatch').forEach(s => s.classList.toggle('on', s.dataset.k === a));
+    let lp = document.getElementById('stLogoPrev');
+    if (lp) lp.innerHTML = settings.logo ? `<img src="${settings.logo}" alt="logo">` : '<i class="fas fa-print"></i>';
+    applyLogoSidebar();
+    renderBackupStatus();
+}
+function applyLogoSidebar() {
+    let c = document.querySelector('.brand-header .logo-circle');
+    if (!c) return;
+    c.innerHTML = settings.logo ? `<img src="${settings.logo}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : '<i class="fas fa-print"></i>';
+}
+window.saveSettings = function (event) {
+    if (event && event.preventDefault) event.preventDefault();
+    const val = id => { let el = document.getElementById(id); return el ? el.value.trim() : undefined; };
+    const put = (key, id, conv) => { let v = val(id); if (v !== undefined) settings[key] = conv ? conv(v) : v; };
+    put('companyName', 'companyNameInput'); put('owner', 'companyOwnerInput'); put('whatsapp', 'whatsappNumberInput');
+    put('address', 'companyAddressInput'); put('whatsappNabawy', 'stNabawy'); put('email', 'stEmail'); put('taxNo', 'stTaxNo');
+    put('invPrefix', 'stInvPrefix'); put('invFooter', 'stInvFooter');
+    put('lowStock', 'stLowStock', Number); put('overdueDays', 'stOverdue', Number);
+    put('idleMin', 'stIdle', Number); put('backupDays', 'stBackupDays', Number);
+    saveData(); stDirty = false; refreshAllData(); resetIdle();
+    toast('تم حفظ الإعدادات بنجاح', 'ok');
+};
+window.stxLogo = function (ev) {
+    let f = ev.target.files[0]; ev.target.value = '';
+    if (!f) return;
+    let r = new FileReader();
+    r.onload = () => {
+        let img = new Image();
+        img.onload = () => {
+            let k = Math.min(1, 220 / Math.max(img.width, img.height));
+            let c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+            c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+            settings.logo = c.toDataURL('image/png');
+            saveData(); fillSettingsV5(true); toast('تم رفع الشعار', 'ok');
+        };
+        img.src = r.result;
+    };
+    r.readAsDataURL(f);
+};
+window.stxLogoRemove = function () { delete settings.logo; saveData(); fillSettingsV5(true); };
+function renderBackupStatus() {
+    let el = document.getElementById('stBackupStatus');
+    if (!el) return;
+    if (!settings.lastBackupAt) { el.innerHTML = '<span style="color:#dc2626"><i class="fas fa-circle-exclamation"></i> لم يتم إنشاء أي نسخة احتياطية بعد.</span>'; return; }
+    let d = new Date(settings.lastBackupAt), days = Math.floor((Date.now() - d.getTime()) / 86400000);
+    el.innerHTML = `آخر نسخة احتياطية: <b>${d.toLocaleString('ar-EG')}</b> (${days === 0 ? 'اليوم' : 'منذ ' + days + ' يوم'})`;
+}
+function renderBackupAlert() {
+    let tab = document.getElementById('tab-dashboard');
+    if (!tab) return;
+    let box = document.getElementById('backupAlert');
+    if (!box) { box = document.createElement('div'); box.id = 'backupAlert'; tab.insertBefore(box, tab.firstChild); }
+    let limit = Number(settings.backupDays) > 0 ? Number(settings.backupDays) : 7;
+    let days = settings.lastBackupAt ? Math.floor((Date.now() - new Date(settings.lastBackupAt).getTime()) / 86400000) : 9999;
+    if (days < limit) { box.style.display = 'none'; return; }
+    box.style.display = 'flex';
+    box.innerHTML = `<i class="fas fa-database" style="font-size:20px;color:#2563eb"></i>
+        <div class="txt">${settings.lastBackupAt ? `مرّ <b>${days} يوم</b> على آخر نسخة احتياطية.` : 'لم تُنشئ أي نسخة احتياطية حتى الآن.'} اعمل نسخة دلوقتي عشان بياناتك تفضل آمنة.</div>
+        <button class="v3-btn" onclick="createBackupNow()"><i class="fas fa-download"></i> إنشاء نسخة الآن</button>`;
+}
+
+// =====================================================================
+// مساعدات مشتركة لنوافذ v5
+// =====================================================================
+function prodLabel(p) { return `${p.name} · ${p.code}`; }
+function refreshProdList() {
+    let dl = document.getElementById('v5ProdList');
+    if (dl) dl.innerHTML = inventory.map(p => `<option value="${esc(prodLabel(p))}">`).join('');
+}
+function prodFromLabel(v) {
+    v = (v || '').trim();
+    return inventory.find(p => prodLabel(p) === v) || inventory.find(p => p.name === v) || inventory.find(p => p.code === v);
+}
+function custOptions(selected) {
+    return '<option value="">-- اختر العميل --</option>' + customers.map(c => `<option value="${esc(c.name)}" ${c.name === selected ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+}
+function showModal(id) { let m = document.getElementById(id); if (m) m.style.display = 'flex'; }
+function hideModal(id) { let m = document.getElementById(id); if (m) m.style.display = 'none'; }
+window.hideModal = hideModal;
+function unitPriceAfterDiscount(inv, it) { return Math.round(Number(it.price) * (1 - Number(inv.discountPercent || 0) / 100) * 100) / 100; }
+
+// =====================================================================
+// 1) المرتجعات
+// =====================================================================
+const RT_SETTLE = { debt: 'خُصم من المديونية', cash: 'رد نقدي', credit: 'رصيد للعميل' };
+let rt = { rows: [], free: true };
+let rtQuery = '';
+
+function renderReturnsTab() {
+    let root = document.getElementById('rtRoot');
+    if (!root) return;
+    if (!root.dataset.built) {
+        root.dataset.built = '1';
+        root.innerHTML = `
+        <div class="page-header-title flex-header"><div><h1><i class="fas fa-rotate-left"></i> المرتجعات</h1>
+            <p>تسجيل مرتجعات العملاء: بيرجع للمخزن وبيتسوّى على حساب العميل تلقائياً</p></div>
+            <button class="btn-primary" onclick="openRetModal()"><i class="fas fa-plus"></i> تسجيل مرتجع جديد</button></div>
+        <div class="mc-cards" id="rtCards"></div>
+        <div class="card-table-wrapper"><div class="table-toolbar flex-toolbar">
+            <input type="text" id="rtSearch" placeholder="بحث برقم المرتجع أو العميل أو الصنف..." oninput="rtSearchSet(this.value)" style="flex:1;min-width:220px"></div>
+            <div class="table-responsive"><table class="data-table"><thead><tr><th>رقم المرتجع</th><th>التاريخ</th><th>العميل</th><th>الفاتورة</th><th>الأصناف</th><th>القيمة</th><th>التسوية</th><th></th></tr></thead>
+            <tbody id="rtBody"></tbody></table></div></div>`;
+    }
+    let T = returnsTotals();
+    let month = new Date().getMonth(), year = new Date().getFullYear();
+    let monthVal = sumOf(returnsLog.filter(r => { let d = recDate(r); return d && d.getMonth() === month && d.getFullYear() === year; }), r => r.total);
+    document.getElementById('rtCards').innerHTML = `
+        <div><span>عدد المرتجعات</span><b>${returnsLog.length}</b></div>
+        <div><span>إجمالي قيمة المرتجعات</span><b style="color:#e11d48">${fmt(T.value)} ج.م</b></div>
+        <div><span>مرتجعات هذا الشهر</span><b style="color:#d97706">${fmt(monthVal)} ج.م</b></div>`;
+    let q = rtQuery.toLowerCase().trim();
+    let rows = returnsLog.slice().reverse().filter(r => !q || (r.id + ' ' + r.customerName + ' ' + r.items.map(i => i.name).join(' ')).toLowerCase().includes(q));
+    document.getElementById('rtBody').innerHTML = rows.map(r => `<tr>
+        <td><b>${esc(r.id)}</b></td><td>${esc(r.date)}</td><td>${esc(r.customerName)}</td><td>${esc(r.invoiceId || 'بدون فاتورة')}</td>
+        <td style="font-size:12px">${r.items.map(i => esc(i.name) + ' × ' + i.qty).join('، ')}</td>
+        <td style="color:#e11d48"><b>${fmt(r.total)}</b></td>
+        <td><span class="badge-neutral">${RT_SETTLE[r.settlement] || ''}</span>${r.toStock ? '' : '<div class="v3-muted">لم يرجع للمخزن (تالف)</div>'}</td>
+        <td><button class="btn-action btn-view-sm" onclick="printReturn('${r.id}')"><i class="fas fa-print"></i> إيصال</button></td></tr>`).join('') ||
+        '<tr><td colspan="8" style="text-align:center;padding:20px;color:#94a3b8">لا توجد مرتجعات</td></tr>';
+}
+
+window.openRetModal = function (preCust, preInv) {
+    injectV5Modals(); refreshProdList();
+    let sel = document.getElementById('rtCustomer');
+    sel.innerHTML = custOptions(preCust || '');
+    rt = { rows: [], free: true };
+    document.getElementById('rtNote').value = '';
+    document.getElementById('rtStock').checked = true;
+    document.querySelector('input[name="rtSettle"][value="debt"]').checked = true;
+    rtCustomerChange();
+    if (preInv) { document.getElementById('rtInvoice').value = preInv; rtInvoiceChange(); }
+    showModal('retModal');
+};
+window.closeRetModal = function () { hideModal('retModal'); };
+window.rtCustomerChange = function () {
+    let name = document.getElementById('rtCustomer').value;
+    let sel = document.getElementById('rtInvoice');
+    sel.innerHTML = '<option value="">بدون فاتورة (مرتجع حر)</option>' + invoices.filter(i => i.customerName === name).slice().reverse()
+        .map(i => `<option value="${esc(i.id)}">${esc(i.id)} — ${esc(i.date)} — ${fmt(i.total)} ج.م</option>`).join('');
+    rtInvoiceChange();
+};
+window.rtInvoiceChange = function () {
+    let id = document.getElementById('rtInvoice').value;
+    if (!id) { rt = { rows: [], free: true }; }
+    else {
+        let inv = invoices.find(i => i.id === id);
+        let prev = {};
+        returnsLog.filter(r => r.invoiceId === id).forEach(r => r.items.forEach(i => { prev[i.code] = (prev[i.code] || 0) + Number(i.qty); }));
+        rt = {
+            free: false, discount: Number(inv.discountPercent || 0),
+            rows: (inv.items || []).map(it => ({
+                code: it.code, name: it.name, price: unitPriceAfterDiscount(inv, it), sold: Number(it.qty),
+                already: prev[it.code] || 0, max: Math.max(0, Number(it.qty) - (prev[it.code] || 0)), qty: 0
+            }))
+        };
+    }
+    rtRender(); rtRecalc();
+};
+function rtRender() {
+    let box = document.getElementById('rtItemsBox');
+    if (!rt.free) {
+        box.innerHTML = `<div class="v3-muted" style="margin:8px 0">اكتب كمية المرتجع لكل صنف ${rt.discount ? `(السعر بعد خصم الفاتورة ${rt.discount}%)` : ''}</div>
+        <table class="cp-table"><thead><tr><th style="text-align:right">الصنف</th><th>اتباع</th><th>رجع قبل كده</th><th>كمية المرتجع</th><th>السعر</th><th>القيمة</th></tr></thead><tbody>
+        ${rt.rows.map((r, i) => `<tr><td style="text-align:right">${esc(r.name)}</td><td>${r.sold}</td><td>${r.already}</td>
+            <td>${r.max > 0 ? `<input type="number" class="v3-in" min="0" max="${r.max}" value="${r.qty || ''}" oninput="rtSetQty(${i},this.value)">` : '<span class="v3-muted">رجع بالكامل</span>'}</td>
+            <td>${fmt(r.price)}</td><td id="rtV${i}">0</td></tr>`).join('')}</tbody></table>`;
+    } else {
+        box.innerHTML = `<div class="mc-pick" style="margin:8px 0"><input class="v3-in" id="rtFreeProd" list="v5ProdList" placeholder="اكتب اسم الصنف المرتجع واختاره من القائمة…" onkeydown="if(event.key==='Enter')rtAddFree()">
+            <button class="v3-btn" onclick="rtAddFree()"><i class="fas fa-plus"></i> إضافة</button></div>
+        <table class="cp-table"><thead><tr><th style="text-align:right">الصنف</th><th>الكمية</th><th>السعر</th><th>القيمة</th><th></th></tr></thead><tbody>
+        ${rt.rows.map((r, i) => `<tr><td style="text-align:right">${esc(r.name)}</td>
+            <td><input type="number" class="v3-in" min="1" value="${r.qty}" oninput="rtSetQty(${i},this.value)"></td>
+            <td><input type="number" class="v3-in" min="0" value="${r.price}" oninput="rtSetPrice(${i},this.value)"></td>
+            <td id="rtV${i}">0</td><td><button class="v3-del" onclick="rtDelRow(${i})"><i class="fas fa-trash"></i></button></td></tr>`).join('') ||
+            '<tr><td colspan="5" class="v3-muted" style="padding:14px">لسه ماضفتش أصناف</td></tr>'}</tbody></table>`;
+    }
+}
+window.rtAddFree = function () {
+    let inp = document.getElementById('rtFreeProd');
+    let p = prodFromLabel(inp.value);
+    if (!p) { alert('اختار الصنف من القائمة المقترحة.'); return; }
+    let ex = rt.rows.find(r => r.code === p.code);
+    if (ex) ex.qty++; else rt.rows.push({ code: p.code, name: p.name, price: Number(p.price), qty: 1 });
+    rtRender(); rtRecalc();
+    setTimeout(() => document.getElementById('rtFreeProd')?.focus(), 20);
+};
+window.rtDelRow = function (i) { rt.rows.splice(i, 1); rtRender(); rtRecalc(); };
+window.rtSetQty = function (i, v) {
+    let r = rt.rows[i]; let q = Math.max(0, Number(v) || 0);
+    if (!rt.free && q > r.max) q = r.max;
+    r.qty = q; rtRecalc();
+};
+window.rtSetPrice = function (i, v) { rt.rows[i].price = Math.max(0, Number(v) || 0); rtRecalc(); };
+function rtLines() { return rt.rows.filter(r => Number(r.qty) > 0).map(r => ({ code: r.code, name: r.name, qty: Number(r.qty), price: Number(r.price), total: Number(r.qty) * Number(r.price) })); }
+window.rtRecalc = function () {
+    rt.rows.forEach((r, i) => { let el = document.getElementById('rtV' + i); if (el) el.innerText = fmt((Number(r.qty) || 0) * Number(r.price)); });
+    let total = sumOf(rtLines(), l => l.total);
+    let name = document.getElementById('rtCustomer')?.value;
+    let mode = document.querySelector('input[name="rtSettle"]:checked')?.value;
+    let pv = document.getElementById('rtPreview'), btn = document.getElementById('rtConfirm');
+    let debt = name ? Math.max(0, getCustomerNetDebt(name)) : 0;
+    let txt = `قيمة المرتجع: <b>${fmt(total)} ج.م</b>. `;
+    if (mode === 'debt') txt += debt >= total ? `هتتخصم بالكامل من مديونية العميل (${fmt(debt)} ج.م).` : `هتتخصم ${fmt(debt)} ج.م من مديونيته، والباقي ${fmt(total - debt)} ج.م يبقى رصيد له.`;
+    else if (mode === 'cash') txt += 'هتردها للعميل كاش ولن تتأثر مديونيته.';
+    else txt += 'هتتسجل رصيد للعميل يتخصم من فواتيره القادمة.';
+    pv.className = 'cp-sum'; pv.innerHTML = total > 0 ? txt : 'اكتب كمية المرتجع لتظهر التفاصيل.';
+    btn.disabled = !(total > 0 && name);
+};
+window.rtConfirm = function () {
+    let name = document.getElementById('rtCustomer').value;
+    let cust = customers.find(c => c.name === name);
+    let lines = rtLines();
+    let total = sumOf(lines, l => l.total);
+    if (!cust || !lines.length || total <= 0) return;
+    let mode = document.querySelector('input[name="rtSettle"]:checked').value;
+    let toStock = document.getElementById('rtStock').checked;
+    let invId = document.getElementById('rtInvoice').value;
+    let now = new Date();
+    let id = nextSeq(returnsLog, 'RT-');
+
+    if (toStock) lines.forEach(l => {
+        let p = inventory.find(i => i.code === l.code);
+        if (p) p.qty = Number(p.qty) + l.qty; else inventory.push({ code: l.code, name: l.name, qty: l.qty, unit: 'قطعة', price: l.price });
+    });
+
+    let appliedInv = [], oldReduced = 0, creditAdded = 0;
+    if (mode === 'debt') {
+        let left = total;
+        let order = [];
+        let linkedIdx = invId ? invoices.findIndex(i => i.id === invId) : -1;
+        if (linkedIdx >= 0 && Number(invoices[linkedIdx].remaining) > 0.5) order.push(linkedIdx);
+        unpaidOf(name).forEach(x => { if (!order.includes(x.idx)) order.push(x.idx); });
+        order.forEach(idx => {
+            if (left <= 0.001) return;
+            let inv = invoices[idx];
+            let amt = Math.min(left, Number(inv.remaining || 0));
+            if (amt <= 0) return;
+            if (inv.initialPaid == null) inv.initialPaid = invBreakdown(inv).initial;
+            inv.paid = Number(inv.paid || 0) + amt;
+            inv.remaining = Math.max(0, Number(inv.remaining) - amt);
+            inv.status = inv.remaining <= 0.5 ? 'تم الدفع بالكامل' : `متبقي: ${inv.remaining} ج.م`;
+            if (!inv.paymentHistory) inv.paymentHistory = [];
+            inv.paymentHistory.push({ amount: amt, type: 'return', returnNo: id, date: now.toLocaleString('ar-EG'), dateISO: now.toISOString(), note: 'مرتجع ' + id });
+            appliedInv.push({ id: inv.id, amount: amt }); left -= amt;
+        });
+        if (left > 0.001 && cust.balanceType === 'on_him' && Number(cust.oldBalance) > 0) {
+            let amt = Math.min(left, Number(cust.oldBalance));
+            cust.oldBalance = Number(cust.oldBalance) - amt; oldReduced = amt; left -= amt;
+            if (cust.oldBalance <= 0.5) { cust.oldBalance = 0; cust.balanceType = 'none'; cust.oldBalanceDate = ''; }
+        }
+        if (left > 0.001) { addCustomerCredit(cust, left); creditAdded = left; }
+    } else if (mode === 'credit') { addCustomerCredit(cust, total); creditAdded = total; }
+
+    let rec = {
+        id, date: now.toLocaleDateString('ar-EG'), dateISO: now.toISOString(), customerName: name, invoiceId: invId || '',
+        items: lines, total, reason: document.getElementById('rtReason').value, note: document.getElementById('rtNote').value.trim(),
+        toStock, settlement: mode, appliedInv, oldReduced, creditAdded
+    };
+    returnsLog.push(rec);
+    saveData(); refreshAllData(); closeRetModal();
+    toast('تم تسجيل المرتجع ' + id, 'ok');
+    printReturn(id);
+};
+window.printReturn = function (id) {
+    let r = returnsLog.find(x => x.id === id);
+    if (!r) return;
+    let eff = [];
+    if (r.appliedInv && r.appliedInv.length) eff.push('خُصم من الفواتير: ' + r.appliedInv.map(a => esc(a.id) + ' (' + fmt(a.amount) + ')').join('، '));
+    if (r.oldReduced > 0) eff.push('خُصم من رصيد سابق: ' + fmt(r.oldReduced) + ' ج.م');
+    if (r.creditAdded > 0) eff.push('أُضيف رصيد للعميل: ' + fmt(r.creditAdded) + ' ج.م');
+    if (r.settlement === 'cash') eff.push('رد نقدي للعميل');
+    let body = companyHeader('إيصال مرتجع', `رقم: <b>${esc(r.id)}</b> — ${esc(r.date)} — العميل: <b>${esc(r.customerName)}</b>${r.invoiceId ? ' — الفاتورة: ' + esc(r.invoiceId) : ''}`) +
+        `<table class="rp-table"><thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>القيمة</th></tr></thead><tbody>
+        ${r.items.map(i => `<tr><td>${esc(i.name)}</td><td class="c">${i.qty}</td><td class="c">${fmt(i.price)}</td><td class="c"><b>${fmt(i.total)}</b></td></tr>`).join('')}</tbody></table>
+        <div class="rp-final" style="grid-template-columns:1fr 1fr"><div><span>سبب المرتجع</span><b style="font-size:14px">${esc(r.reason)}${r.note ? ' — ' + esc(r.note) : ''}</b></div><div class="grand"><span>إجمالي المرتجع</span><b>${fmt(r.total)} ج.م</b></div></div>
+        <p style="font-size:13px">${eff.join('<br>')}</p>${r.toStock ? '' : '<p class="rp-note">الأصناف لم تُرجع للمخزن (تالفة).</p>'}
+        <div class="rp-sign"><div>المستلم: ..................</div><div>العميل: ..................</div></div>`;
+    openPrintWindow('مرتجع ' + r.id, body);
+};
+
+// =====================================================================
+// 2) أرشيف الفواتير (قراءة فقط)
+// =====================================================================
+let arF = { q: '', cust: '', from: '', to: '', status: 'all' }, arLimit = 100;
+
+function arLive(a) {
+    let inv = invoices.find(i => i.id === a.id);
+    if (!inv) return { k: 'deleted', label: 'محذوفة من النظام', cls: 'badge-danger', modified: false };
+    let sig = x => JSON.stringify((x || []).map(i => [i.name, Number(i.qty), Number(i.price)]));
+    let modified = Math.abs(Number(inv.total) - a.total) > 0.5 || sig(inv.items) !== sig(a.items);
+    let rem = Number(inv.remaining || 0);
+    return { k: rem > 0.5 ? 'unpaid' : 'paid', label: rem > 0.5 ? 'متبقي ' + fmt(rem) + ' ج.م' : 'مسددة بالكامل', cls: rem > 0.5 ? 'badge-danger' : 'badge-success', modified };
+}
+function renderArchiveTab() {
+    let root = document.getElementById('arRoot');
+    if (!root) return;
+    if (!root.dataset.built) {
+        root.dataset.built = '1';
+        root.innerHTML = `
+        <div class="page-header-title flex-header"><div><h1><i class="fas fa-box-archive"></i> أرشيف الفواتير</h1>
+            <p><i class="fas fa-lock"></i> نسخة محفوظة من كل فاتورة وقت إصدارها — للاطلاع والطباعة فقط، ولا يمكن تعديلها أو حذفها</p></div>
+            <button class="v3-btn gray" onclick="exportArchiveJSON()"><i class="fas fa-file-export"></i> تصدير الأرشيف</button></div>
+        <div class="mc-cards" id="arCards"></div>
+        <div class="card-table-wrapper"><div class="table-toolbar flex-toolbar">
+            <input type="text" placeholder="رقم الفاتورة أو صنف…" oninput="arSet('q',this.value)" style="flex:1;min-width:180px">
+            <select id="arCust" class="v3-in" onchange="arSet('cust',this.value)"></select>
+            <input type="date" class="v3-in" style="width:auto" onchange="arSet('from',this.value)" title="من تاريخ">
+            <input type="date" class="v3-in" style="width:auto" onchange="arSet('to',this.value)" title="إلى تاريخ">
+            <select class="v3-in" onchange="arSet('status',this.value)"><option value="all">كل الحالات</option><option value="unpaid">عليها متبقي</option><option value="paid">مسددة</option><option value="modified">عُدّلت بعد الإصدار</option><option value="deleted">محذوفة من النظام</option></select></div>
+            <div class="table-responsive"><table class="data-table"><thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>العميل</th><th>الأصناف</th><th>الإجمالي عند الإصدار</th><th>الحالة الآن</th><th></th></tr></thead>
+            <tbody id="arBody"></tbody></table></div><div id="arMore" style="padding:12px;text-align:center"></div></div>`;
+    }
+    let cs = document.getElementById('arCust');
+    let names = [...new Set(invoiceArchive.map(a => a.customerName))];
+    if (cs.dataset.n !== String(names.length)) { cs.dataset.n = String(names.length); cs.innerHTML = '<option value="">كل العملاء</option>' + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join(''); cs.value = arF.cust; }
+    let from = arF.from ? new Date(arF.from + 'T00:00:00') : null, to = arF.to ? new Date(arF.to + 'T23:59:59') : null;
+    let q = arF.q.toLowerCase().trim();
+    let list = invoiceArchive.slice().reverse().filter(a => {
+        if (arF.cust && a.customerName !== arF.cust) return false;
+        let d = recDate(a); if (d && ((from && d < from) || (to && d > to))) return false;
+        if (q && !(a.id + ' ' + a.items.map(i => i.name).join(' ')).toLowerCase().includes(q)) return false;
+        if (arF.status !== 'all') { let L = arLive(a); if (arF.status === 'modified' ? !L.modified : L.k !== arF.status) return false; }
+        return true;
+    });
+    document.getElementById('arCards').innerHTML = `
+        <div><span>فواتير مؤرشفة</span><b>${invoiceArchive.length}</b></div>
+        <div><span>إجمالي القيمة المؤرشفة</span><b style="color:#0284c7">${fmt(sumOf(invoiceArchive, a => a.total))} ج.م</b></div>
+        <div><span>المطابق للفلتر الحالي</span><b>${list.length}</b></div>`;
+    document.getElementById('arBody').innerHTML = list.slice(0, arLimit).map(a => {
+        let L = arLive(a);
+        return `<tr><td><b>${esc(a.id)}</b> <i class="fas fa-lock" style="color:#94a3b8;font-size:11px" title="للقراءة فقط"></i>${a.backfilled ? '<div class="v3-muted">مؤرشفة عند التفعيل</div>' : ''}</td>
+        <td>${esc(a.date)}</td><td>${esc(a.customerName)}</td><td style="font-size:12px">${a.items.map(i => esc(i.name) + ' × ' + i.qty).join('، ')}</td>
+        <td><b>${fmt(a.total)}</b></td><td><span class="${L.cls}">${L.label}</span>${L.modified ? '<div class="v3-muted" style="color:#d97706">عُدّلت بعد الإصدار</div>' : ''}</td>
+        <td><div class="row-actions"><button class="btn-action btn-view-sm" onclick="arView('${esc(a.id)}')"><i class="fas fa-eye"></i> عرض</button>
+        <button class="btn-action" style="background:#64748b" onclick="arPrint('${esc(a.id)}')"><i class="fas fa-print"></i></button></div></td></tr>`;
+    }).join('') || '<tr><td colspan="7" style="text-align:center;padding:20px;color:#94a3b8">لا توجد فواتير مطابقة</td></tr>';
+    document.getElementById('arMore').innerHTML = list.length > arLimit ? `<button class="v3-btn gray" onclick="arMoreRows()">عرض المزيد (${list.length - arLimit})</button>` : '';
+}
+function arDocHtml(a) {
+    let L = arLive(a);
+    let oldTxt = a.oldBalance > 0 ? `<tr><td colspan="3">${a.oldBalanceType === 'on_him' ? 'حساب سابق عليه' : 'رصيد سابق له'}</td><td class="c">${a.oldBalanceType === 'on_him' ? '' : '- '}${fmt(a.oldBalance)}</td></tr>` : '';
+    return companyHeader('نسخة مؤرشفة من فاتورة', `رقم: <b>${esc(a.id)}</b> — ${esc(a.date)} — العميل: <b>${esc(a.customerName)}</b>`) +
+        `<table class="rp-table"><thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead><tbody>
+        ${a.items.map(i => `<tr><td>${esc(i.name)}</td><td class="c">${i.qty}</td><td class="c">${fmt(i.price)}</td><td class="c">${fmt(i.total)}</td></tr>`).join('')}
+        ${a.discountAmount > 0 ? `<tr><td colspan="3">خصم ${a.discountPercent}%</td><td class="c">- ${fmt(a.discountAmount)}</td></tr>` : ''}${oldTxt}
+        </tbody></table>
+        <div class="rp-final"><div><span>الإجمالي عند الإصدار</span><b>${fmt(a.total)} ج.م</b></div><div><span>دفع وقت الإصدار</span><b>${fmt(a.paidAtIssue)} ج.م</b></div><div class="grand"><span>الحالة الآن</span><b style="font-size:14px">${L.label}</b></div></div>
+        ${L.modified ? '<p class="rp-note">تنبيه: الفاتورة الأصلية عُدّلت بعد الإصدار، وهذه النسخة تعرض الحالة وقت الإصدار.</p>' : ''}
+        ${a.backfilled ? '<p class="rp-note">هذه النسخة أُخذت عند تفعيل الأرشيف (الفاتورة كانت موجودة قبله).</p>' : ''}
+        ${a.source ? `<p class="rp-note" style="color:#6d28d9">مصدر الفاتورة: ${esc(a.source)}</p>` : ''}
+        ${settings.invFooter ? `<p style="text-align:center;font-size:12px;color:#64748b;margin-top:14px">${esc(settings.invFooter)}</p>` : ''}`;
+}
+window.arView = function (id) {
+    let a = invoiceArchive.find(x => x.id === id); if (!a) return;
+    injectV5Modals();
+    document.getElementById('arBodyView').innerHTML = `<div class="rp-wrap">${arDocHtml(a)}</div>`;
+    document.getElementById('arPrintBtn').onclick = () => arPrint(id);
+    showModal('arModal');
+};
+window.arPrint = function (id) { let a = invoiceArchive.find(x => x.id === id); if (a) openPrintWindow('فاتورة مؤرشفة ' + id, arDocHtml(a)); };
+window.exportArchiveJSON = function () { downloadBlob(new Blob([JSON.stringify(invoiceArchive, null, 2)], { type: 'application/json' }), `protech-archive-${stamp()}.json`); };
+
+// =====================================================================
+// 3) بضاعة الأمانة (عهدة السفر)
+// =====================================================================
+let cn = { items: [] }, cs = null, cnFilter = 'all';
+
+function renderConsignTab() {
+    let root = document.getElementById('cnRoot');
+    if (!root) return;
+    if (!root.dataset.built) {
+        root.dataset.built = '1';
+        root.innerHTML = `
+        <div class="page-header-title flex-header"><div><h1><i class="fas fa-suitcase-rolling"></i> بضاعة الأمانة (عهدة السفر)</h1>
+            <p>سجّل اللي خدته معاك لعميل وأنت مسافر. لما ترجع سجّل اللي رجع، والباقي بيتحول لفاتورة على العميل</p></div>
+            <button class="btn-primary" onclick="openCnNew()"><i class="fas fa-plus"></i> تسجيل عهدة جديدة</button></div>
+        <div class="mc-cards" id="cnCards"></div>
+        <div class="card-table-wrapper"><div class="table-toolbar flex-toolbar">
+            <select class="v3-in" onchange="cnSetFilter(this.value)"><option value="all">كل العهد</option><option value="open">المفتوحة فقط</option><option value="closed">المسوّاة</option></select></div>
+            <div class="table-responsive"><table class="data-table"><thead><tr><th>رقم العهدة</th><th>التاريخ</th><th>العميل</th><th>الأصناف</th><th>القيمة</th><th>الحالة</th><th></th></tr></thead>
+            <tbody id="cnBody"></tbody></table></div></div>`;
+    }
+    let open = consignments.filter(c => c.status === 'open');
+    document.getElementById('cnCards').innerHTML = `
+        <div><span>عهد مفتوحة</span><b style="color:#d97706">${open.length}</b></div>
+        <div><span>قيمة البضاعة بالخارج</span><b style="color:#0284c7">${fmt(sumOf(open, c => sumOf(c.items, i => i.qty * i.price)))} ج.م</b></div>
+        <div><span>إجمالي العهد المسوّاة</span><b style="color:#059669">${consignments.filter(c => c.status === 'closed').length}</b></div>`;
+    let list = consignments.slice().reverse().filter(c => cnFilter === 'all' || (cnFilter === 'open' ? c.status === 'open' : c.status !== 'open'));
+    document.getElementById('cnBody').innerHTML = list.map(c => {
+        let val = sumOf(c.items, i => i.qty * i.price);
+        let st = c.status === 'open' ? '<span class="badge-danger">مفتوحة (بضاعة بالخارج)</span>'
+            : c.status === 'closed' ? `<span class="badge-success">سُوّيت</span><div class="v3-muted">${c.invoiceId ? 'فاتورة ' + esc(c.invoiceId) : 'رجعت كلها'}</div>` : '<span class="badge-neutral">ملغاة</span>';
+        let act = c.status === 'open'
+            ? `<button class="btn-action btn-pay-sm" onclick="openCnSettle('${c.id}')"><i class="fas fa-flag-checkered"></i> تسوية وفاتورة</button>
+               <button class="btn-action btn-danger-sm" onclick="cnCancel('${c.id}')"><i class="fas fa-ban"></i> إلغاء</button>`
+            : (c.invoiceId ? `<button class="btn-action btn-view-sm" onclick="arView('${esc(c.invoiceId)}')"><i class="fas fa-eye"></i> الفاتورة</button>` : '');
+        return `<tr><td><b>${esc(c.id)}</b></td><td>${esc(c.date)}</td><td>${esc(c.customerName)}${c.note ? `<div class="v3-muted">${esc(c.note)}</div>` : ''}</td>
+            <td style="font-size:12px">${c.items.map(i => esc(i.name) + ' × ' + i.qty).join('، ')}</td><td><b>${fmt(val)}</b></td><td>${st}</td><td><div class="row-actions">${act}</div></td></tr>`;
+    }).join('') || '<tr><td colspan="7" style="text-align:center;padding:20px;color:#94a3b8">لا توجد عهد</td></tr>';
+}
+window.openCnNew = function () {
+    injectV5Modals(); refreshProdList();
+    cn = { items: [] };
+    document.getElementById('cnCustomer').innerHTML = custOptions('');
+    document.getElementById('cnDate').value = todayInput();
+    document.getElementById('cnNote').value = '';
+    cnRender(); showModal('cnNewModal');
+};
+window.closeCnNew = function () { hideModal('cnNewModal'); };
+window.cnAddProd = function () {
+    let inp = document.getElementById('cnProd'); let p = prodFromLabel(inp.value);
+    if (!p) { alert('اختار الصنف من القائمة المقترحة.'); return; }
+    let ex = cn.items.find(i => i.code === p.code);
+    if (ex) ex.qty++; else cn.items.push({ code: p.code, name: p.name, qty: 1, price: Number(p.price) });
+    inp.value = ''; cnRender(); inp.focus();
+};
+function cnRender() {
+    document.getElementById('cnItems').innerHTML = cn.items.map((r, i) => {
+        let p = inventory.find(x => x.code === r.code), avail = p ? Number(p.qty) : 0;
+        return `<tr><td style="text-align:right">${esc(r.name)}<div class="v3-muted">متاح ${avail}</div></td>
+        <td><input type="number" class="v3-in" min="1" value="${r.qty}" oninput="cnSetQty(${i},this.value)"></td>
+        <td><input type="number" class="v3-in" min="0" value="${r.price}" oninput="cnSetPrice(${i},this.value)"></td>
+        <td id="cnV${i}">${fmt(r.qty * r.price)}</td><td><button class="v3-del" onclick="cnDel(${i})"><i class="fas fa-trash"></i></button></td></tr>`;
+    }).join('') || '<tr><td colspan="5" class="v3-muted" style="padding:14px">لسه ماضفتش أصناف</td></tr>';
+    cnTotal();
+}
+window.cnTotal = function () {
+    cn.items.forEach((r, i) => { let el = document.getElementById('cnV' + i); if (el) el.innerText = fmt(r.qty * r.price); });
+    document.getElementById('cnTotalTxt').innerText = fmt(sumOf(cn.items, r => r.qty * r.price)) + ' ج.م';
+};
+window.cnSave = function () {
+    let name = document.getElementById('cnCustomer').value;
+    if (!name) { alert('اختار العميل.'); return; }
+    if (!cn.items.length) { alert('أضف صنف واحد على الأقل.'); return; }
+    for (let r of cn.items) {
+        let p = inventory.find(x => x.code === r.code);
+        if (!p || Number(p.qty) < r.qty) { alert(`الكمية المطلوبة من (${r.name}) أكبر من المتاح في المخزن (${p ? p.qty : 0}).`); return; }
+    }
+    cn.items.forEach(r => { let p = inventory.find(x => x.code === r.code); p.qty = Number(p.qty) - r.qty; });
+    let d = dateFromInput(document.getElementById('cnDate').value);
+    consignments.push({
+        id: nextSeq(consignments, 'CN-'), customerName: name, ...d, note: document.getElementById('cnNote').value.trim(),
+        items: cn.items.map(r => ({ code: r.code, name: r.name, qty: r.qty, price: r.price })), status: 'open'
+    });
+    saveData(); refreshAllData(); closeCnNew();
+    toast('تم تسجيل العهدة وخصم الكميات من المخزن', 'ok');
+};
+window.cnCancel = function (id) {
+    let c = consignments.find(x => x.id === id);
+    if (!c || c.status !== 'open') return;
+    if (!confirm('إلغاء العهدة؟ كل الأصناف هترجع للمخزن ولن تُصدر فاتورة.')) return;
+    c.items.forEach(i => { let p = inventory.find(x => x.code === i.code); if (p) p.qty = Number(p.qty) + i.qty; else inventory.push({ code: i.code, name: i.name, qty: i.qty, unit: 'قطعة', price: i.price }); });
+    c.status = 'cancelled'; c.closedAt = new Date().toISOString();
+    saveData(); refreshAllData(); toast('تم إلغاء العهدة وإرجاع الأصناف للمخزن', 'ok');
+};
+window.openCnSettle = function (id) {
+    injectV5Modals();
+    let c = consignments.find(x => x.id === id);
+    if (!c) return;
+    cs = { id, rows: c.items.map(i => ({ ...i, returned: 0 })), discount: 0 };
+    document.getElementById('csTitle').innerHTML = `<i class="fas fa-flag-checkered"></i> تسوية العهدة ${esc(c.id)} — ${esc(c.customerName)}`;
+    document.getElementById('csDiscount').value = 0;
+    document.getElementById('csPaid').value = 0;
+    csRender(); showModal('cnSettleModal');
+};
+window.closeCnSettle = function () { hideModal('cnSettleModal'); cs = null; };
+function csRender() {
+    document.getElementById('csRows').innerHTML = cs.rows.map((r, i) => `<tr><td style="text-align:right">${esc(r.name)}</td><td>${r.qty}</td>
+        <td><input type="number" class="v3-in" min="0" max="${r.qty}" value="${r.returned || ''}" placeholder="0" oninput="csSet(${i},this.value)"></td>
+        <td id="csS${i}">${r.qty}</td>
+        <td><input type="number" class="v3-in" min="0" value="${r.price}" oninput="csPrice(${i},this.value)"></td><td id="csV${i}">0</td></tr>`).join('');
+    csCalc();
+}
+window.csSet = function (i, v) {
+    let r = cs.rows[i]; r.returned = Math.min(r.qty, Math.max(0, Number(v) || 0)); csCalc();
+};
+function csTotals() {
+    let sub = sumOf(cs.rows, r => (r.qty - r.returned) * r.price);
+    let disc = Math.min(100, Math.max(0, Number(document.getElementById('csDiscount').value) || 0));
+    let discAmt = sub * disc / 100, total = sub - discAmt;
+    let paid = Math.max(0, Number(document.getElementById('csPaid').value) || 0);
+    return { sub, disc, discAmt, total, paid, remaining: total - paid };
+}
+window.csCalc = function () {
+    cs.rows.forEach((r, i) => {
+        document.getElementById('csS' + i).innerText = r.qty - r.returned;
+        document.getElementById('csV' + i).innerText = fmt((r.qty - r.returned) * r.price);
+    });
+    let T = csTotals();
+    let c = consignments.find(x => x.id === cs.id);
+    let soldQty = sumOf(cs.rows, r => r.qty - r.returned);
+    let el = document.getElementById('csSummary');
+    el.className = 'cp-sum' + (T.remaining < -0.5 ? ' err' : '');
+    el.innerHTML = soldQty > 0
+        ? `إجمالي الفاتورة <b>${fmt(T.total)} ج.م</b> — المدفوع <b>${fmt(T.paid)}</b> — ${T.remaining < -0.5 ? 'المدفوع أكبر من الإجمالي!' : `المتبقي على ${esc(c.customerName)}: <b>${fmt(T.remaining)} ج.م</b>`}`
+        : 'كل الأصناف رجعت — مش هتتصدر فاتورة، وهتتقفل العهدة وترجع الأصناف للمخزن.';
+    document.getElementById('csConfirm').disabled = soldQty > 0 && T.remaining < -0.5;
+};
+window.csPayFull = function () { document.getElementById('csPaid').value = Math.round(csTotals().total * 100) / 100; csCalc(); };
+window.csConfirm = function () {
+    let c = consignments.find(x => x.id === cs.id);
+    if (!c || c.status !== 'open') return;
+    let T = csTotals();
+    let sold = cs.rows.filter(r => r.qty - r.returned > 0).map(r => ({ code: r.code, name: r.name, qty: r.qty - r.returned, price: r.price, total: (r.qty - r.returned) * r.price }));
+    // الراجع للمخزن
+    cs.rows.forEach(r => {
+        if (r.returned > 0) { let p = inventory.find(x => x.code === r.code); if (p) p.qty = Number(p.qty) + r.returned; else inventory.push({ code: r.code, name: r.name, qty: r.returned, unit: 'قطعة', price: r.price }); }
+    });
+    let invObj = null;
+    if (sold.length) {
+        let cust = customers.find(x => x.name === c.customerName) || {};
+        let now = new Date();
+        invObj = {
+            id: nextInvoiceId(), customerName: c.customerName, customerPhone: cust.phone || '', customerAddress: cust.address || '',
+            items: sold, subtotal: T.sub, discountPercent: T.disc, discountAmount: T.discAmt,
+            oldBalance: 0, oldBalanceType: 'none', oldBalanceDate: '',
+            total: T.total, paid: T.paid, remaining: T.remaining, initialPaid: T.paid,
+            status: T.remaining > 0.5 ? `متبقي: ${T.remaining.toLocaleString()} ج.م` : 'تم الدفع بالكامل',
+            date: now.toLocaleDateString('ar-EG'), dateISO: now.toISOString(), fromConsignment: c.id
+        };
+        invoices.push(invObj);
+        archiveAdd(invObj);
+    }
+    c.status = 'closed'; c.closedAt = new Date().toISOString(); c.invoiceId = invObj ? invObj.id : '';
+    c.returnedItems = cs.rows.filter(r => r.returned > 0).map(r => ({ code: r.code, name: r.name, qty: r.returned }));
+    saveData(); refreshAllData(); closeCnSettle();
+    if (invObj) { toast('تم إصدار الفاتورة ' + invObj.id + ' على العميل', 'ok'); window.showInvoiceModal(invObj); }
+    else toast('تم إغلاق العهدة وإرجاع كل الأصناف للمخزن', 'ok');
+};
+
+
+// دوال وسيطة تُستدعى من الأزرار (المتغيرات الداخلية للموديول مش متاحة لـ onclick مباشرة)
+window.rtSearchSet = function (v) { rtQuery = v; renderReturnsTab(); };
+window.arSet = function (k, v) { arF[k] = v; arLimit = 100; renderArchiveTab(); };
+window.arMoreRows = function () { arLimit += 200; renderArchiveTab(); };
+window.cnSetFilter = function (v) { cnFilter = v; renderConsignTab(); };
+window.cnSetQty = function (i, v) { cn.items[i].qty = Math.max(1, Number(v) || 1); cnTotal(); };
+window.cnSetPrice = function (i, v) { cn.items[i].price = Number(v) || 0; cnTotal(); };
+window.cnDel = function (i) { cn.items.splice(i, 1); cnRender(); };
+window.csPrice = function (i, v) { cs.rows[i].price = Number(v) || 0; csCalc(); };
+
+// إضافات كشف الحساب: مرتجعات العميل + بضاعة الأمانة المفتوحة (للعلم، لا تدخل في المديونية)
+function stmtExtras(name) {
+    let html = '';
+    let rets = returnsLog.filter(r => r.customerName === name);
+    if (rets.length) {
+        html += `<div class="rp-h2">مرتجعات العميل</div><table class="rp-table"><thead><tr><th>الرقم</th><th>التاريخ</th><th>الفاتورة</th><th>الأصناف</th><th>القيمة</th><th>التسوية</th></tr></thead><tbody>
+        ${rets.map(r => `<tr><td class="c">${esc(r.id)}</td><td class="c">${esc(r.date)}</td><td class="c">${esc(r.invoiceId || '—')}</td><td style="font-size:12px">${r.items.map(i => esc(i.name) + ' × ' + i.qty).join('، ')}</td><td class="c"><b>${fmt(r.total)}</b></td><td class="c">${RT_SETTLE[r.settlement]}</td></tr>`).join('')}</tbody></table>`;
+    }
+    let open = consignments.filter(c => c.customerName === name && c.status === 'open');
+    if (open.length) {
+        html += `<div class="rp-h2">بضاعة أمانة مفتوحة (لم تُسوَّ بعد — غير محسوبة في المديونية)</div><table class="rp-table"><thead><tr><th>الرقم</th><th>التاريخ</th><th>الأصناف</th><th>القيمة</th></tr></thead><tbody>
+        ${open.map(c => `<tr><td class="c">${esc(c.id)}</td><td class="c">${esc(c.date)}</td><td style="font-size:12px">${c.items.map(i => esc(i.name) + ' × ' + i.qty).join('، ')}</td><td class="c"><b>${fmt(sumOf(c.items, i => i.qty * i.price))}</b></td></tr>`).join('')}</tbody></table>`;
+    }
+    return html;
+}
+
+// =====================================================================
+// حقن نوافذ v5
+// =====================================================================
+function injectV5Modals() {
+    if (document.getElementById('retModal')) return;
+    let wrap = document.createElement('div');
+    wrap.innerHTML = `
+    <datalist id="v5ProdList"></datalist>
+
+    <div id="retModal" class="modal" style="display:none"><div class="modal-content v5-card">
+        <div class="modal-header"><h2><i class="fas fa-rotate-left"></i> تسجيل مرتجع</h2><span class="close-btn" onclick="closeRetModal()">&times;</span></div>
+        <div class="modal-body">
+            <div class="v5-two"><div><label class="v3-lab">العميل</label><select id="rtCustomer" class="v3-in" style="width:100%" onchange="rtCustomerChange()"></select></div>
+            <div><label class="v3-lab">الفاتورة الأصلية (اختياري)</label><select id="rtInvoice" class="v3-in" style="width:100%" onchange="rtInvoiceChange()"></select></div></div>
+            <div id="rtItemsBox"></div>
+            <div class="v5-two" style="margin-top:10px"><div><label class="v3-lab">سبب المرتجع</label><select id="rtReason" class="v3-in" style="width:100%"><option>عيب في المنتج</option><option>خطأ في الطلب</option><option>تلف أثناء الشحن</option><option>رغبة العميل</option><option>أخرى</option></select></div>
+            <div><label class="v3-lab">ملاحظة</label><input id="rtNote" class="v3-in" style="width:100%" placeholder="اختياري"></div></div>
+            <label style="display:flex;gap:8px;align-items:center;margin:12px 0;font-size:13px"><input type="checkbox" id="rtStock" checked> رجّع الكمية للمخزن <span class="v3-muted">(ألغي العلامة لو الصنف تالف)</span></label>
+            <label class="v3-lab">تسوية قيمة المرتجع</label>
+            <div class="v5-radios" id="rtSettle">
+                <label><input type="radio" name="rtSettle" value="debt" checked onchange="rtRecalc()"><b>خصم من مديونية العميل</b><small>الأنسب لو عليه فلوس</small></label>
+                <label><input type="radio" name="rtSettle" value="cash" onchange="rtRecalc()"><b>رد نقدي</b><small>العميل كان دافع كاش</small></label>
+                <label><input type="radio" name="rtSettle" value="credit" onchange="rtRecalc()"><b>رصيد للعميل</b><small>يتخصم من فواتيره الجاية</small></label>
+            </div>
+            <div id="rtPreview" class="cp-sum"></div>
+        </div>
+        <div class="modal-footer"><button class="v3-btn gray" onclick="closeRetModal()">إلغاء</button>
+            <button class="v3-btn green" id="rtConfirm" onclick="rtConfirm()"><i class="fas fa-check"></i> تأكيد المرتجع وطباعة الإيصال</button></div>
+    </div></div>
+
+    <div id="cnNewModal" class="modal" style="display:none"><div class="modal-content v5-card">
+        <div class="modal-header"><h2><i class="fas fa-suitcase-rolling"></i> عهدة / بضاعة أمانة جديدة</h2><span class="close-btn" onclick="closeCnNew()">&times;</span></div>
+        <div class="modal-body">
+            <div class="v5-two"><div><label class="v3-lab">العميل</label><select id="cnCustomer" class="v3-in" style="width:100%"></select></div>
+            <div><label class="v3-lab">تاريخ التسليم</label><input type="date" id="cnDate" class="v3-in" style="width:100%"></div></div>
+            <div class="mc-pick" style="margin:12px 0 6px"><input class="v3-in" id="cnProd" list="v5ProdList" placeholder="اكتب اسم الصنف واختاره من القائمة…" onkeydown="if(event.key==='Enter')cnAddProd()">
+                <button class="v3-btn" onclick="cnAddProd()"><i class="fas fa-plus"></i> إضافة</button></div>
+            <table class="cp-table"><thead><tr><th style="text-align:right">الصنف</th><th>الكمية</th><th>السعر</th><th>القيمة</th><th></th></tr></thead><tbody id="cnItems"></tbody></table>
+            <div class="cp-sum" style="margin-top:10px">إجمالي قيمة البضاعة: <b id="cnTotalTxt">0 ج.م</b> <span class="v3-muted">— هتتخصم من المخزن فوراً وترجع لو رجّعتها عند التسوية</span></div>
+            <input class="v3-in" id="cnNote" style="width:100%;margin-top:10px" placeholder="ملاحظة (مثلاً: رحلة الإسكندرية)">
+        </div>
+        <div class="modal-footer"><button class="v3-btn gray" onclick="closeCnNew()">إلغاء</button><button class="v3-btn green" onclick="cnSave()"><i class="fas fa-check"></i> حفظ العهدة</button></div>
+    </div></div>
+
+    <div id="cnSettleModal" class="modal" style="display:none"><div class="modal-content v5-card">
+        <div class="modal-header"><h2 id="csTitle">تسوية العهدة</h2><span class="close-btn" onclick="closeCnSettle()">&times;</span></div>
+        <div class="modal-body">
+            <p class="v3-muted" style="margin-bottom:8px">اكتب كمية اللي رجع معاك من كل صنف. الباقي بيتحسب مباع للعميل وبتطلعله فاتورة.</p>
+            <table class="cp-table"><thead><tr><th style="text-align:right">الصنف</th><th>اتاخد</th><th>رجع معايا</th><th>مباع</th><th>السعر</th><th>القيمة</th></tr></thead><tbody id="csRows"></tbody></table>
+            <div class="v5-two" style="margin-top:12px"><div><label class="v3-lab">خصم % (اختياري)</label><input type="number" id="csDiscount" class="v3-in" style="width:100%" value="0" min="0" max="100" oninput="csCalc()"></div>
+            <div><label class="v3-lab">المدفوع الآن</label><div style="display:flex;gap:6px"><input type="number" id="csPaid" class="v3-in" style="flex:1" value="0" min="0" oninput="csCalc()"><button class="v3-btn gray sm" onclick="csPayFull()">دفع كامل</button></div></div></div>
+            <div id="csSummary" class="cp-sum"></div>
+        </div>
+        <div class="modal-footer"><button class="v3-btn gray" onclick="closeCnSettle()">إلغاء</button><button class="v3-btn green" id="csConfirm" onclick="csConfirm()"><i class="fas fa-file-invoice"></i> تسوية وإصدار الفاتورة</button></div>
+    </div></div>
+
+    <div id="arModal" class="modal" style="display:none"><div class="modal-content st-card">
+        <div class="modal-header"><h2><i class="fas fa-lock"></i> نسخة مؤرشفة (للقراءة فقط)</h2><span class="close-btn" onclick="hideModal('arModal')">&times;</span></div>
+        <div class="modal-body" id="arBodyView"></div>
+        <div class="modal-footer"><button class="v3-btn" id="arPrintBtn"><i class="fas fa-print"></i> طباعة</button><button class="v3-btn gray" onclick="hideModal('arModal')">إغلاق</button></div>
+    </div></div>
+
+    <div id="stkModal" class="modal" style="display:none"><div class="modal-content st-card">
+        <div class="modal-header"><h2><i class="fas fa-clipboard-check"></i> الجرد السنوي</h2><span class="close-btn" onclick="hideModal('stkModal')">&times;</span></div>
+        <div class="cp-modes" style="padding:12px 16px 0"><button id="stkTabCount" onclick="stkTab('count')"><i class="fas fa-boxes-stacked"></i> جرد المخزن</button><button id="stkTabYear" onclick="stkTab('year')"><i class="fas fa-chart-column"></i> ملخص السنة</button></div>
+        <div id="stkCountPane">
+            <div class="st-filters"><input type="search" class="v3-in" id="stkSearch" placeholder="بحث بالاسم أو الكود…" oninput="stkRender()" style="flex:1;min-width:180px">
+                <button class="v3-btn gray sm" onclick="stkFillAll()">تعبئة الكل بالكميات الحالية</button><button class="v3-btn gray sm" onclick="stkClear()">مسح الأعداد</button></div>
+            <div class="modal-body" style="max-height:48vh"><table class="cp-table"><thead><tr><th>الكود</th><th style="text-align:right">الصنف</th><th>الوحدة</th><th>بالنظام</th><th>العدّ الفعلي</th><th>الفرق</th></tr></thead><tbody id="stkRows"></tbody></table></div>
+            <div id="stkSummary" class="cp-sum" style="margin:0 16px 8px"></div>
+        </div>
+        <div id="stkYearPane" style="display:none"><div class="st-filters"><label>السنة <select id="stkYear" class="v3-in" onchange="stkYearRender()"></select></label></div>
+            <div class="modal-body" id="stkYearBody" style="max-height:56vh"></div></div>
+        <div class="modal-footer"><button class="v3-btn" onclick="stkPrint()"><i class="fas fa-print"></i> طباعة</button>
+            <button class="v3-btn green" id="stkApply" onclick="stkApply()"><i class="fas fa-check"></i> اعتماد الجرد وتسوية المخزن</button>
+            <button class="v3-btn gray" onclick="hideModal('stkModal')">إغلاق</button></div>
+    </div></div>
+
+    <div id="resetModal" class="modal" style="display:none"><div class="modal-content v5-card">
+        <div class="modal-header" style="background:#fef2f2"><h2 style="color:#b91c1c"><i class="fas fa-broom"></i> تنظيف البيانات وبدء حساب جديد</h2><span class="close-btn" onclick="hideModal('resetModal')">&times;</span></div>
+        <div class="modal-body">
+            <label class="rs-opt"><input type="radio" name="rsMode" value="invoices" checked onchange="rsMode()"><div><b>الفواتير فقط</b><small>يمسح الفواتير ودفعاتها والمرتجعات وعهد الأمانة المسوّاة. العملاء والمخزن والمشتريات والمصروفات وحساب المكن تفضل زي ما هي.</small></div></label>
+            <label class="rs-opt"><input type="radio" name="rsMode" value="customers" onchange="rsMode()"><div><b>العملاء بحساباتهم وفواتيرهم</b><small>يمسح كل العملاء مع فواتيرهم ومرتجعاتهم وحساب المكن والأمانة (البضاعة المفتوحة بترجع للمخزن). المخزن والمشتريات والمصروفات تفضل.</small></div></label>
+            <label class="rs-opt"><input type="radio" name="rsMode" value="all" onchange="rsMode()"><div><b>كل شيء — حساب جديد بالكامل</b><small>العملاء والفواتير والمخزن والمشتريات والمصروفات وسجل الجرد. الإعدادات وكلمة المرور وبيانات الموظفين والحضور بتفضل.</small></div></label>
+            <div style="margin:12px 0;font-size:13px">
+                <label class="rs-chk" id="rsZeroRow"><input type="checkbox" id="rsZero" checked> تصفير الأرصدة السابقة للعملاء</label>
+                <label class="rs-chk" id="rsStockRow"><input type="checkbox" id="rsStock"> رجّع كميات الفواتير المحذوفة للمخزن</label>
+                <label class="rs-chk"><input type="checkbox" id="rsArchive"> امسح أرشيف الفواتير كمان <span class="v3-muted">(الأرشيف بيتحفظ افتراضياً)</span></label>
+            </div>
+            <div class="cp-sum err"><i class="fas fa-triangle-exclamation"></i> الإجراء ده نهائي. هتتنزّل نسخة احتياطية تلقائياً قبل المسح.</div>
+            <div class="v5-two" style="margin-top:12px"><div><label class="v3-lab">اكتب كلمة: مسح</label><input id="rsWord" class="v3-in" style="width:100%" autocomplete="off"></div>
+            <div><label class="v3-lab">كلمة مرور النظام</label><input id="rsPass" type="password" class="v3-in" style="width:100%" autocomplete="off"></div></div>
+        </div>
+        <div class="modal-footer"><button class="v3-btn gray" onclick="hideModal('resetModal')">إلغاء</button><button class="v3-btn red" onclick="doReset()"><i class="fas fa-trash"></i> نزّل نسخة وامسح</button></div>
+    </div></div>`;
+    while (wrap.firstChild) document.body.appendChild(wrap.firstChild);
+}
+
+// =====================================================================
+// الجرد السنوي
+// =====================================================================
+let stk = { counts: {} };
+function inYear(rec, y) { let d = recDate(rec); return !!d && d.getFullYear() === y; }
+window.openStocktake = function () {
+    injectV5Modals();
+    stk = { counts: {} };
+    let cur = new Date().getFullYear();
+    let years = new Set([cur]);
+    [...invoices, ...purchases, ...companyExpenses].forEach(r => { let d = recDate(r); if (d) years.add(d.getFullYear()); });
+    document.getElementById('stkYear').innerHTML = [...years].sort((a, b) => b - a).map(y => `<option value="${y}">${y}</option>`).join('');
+    document.getElementById('stkSearch').value = '';
+    stkTab('count'); showModal('stkModal');
+};
+window.stkTab = function (t) {
+    stk.tab = t;
+    document.getElementById('stkTabCount').classList.toggle('on', t === 'count');
+    document.getElementById('stkTabYear').classList.toggle('on', t === 'year');
+    document.getElementById('stkCountPane').style.display = t === 'count' ? 'block' : 'none';
+    document.getElementById('stkYearPane').style.display = t === 'year' ? 'block' : 'none';
+    document.getElementById('stkApply').style.display = t === 'count' ? '' : 'none';
+    if (t === 'count') stkRender(); else stkYearRender();
+};
+window.stkRender = function () {
+    let q = (document.getElementById('stkSearch').value || '').toLowerCase().trim();
+    document.getElementById('stkRows').innerHTML = inventory.map((p, i) => ({ p, i }))
+        .filter(x => !q || (x.p.name || '').toLowerCase().includes(q) || (x.p.code || '').toLowerCase().includes(q))
+        .map(({ p, i }) => `<tr><td>${esc(p.code)}</td><td style="text-align:right">${esc(p.name)}</td><td>${esc(p.unit || '')}</td><td><b>${p.qty}</b></td>
+        <td><input type="number" class="v3-in" min="0" value="${stk.counts[p.code] != null ? stk.counts[p.code] : ''}" oninput="stkSet(${i},this.value)"></td><td id="stkD${i}"></td></tr>`).join('') ||
+        '<tr><td colspan="6" class="v3-muted" style="padding:14px">لا توجد أصناف</td></tr>';
+    inventory.forEach((p, i) => stkDiff(i));
+    stkSummary();
+};
+function stkDiff(i) {
+    let p = inventory[i], el = document.getElementById('stkD' + i);
+    if (!el) return;
+    let c = stk.counts[p.code];
+    if (c == null || c === '') { el.innerHTML = '—'; return; }
+    let d = Number(c) - Number(p.qty);
+    el.innerHTML = d === 0 ? '<span style="color:#059669">مطابق</span>' : `<b style="color:${d < 0 ? '#dc2626' : '#2563eb'}">${d > 0 ? '+' : ''}${d} ${d < 0 ? '(عجز)' : '(زيادة)'}</b>`;
+}
+window.stkSet = function (i, v) {
+    let p = inventory[i];
+    if (v === '' || v == null) delete stk.counts[p.code]; else stk.counts[p.code] = Math.max(0, Number(v) || 0);
+    stkDiff(i); stkSummary();
+};
+function stkLines() {
+    return inventory.filter(p => stk.counts[p.code] != null).map(p => ({ code: p.code, name: p.name, system: Number(p.qty), counted: Number(stk.counts[p.code]), diff: Number(stk.counts[p.code]) - Number(p.qty), price: Number(p.price) }));
+}
+function stkSummary() {
+    let L = stkLines(), el = document.getElementById('stkSummary');
+    if (!el) return;
+    let short = sumOf(L.filter(l => l.diff < 0), l => -l.diff * l.price), extra = sumOf(L.filter(l => l.diff > 0), l => l.diff * l.price);
+    el.innerHTML = `تم عدّ <b>${L.length}</b> من ${inventory.length} صنف — عجز بقيمة <b style="color:#dc2626">${fmt(short)}</b> ج.م — زيادة بقيمة <b style="color:#2563eb">${fmt(extra)}</b> ج.م`;
+}
+window.stkFillAll = function () { inventory.forEach(p => { if (stk.counts[p.code] == null) stk.counts[p.code] = Number(p.qty); }); stkRender(); };
+window.stkClear = function () { stk.counts = {}; stkRender(); };
+window.stkApply = function () {
+    let L = stkLines().filter(l => l.diff !== 0);
+    let counted = stkLines();
+    if (!counted.length) { alert('اكتب العدّ الفعلي لصنف واحد على الأقل.'); return; }
+    if (!confirm(`هيتم اعتماد الجرد: ${counted.length} صنف معدود، منهم ${L.length} فيهم فرق. كميات المخزن هتتعدل للعدّ الفعلي. متأكد؟`)) return;
+    L.forEach(l => { let p = inventory.find(x => x.code === l.code); if (p) p.qty = l.counted; });
+    let now = new Date();
+    stocktakes.push({
+        id: nextSeq(stocktakes, 'ST-'), date: now.toLocaleDateString('ar-EG'), dateISO: now.toISOString(), year: now.getFullYear(), lines: counted,
+        shortageValue: sumOf(counted.filter(l => l.diff < 0), l => -l.diff * l.price), surplusValue: sumOf(counted.filter(l => l.diff > 0), l => l.diff * l.price)
+    });
+    saveData(); refreshAllData();
+    stk.counts = {}; stkRender();
+    toast('تم اعتماد الجرد وتسوية المخزن', 'ok');
+};
+function yearSummary(y) {
+    let invs = invoices.filter(i => inYear(i, y));
+    let sales = sumOf(invs, i => Number(i.total || 0) - signedOldOf(i));
+    let rets = sumOf(returnsLog.filter(r => inYear(r, y)), r => r.total);
+    let cash = 0;
+    invoices.forEach(inv => {
+        let b = invBreakdown(inv);
+        if (inYear(inv, y)) cash += b.initial;
+        b.laterList.forEach(p => { if (p.type !== 'return' && inYear(p, y)) cash += Number(p.amount || 0); });
+    });
+    let purch = sumOf(purchases.filter(p => inYear(p, y)), p => p.cost);
+    let exp = sumOf(companyExpenses.filter(e => inYear(e, y)), e => e.amount);
+    let byCust = {}, byProd = {};
+    invs.forEach(i => {
+        byCust[i.customerName] = (byCust[i.customerName] || 0) + Number(i.total || 0) - signedOldOf(i);
+        (i.items || []).forEach(it => { let o = byProd[it.name] || (byProd[it.name] = { qty: 0, total: 0 }); o.qty += Number(it.qty); o.total += Number(it.total || 0); });
+    });
+    return {
+        count: invs.length, sales, rets, net: sales - rets, cash, purch, exp, profit: sales - rets - purch - exp,
+        topC: Object.entries(byCust).sort((a, b) => b[1] - a[1]).slice(0, 5),
+        topP: Object.entries(byProd).sort((a, b) => b[1].total - a[1].total).slice(0, 5),
+        debts: sumOf(customers, c => Math.max(0, getCustomerNetDebt(c.name))), mach: sumOf(customers, c => Math.max(0, machineTotals(c.name).remaining)),
+        stockQty: sumOf(inventory, p => p.qty), stockVal: sumOf(inventory, p => Number(p.qty) * Number(p.price))
+    };
+}
+function yearHtml(y) {
+    let S = yearSummary(y);
+    return `<div class="rp-wrap"><div class="rp-sum">
+        <div class="rp-card"><span>عدد فواتير ${y}</span><b>${S.count}</b></div>
+        <div class="rp-card"><span>صافي المبيعات (بعد المرتجعات)</span><b style="color:#0284c7">${fmt(S.net)}</b></div>
+        <div class="rp-card"><span>المحصّل نقداً</span><b style="color:#059669">${fmt(S.cash)}</b></div>
+        <div class="rp-card"><span>المرتجعات</span><b style="color:#e11d48">${fmt(S.rets)}</b></div></div>
+        <div class="rp-sum">
+        <div class="rp-card"><span>المشتريات</span><b>${fmt(S.purch)}</b></div>
+        <div class="rp-card"><span>المصروفات</span><b>${fmt(S.exp)}</b></div>
+        <div class="rp-card"><span>صافي تقديري (مبيعات − مشتريات − مصروفات)</span><b style="color:${S.profit >= 0 ? '#059669' : '#e11d48'}">${fmt(S.profit)}</b></div>
+        <div class="rp-card"><span>مديونيات العملاء الآن</span><b style="color:#d97706">${fmt(S.debts + S.mach)}</b></div></div>
+        <div class="rp-h2">أعلى 5 عملاء</div><table class="rp-table"><tbody>${S.topC.map(([n, v]) => `<tr><td>${esc(n)}</td><td class="c"><b>${fmt(v)} ج.م</b></td></tr>`).join('') || '<tr><td>—</td></tr>'}</tbody></table>
+        <div class="rp-h2">أعلى 5 أصناف مبيعاً</div><table class="rp-table"><tbody>${S.topP.map(([n, o]) => `<tr><td>${esc(n)}</td><td class="c">${o.qty} وحدة</td><td class="c"><b>${fmt(o.total)} ج.م</b></td></tr>`).join('') || '<tr><td>—</td></tr>'}</tbody></table>
+        <div class="rp-h2">المخزون الحالي</div><p style="font-size:13px">${fmt(S.stockQty)} وحدة بقيمة بيع تقديرية ${fmt(S.stockVal)} ج.م</p>
+        <p class="v3-muted">ملحوظة: الصافي التقديري تقريبي (لا يحسب تكلفة البضاعة المباعة بدقة).</p></div>`;
+}
+window.stkYearRender = function () { document.getElementById('stkYearBody').innerHTML = yearHtml(Number(document.getElementById('stkYear').value)); };
+window.stkPrint = function () {
+    if (stk.tab === 'year') {
+        let y = Number(document.getElementById('stkYear').value);
+        openPrintWindow('تقرير سنة ' + y, companyHeader('التقرير السنوي ' + y, 'ملخص السنة المالية') + yearHtml(y));
+        return;
+    }
+    let blank = !stkLines().length;
+    let rows = inventory.map(p => {
+        let c = stk.counts[p.code], has = c != null;
+        let d = has ? Number(c) - Number(p.qty) : null;
+        return `<tr><td class="c">${esc(p.code)}</td><td>${esc(p.name)}</td><td class="c">${esc(p.unit || '')}</td><td class="c">${p.qty}</td><td class="c">${has ? c : ''}</td><td class="c" style="color:${d < 0 ? '#dc2626' : '#0f172a'}">${has ? (d > 0 ? '+' : '') + d : ''}</td></tr>`;
+    }).join('');
+    openPrintWindow('جرد المخزن', companyHeader('محضر جرد المخزن', new Date().toLocaleDateString('ar-EG') + (blank ? ' — نموذج للعدّ اليدوي' : '')) +
+        `<table class="rp-table"><thead><tr><th>الكود</th><th>الصنف</th><th>الوحدة</th><th>بالنظام</th><th>العدّ الفعلي</th><th>الفرق</th></tr></thead><tbody>${rows}</tbody></table>
+        <div class="rp-sign"><div>أمين المخزن: ..................</div><div>المدير: ..................</div></div>`);
+};
+
+// =====================================================================
+// النسخ الاحتياطي (تنزيل فعلي + نسخة سحابية) والاسترجاع
+// =====================================================================
+function stampTime() { let d = new Date(); return d.toISOString().slice(0, 10) + '_' + String(d.getHours()).padStart(2, '0') + String(d.getMinutes()).padStart(2, '0'); }
+function applyBackupData(d) {
+    if (Array.isArray(d.inventory)) inventory = d.inventory;
+    customers = d.customers; invoices = d.invoices;
+    purchases = d.purchases || []; companyExpenses = d.companyExpenses || [];
+    machineEntries = d.machineEntries || []; machinePayments = d.machinePayments || [];
+    returnsLog = d.returnsLog || []; consignments = d.consignments || []; stocktakes = d.stocktakes || [];
+    if (Array.isArray(d.invoiceArchive)) { invoiceArchive = d.invoiceArchive; saveArchive(); }
+    if (d.settings) settings = { ...settings, ...d.settings, password: settings.password };
+    ensureArchiveBackfill();
+    saveData(); applyAppearance(); refreshAllData();
+}
+function validBackup(d) { return d && Array.isArray(d.customers) && Array.isArray(d.invoices); }
+function confirmRestore(d) {
+    return confirm(`سيتم استبدال كل البيانات الحالية بالنسخة (${d.invoices.length} فاتورة، ${d.customers.length} عميل). هل أنت متأكد؟`) &&
+        confirm('تأكيد أخير: لا يمكن التراجع. يُنصح بإنشاء نسخة من البيانات الحالية أولاً. المتابعة؟');
+}
+window.importBackupJSON = function (ev) {
+    let file = ev.target.files[0]; ev.target.value = '';
+    if (!file) return;
+    let reader = new FileReader();
+    reader.onload = () => {
+        try {
+            let d = JSON.parse(reader.result);
+            if (!validBackup(d)) throw new Error('bad');
+            if (!confirmRestore(d)) return;
+            applyBackupData(d); toast('تم استرجاع النسخة الاحتياطية بنجاح', 'ok');
+        } catch (e) { alert('الملف غير صالح. اختر ملف نسخة احتياطية JSON صادر من البرنامج.'); }
+    };
+    reader.readAsText(file);
+};
+window.createBackupNow = async function () {
+    let json = JSON.stringify(backupPayload(), null, 1);
+    let blob = new Blob([json], { type: 'application/json' });
+    downloadBlob(blob, `protech-backup-${stampTime()}.json`);
+    settings.lastBackupAt = new Date().toISOString();
+    saveData(); renderBackupStatus(); renderBackupAlert();
+    try {
+        if (blob.size > 900000) { toast('تم تنزيل النسخة على جهازك. الحجم كبير للحفظ السحابي.', 'warn'); return; }
+        await setDoc(doc(db, 'protech_backups', 'b_' + Date.now()), { createdAt: new Date().toISOString(), size: blob.size, invoices: invoices.length, customers: customers.length, payload: json });
+        await pruneCloudBackups();
+        toast('تم تنزيل النسخة وحفظ نسخة سحابية أيضاً', 'ok');
+        if (document.getElementById('stCloudList') && document.getElementById('stCloudList').dataset.shown) loadCloudBackups();
+    } catch (e) { console.error(e); toast('تم تنزيل النسخة على جهازك، لكن تعذر الحفظ السحابي.', 'warn'); }
+};
+async function cloudBackupDocs() {
+    let snap = await getDocs(collection(db, 'protech_backups'));
+    let arr = []; snap.forEach(d => arr.push({ id: d.id, ...d.data() }));
+    return arr.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+}
+async function pruneCloudBackups() {
+    let arr = await cloudBackupDocs();
+    for (let old of arr.slice(10)) { try { await deleteDoc(doc(db, 'protech_backups', old.id)); } catch (e) { } }
+}
+let cloudCache = [];
+window.loadCloudBackups = async function () {
+    let box = document.getElementById('stCloudList');
+    box.dataset.shown = '1'; box.innerHTML = '<span class="v3-muted">جاري التحميل…</span>';
+    try {
+        cloudCache = await cloudBackupDocs();
+        box.innerHTML = cloudCache.length ? `<table class="cp-table"><thead><tr><th>التاريخ</th><th>فواتير</th><th>عملاء</th><th>الحجم</th><th></th></tr></thead><tbody>
+        ${cloudCache.map((b, i) => `<tr><td>${new Date(b.createdAt).toLocaleString('ar-EG')}</td><td>${b.invoices ?? '—'}</td><td>${b.customers ?? '—'}</td><td>${Math.round((b.size || 0) / 1024)} KB</td>
+        <td><button class="v3-btn sm" onclick="cloudDownload(${i})"><i class="fas fa-download"></i></button> <button class="v3-btn sm amber" onclick="cloudRestore(${i})">استرجاع</button></td></tr>`).join('')}</tbody></table>`
+            : '<span class="v3-muted">لا توجد نسخ سحابية بعد. اضغط "إنشاء نسخة احتياطية الآن".</span>';
+    } catch (e) { box.innerHTML = '<span style="color:#dc2626">تعذر تحميل النسخ السحابية (تحقق من الإنترنت).</span>'; }
+};
+window.cloudDownload = function (i) { let b = cloudCache[i]; if (b) downloadBlob(new Blob([b.payload], { type: 'application/json' }), `protech-cloud-backup-${String(b.createdAt).slice(0, 10)}.json`); };
+window.cloudRestore = function (i) {
+    let b = cloudCache[i]; if (!b) return;
+    try { let d = JSON.parse(b.payload); if (!validBackup(d) || !confirmRestore(d)) return; applyBackupData(d); toast('تم استرجاع النسخة السحابية', 'ok'); }
+    catch (e) { alert('تعذر قراءة هذه النسخة.'); }
+};
+
+// =====================================================================
+// تنظيف البيانات وبدء حساب جديد
+// =====================================================================
+window.openResetModal = function () {
+    injectV5Modals();
+    document.querySelector('input[name="rsMode"][value="invoices"]').checked = true;
+    ['rsWord', 'rsPass'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('rsArchive').checked = false; document.getElementById('rsStock').checked = false; document.getElementById('rsZero').checked = true;
+    rsMode(); showModal('resetModal');
+};
+window.rsMode = function () {
+    let m = document.querySelector('input[name="rsMode"]:checked').value;
+    document.getElementById('rsZeroRow').style.display = m === 'invoices' ? '' : 'none';
+    document.getElementById('rsStockRow').style.display = m === 'invoices' ? '' : 'none';
+};
+window.doReset = function () {
+    let word = document.getElementById('rsWord').value.trim();
+    let pass = document.getElementById('rsPass').value;
+    if (word !== 'مسح') { alert('اكتب كلمة "مسح" بالظبط للتأكيد.'); return; }
+    if (pass !== (settings.password || 'protech2026')) { alert('كلمة مرور النظام غير صحيحة.'); return; }
+    let m = document.querySelector('input[name="rsMode"]:checked').value;
+    let labels = { invoices: 'الفواتير فقط', customers: 'العملاء بحساباتهم وفواتيرهم', all: 'كل شيء' };
+    if (!confirm(`آخر تأكيد: مسح (${labels[m]}). هتتنزل نسخة احتياطية الأول. المتابعة؟`)) return;
+
+    // 1) نسخة احتياطية تلقائية قبل أي مسح
+    downloadBlob(new Blob([JSON.stringify(backupPayload(), null, 1)], { type: 'application/json' }), `protech-BEFORE-RESET-${stampTime()}.json`);
+    settings.lastBackupAt = new Date().toISOString();
+
+    const returnOpenConsignments = () => consignments.filter(c => c.status === 'open').forEach(c => c.items.forEach(i => {
+        let p = inventory.find(x => x.code === i.code); if (p) p.qty = Number(p.qty) + i.qty;
+    }));
+
+    if (m === 'invoices') {
+        if (document.getElementById('rsStock').checked) invoices.forEach(inv => (inv.items || []).forEach(it => { let p = inventory.find(x => x.code === it.code); if (p) p.qty = Number(p.qty) + Number(it.qty); }));
+        invoices = []; returnsLog = [];
+        consignments = consignments.filter(c => c.status === 'open').map(c => c);
+        if (document.getElementById('rsZero').checked) customers.forEach(c => { c.oldBalance = 0; c.balanceType = 'none'; c.oldBalanceDate = ''; delete c.balancePayments; });
+    } else {
+        returnOpenConsignments();
+        customers = []; invoices = []; returnsLog = []; machineEntries = []; machinePayments = []; consignments = [];
+        if (m === 'all') { inventory = []; purchases = []; companyExpenses = []; stocktakes = []; }
+    }
+    if (document.getElementById('rsArchive').checked) { invoiceArchive = []; saveArchive(); }
+    else if (m !== 'invoices') { /* الأرشيف محفوظ كسجل تاريخي */ }
+
+    saveData(); refreshAllData(); hideModal('resetModal');
+    toast('تم المسح بنجاح. تم تنزيل نسخة احتياطية قبل المسح.', 'ok');
+};
+
+// =====================================================================
+// تشغيل v5
+// =====================================================================
+injectThemeButton();
+applyAppearance();
+injectSettingsV5();
