@@ -860,3 +860,129 @@ body { font-size: 13.5px; line-height: 1.55; -webkit-font-smoothing: antialiased
     .collect-pct { font-size: 28px; }
     .collect-nums { flex-direction: column; }
 }
+
+/* =====================================================================
+   v5 — المود الداكن + الإعدادات + الصفحات الجديدة
+   ===================================================================== */
+.main-content { zoom: var(--ui-zoom, 1); }
+.theme-btn { background: transparent; border: 1px solid var(--border, #e2e8f0); color: #475569; width: 34px; height: 34px; border-radius: 50%; cursor: pointer; margin-left: 8px; font-size: 14px; }
+.theme-btn:hover { background: #f1f5f9; }
+.user-profile { display: flex; align-items: center; }
+
+/* ---- إشعارات ---- */
+#v5Toasts { position: fixed; bottom: 20px; left: 20px; z-index: 5000; display: flex; flex-direction: column; gap: 8px; }
+.v5-toast { background: #0f172a; color: #fff; padding: 11px 16px; border-radius: 10px; font-size: 13.5px; box-shadow: 0 8px 24px rgba(15,23,42,.3); transition: opacity .4s; border-right: 4px solid #3b82f6; max-width: 360px; }
+.v5-toast.ok { border-right-color: #10b981; } .v5-toast.warn { border-right-color: #f59e0b; }
+
+/* ---- نوافذ v5 ---- */
+.v5-card { width: 760px !important; max-width: 100%; }
+.v5-two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.v5-radios { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+.v5-radios label { border: 2px solid #e2e8f0; border-radius: 10px; padding: 9px 10px; cursor: pointer; display: block; font-size: 13px; }
+.v5-radios label small { display: block; color: #64748b; font-size: 11.5px; margin-top: 2px; }
+.v5-radios label:has(input:checked) { border-color: #0284c7; background: #e0f2fe; }
+.v5-radios input { margin-left: 6px; }
+.rs-opt { display: flex; gap: 10px; align-items: flex-start; border: 2px solid #e2e8f0; border-radius: 10px; padding: 11px 13px; margin-bottom: 8px; cursor: pointer; }
+.rs-opt small { display: block; color: #64748b; font-size: 12px; margin-top: 2px; line-height: 1.6; }
+.rs-opt:has(input:checked) { border-color: #dc2626; background: #fef2f2; }
+.rs-chk { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; cursor: pointer; }
+@media (max-width: 700px) { .v5-two, .v5-radios { grid-template-columns: 1fr; } }
+
+/* ---- صفحة الإعدادات ---- */
+.stx { display: grid; grid-template-columns: 220px 1fr; gap: 16px; align-items: start; }
+.stx-nav { background: var(--card-bg, #fff); border: 1px solid var(--border, #e2e8f0); border-radius: 14px; padding: 8px; position: sticky; top: 12px; }
+.stx-nav button { display: flex; gap: 10px; align-items: center; width: 100%; text-align: right; background: none; border: none; padding: 10px 12px; border-radius: 9px; cursor: pointer; font-size: 13.5px; color: var(--text-main, #334155); font-weight: 600; margin-bottom: 2px; }
+.stx-nav button i { width: 18px; text-align: center; }
+.stx-nav button:hover { background: #f1f5f9; }
+.stx-nav button.on { background: #e0f2fe; color: #075985; }
+.stx-panel { display: none; } .stx-panel.on { display: block; }
+.stx-card { background: var(--card-bg, #fff); border: 1px solid var(--border, #e2e8f0); border-radius: 14px; padding: 18px; margin-bottom: 14px; }
+.stx-card h3 { font-size: 15px; margin-bottom: 3px; color: var(--dark, #0f172a); display: flex; gap: 8px; align-items: center; }
+.stx-card .sub { color: var(--text-muted, #64748b); font-size: 12.5px; margin-bottom: 14px; }
+.stx-danger { border-color: #fecaca; background: #fffafa; }
+.stx-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.stx-field label { display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 4px; color: var(--text-main, #334155); }
+.stx-field input, .stx-field select, .stx-field textarea { width: 100%; padding: 9px 11px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13.5px; background: #fff; color: #0f172a; }
+.stx-field small { color: var(--text-muted, #64748b); font-size: 11.5px; }
+.stx-opt { display: flex; gap: 10px; flex-wrap: wrap; }
+.stx-opt label { flex: 1; min-width: 110px; border: 2px solid #e2e8f0; border-radius: 11px; padding: 12px; text-align: center; cursor: pointer; font-weight: 700; font-size: 13px; color: #475569; }
+.stx-opt label i { font-size: 18px; margin-bottom: 4px; }
+.stx-opt label.on { border-color: var(--accent, #0284c7); background: #e0f2fe; color: #075985; }
+.swatches { display: flex; gap: 12px; }
+.swatch { width: 32px; height: 32px; border-radius: 50%; cursor: pointer; border: 3px solid transparent; box-shadow: 0 0 0 1px #cbd5e1; }
+.swatch.on { border-color: #0f172a; }
+.logo-prev { width: 64px; height: 64px; border-radius: 12px; border: 1px dashed #cbd5e1; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 22px; overflow: hidden; }
+.logo-prev img { max-width: 100%; max-height: 100%; }
+#backupAlert { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 10px 14px; margin-bottom: 12px; display: none; align-items: center; gap: 14px; flex-wrap: wrap; }
+#backupAlert .txt { flex: 1; min-width: 200px; color: #1e40af; font-size: 13.5px; }
+@media (max-width: 900px) { .stx { grid-template-columns: 1fr; } .stx-nav { display: flex; overflow-x: auto; position: static; } .stx-nav button { white-space: nowrap; width: auto; } .stx-grid { grid-template-columns: 1fr; } }
+
+/* =====================================================================
+   المود الداكن
+   ===================================================================== */
+html.theme-dark { color-scheme: dark; --light-bg: #0b1220; --card-bg: #111c33; --border: #23304d; --text-main: #cbd5e1; --text-muted: #94a3b8; --dark: #e2e8f0; }
+html.theme-dark body { background: #0b1220; color: #cbd5e1; }
+html.theme-dark .top-bar, html.theme-dark .stat-card, html.theme-dark .aging-dash, html.theme-dark .sub-card,
+html.theme-dark .analytics-card-large, html.theme-dark .card-table-wrapper, html.theme-dark .settings-card,
+html.theme-dark .stx-card, html.theme-dark .stx-nav, html.theme-dark .aging-card, html.theme-dark .mc-cards div,
+html.theme-dark .bk-card { background: #111c33; border-color: #23304d; color: #cbd5e1; }
+html.theme-dark .stx-danger { background: #1f1115; border-color: #7f1d1d; }
+html.theme-dark h1, html.theme-dark h2, html.theme-dark h3, html.theme-dark .stat-info span, html.theme-dark .aging-card b,
+html.theme-dark .aging-dash h3, html.theme-dark .page-header-title h1 { color: #f1f5f9; }
+html.theme-dark .data-table th { background: #16223a; color: #e2e8f0; border-color: #23304d; }
+html.theme-dark .data-table td { border-color: #23304d; color: #cbd5e1; }
+html.theme-dark .data-table tr:hover td { background: #16223a; }
+html.theme-dark .table-toolbar { background: #0f1a30; border-color: #23304d; }
+html.theme-dark input, html.theme-dark select, html.theme-dark textarea,
+html.theme-dark .stx-field input, html.theme-dark .stx-field select, html.theme-dark .stx-field textarea { background: #0b1526; color: #e2e8f0; border-color: #2b3a5a; }
+html.theme-dark input::placeholder, html.theme-dark textarea::placeholder { color: #64748b; }
+html.theme-dark .modal-content { background: #111c33; color: #cbd5e1; }
+html.theme-dark .modal-header, html.theme-dark .modal-footer { background: #0f1a30; border-color: #23304d; }
+html.theme-dark .modal-header h2 { color: #f1f5f9; }
+html.theme-dark .badge-neutral { background: #1e293b; color: #94a3b8; }
+html.theme-dark .badge-success { background: #064e3b; color: #6ee7b7; }
+html.theme-dark .badge-danger { background: #450a0a; color: #fca5a5; }
+html.theme-dark .search-global { background: #0b1526; }
+html.theme-dark .theme-btn { color: #fcd34d; border-color: #2b3a5a; } html.theme-dark .theme-btn:hover { background: #16223a; }
+html.theme-dark .stx-nav button { color: #cbd5e1; } html.theme-dark .stx-nav button:hover { background: #16223a; }
+html.theme-dark .stx-nav button.on, html.theme-dark .stx-opt label.on, html.theme-dark .v5-radios label:has(input:checked), html.theme-dark .cp-modes button.on { background: #0c2a4a; color: #7dd3fc; border-color: #0284c7; }
+html.theme-dark .stx-opt label, html.theme-dark .v5-radios label, html.theme-dark .rs-opt, html.theme-dark .cp-modes button { background: #111c33; border-color: #23304d; color: #cbd5e1; }
+html.theme-dark .rs-opt:has(input:checked) { background: #2a1317; border-color: #dc2626; }
+html.theme-dark .swatch.on { border-color: #f1f5f9; }
+html.theme-dark .logo-prev { border-color: #2b3a5a; }
+html.theme-dark #overdueAlert { background: #2a1a0b; border-color: #7c3a0b; } html.theme-dark #overdueAlert .txt { color: #fdba74; }
+html.theme-dark #backupAlert { background: #0c1f3d; border-color: #1e3a8a; } html.theme-dark #backupAlert .txt { color: #93c5fd; }
+html.theme-dark #recentInvoicesTable th { background: #16223a; color: #94a3b8; border-color: #23304d; }
+html.theme-dark #recentInvoicesTable td { border-color: #23304d; }
+html.theme-dark .alert-item { background: #2c1414; border-color: #7f1d1d; color: #fca5a5; }
+/* مكوّنات v3/v5 */
+html.theme-dark .rp-wrap { color: #cbd5e1; }
+html.theme-dark .rp-card { background: #0f1a30; border-color: #23304d; } html.theme-dark .rp-card b { color: #f1f5f9; }
+html.theme-dark .rp-table td { border-color: #23304d; } html.theme-dark .rp-table tr.rp-sub td { background: #0f1a30; }
+html.theme-dark .rp-h2 { color: #e2e8f0; } html.theme-dark .rp-bar { background: #23304d; }
+html.theme-dark .rp-paidof { color: #cbd5e1; } html.theme-dark .rp-after { background: #0c2a4a; color: #7dd3fc; }
+html.theme-dark .v3-in { background: #0b1526; color: #e2e8f0; border-color: #2b3a5a; }
+html.theme-dark .st-filters { background: #0f1a30; border-color: #23304d; } html.theme-dark .st-filters label { color: #94a3b8; }
+html.theme-dark .cp-top div { background: #0f1a30; border-color: #23304d; } html.theme-dark .cp-top b { color: #f1f5f9; }
+html.theme-dark .cp-table th { background: #16223a; color: #cbd5e1; } html.theme-dark .cp-table td { border-color: #23304d; }
+html.theme-dark .cp-sum { background: #0b2a1c; border-color: #14532d; color: #6ee7b7; }
+html.theme-dark .cp-sum.err { background: #2c1414; border-color: #7f1d1d; color: #fca5a5; }
+html.theme-dark .mc-form { background: #0f1a30; border-color: #23304d; } html.theme-dark .mc-form label { color: #94a3b8; }
+html.theme-dark .cust-sub td { background: #0f1a30 !important; } html.theme-dark .cust-inv { border-color: #23304d; }
+html.theme-dark #newInvoiceModal .v3-inv { background: #111c33; color: #e2e8f0; }
+html.theme-dark .v3-inv-head, html.theme-dark .v3-inv-foot { background: #0f1a30; border-color: #23304d; }
+html.theme-dark .v3-inv-head h3, html.theme-dark .v3-lab { color: #e2e8f0; }
+html.theme-dark #newInvoiceModal select { background: #0b1526; color: #e2e8f0; border-color: #2b3a5a; }
+html.theme-dark .v3-search input { background: #0b1526; color: #e2e8f0; border-color: #1e4a7a; }
+html.theme-dark .v3-results { background: #111c33; border-color: #2b3a5a; } html.theme-dark .v3-res { border-color: #23304d; }
+html.theme-dark .v3-res:hover, html.theme-dark .v3-res.act { background: #16223a; }
+html.theme-dark .v3-items-wrap { border-color: #23304d; } html.theme-dark .v3-items thead th { background: #16223a; color: #cbd5e1; }
+html.theme-dark .v3-items td { border-color: #23304d; } html.theme-dark .v3-items input.inv-item-price { background: #0b1526; color: #e2e8f0; border-color: #2b3a5a; }
+html.theme-dark .v3-step { border-color: #2b3a5a; } html.theme-dark .v3-step button { background: #16223a; color: #e2e8f0; } html.theme-dark .v3-step input { background: #0b1526; color: #e2e8f0; }
+html.theme-dark .v3-two .box, html.theme-dark .v3-incl { background: #0f1a30; border-color: #23304d; }
+html.theme-dark .v3-chips button { background: #16223a; color: #cbd5e1; border-color: #2b3a5a; }
+html.theme-dark .v3-newprod { background: #0b2a1c; border-color: #14532d; } html.theme-dark .v3-newcust { background: #0c2a4a; border-color: #1e4a7a; }
+html.theme-dark .v3-info { background: #0f1a30 !important; }
+/* الفاتورة المطبوعة تفضل بيضاء (ورقة) */
+html.theme-dark #invoiceModal .modal-content, html.theme-dark #printableInvoiceArea { background: #fff; color: #0f172a; }
+html.theme-dark #printableInvoiceArea input, html.theme-dark #printableInvoiceArea select { background: #fff; color: #0f172a; }
