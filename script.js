@@ -4619,6 +4619,222 @@ window.doReset = function () {
 };
 
 // =====================================================================
+// نسخة احتياطية للفواتير (ملف مضغوط) + إقفال السنة
+// إقفال السنة = تنزيل ملف "مبيعات <السنة>" ثم ترحيل أرصدة العملاء ثم مسح فواتير السنة
+// =====================================================================
+function loadLibOnce(src, test) {
+    return new Promise((resolve, reject) => {
+        if (test()) return resolve();
+        let s = document.createElement('script');
+        s.src = src;
+        s.onload = () => (test() ? resolve() : reject(new Error('lib'))); s.onerror = () => reject(new Error('lib'));
+        document.head.appendChild(s);
+    });
+}
+const ensureJSZip = () => loadLibOnce('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', () => !!window.JSZip);
+const ensureXLSXLib = () => loadLibOnce('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js', () => !!window.XLSX);
+
+function safeFileName(s) {
+    return String(s == null ? '' : s).replace(/[\\\/:*?"<>|\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80) || 'بدون اسم';
+}
+// السنة اللي تبعها الفاتورة/المرتجع (null لو التاريخ مش مقروء)
+function recYear(rec) { let d = recDate(rec); return d ? d.getFullYear() : null; }
+// الفاتورة تدخل في الإقفال لو سنتها <= سنة الإقفال (أو تاريخها مش واضح)
+function inCloseYear(rec, year) { let y = recYear(rec); return y === null || y <= year; }
+
+// ملف HTML مستقل لكل فاتورة (يتفتح في أي متصفح ويتطبع / يتحفظ PDF)
+function invoiceFileHtml(inv) {
+    let b = invBreakdown(inv);
+    let extra = [settings.address, settings.whatsapp, settings.email].filter(Boolean).map(esc).join(' | ');
+    let oldTxt = (Number(inv.oldBalance) > 0 && inv.oldBalanceType && inv.oldBalanceType !== 'none')
+        ? `<tr><td colspan="3">${inv.oldBalanceType === 'on_him' ? 'حساب سابق (عليه)' : 'رصيد سابق (له)'}</td><td class="c">${inv.oldBalanceType === 'on_him' ? '' : '- '}${fmt(inv.oldBalance)}</td></tr>` : '';
+    let disc = Number(inv.discountAmount) > 0 ? `<tr><td colspan="3">خصم ${esc(inv.discountPercent || 0)}%</td><td class="c">- ${fmt(inv.discountAmount)}</td></tr>` : '';
+    let pays = (inv.paymentHistory || []).map(p => `<tr><td>${esc(p.date || '')}</td><td class="c">${p.type === 'carried' ? 'مُرحّل' : p.type === 'return' ? 'مرتجع' : 'سداد'}</td><td class="c">${fmt(p.amount)}</td><td>${esc(p.note || '')}</td></tr>`).join('');
+    let body = `<div class="rp-head"><h1>${esc(settings.companyName || 'Bro Tech')} — فاتورة</h1><p>${extra}</p>
+        <p style="font-size:15px;color:#334155;margin-top:8px">رقم: <b>${esc(inv.id)}</b> — ${esc(inv.date || '')} — العميل: <b>${esc(inv.customerName)}</b>${inv.customerPhone ? ' — ' + esc(inv.customerPhone) : ''}</p></div>
+        <table class="rp-table"><thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead><tbody>
+        ${(inv.items || []).map(i => `<tr><td>${esc(i.name)}</td><td class="c">${esc(i.qty)}</td><td class="c">${fmt(i.price)}</td><td class="c">${fmt(i.total)}</td></tr>`).join('')}
+        ${disc}${oldTxt}</tbody></table>
+        <div class="rp-final"><div><span>الإجمالي</span><b>${fmt(inv.total)} ج.م</b></div><div><span>دفع وقت الإصدار</span><b>${fmt(b.initial)} ج.م</b></div>
+        <div><span>إجمالي المدفوع</span><b>${fmt(inv.paid)} ج.م</b></div><div class="grand"><span>المتبقي</span><b>${fmt(inv.remaining)} ج.م</b></div></div>
+        ${pays ? `<h3 style="margin:16px 0 6px;font-size:14px">سجل الدفعات</h3><table class="rp-table"><thead><tr><th>التاريخ</th><th>النوع</th><th>المبلغ</th><th>ملاحظة</th></tr></thead><tbody>${pays}</tbody></table>` : ''}
+        ${settings.invFooter ? `<p style="text-align:center;font-size:12px;color:#64748b;margin-top:14px">${esc(settings.invFooter)}</p>` : ''}`;
+    return `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>${esc(inv.id)} - ${esc(inv.customerName)}</title>
+        <style>body{padding:22px;background:#fff;font-family:Tahoma,Arial,sans-serif}${RP_CSS}</style></head><body><div class="rp-wrap">${body}</div></body></html>`;
+}
+
+// بيبني الملف المضغوط: فولدر باسم محدد فيه (فواتير HTML + ملخص Excel + نسخة استرجاع كاملة JSON + اقرأني)
+async function buildSalesZip(opts) {
+    await ensureJSZip();
+    let { folder, invList, title } = opts;
+    let zip = new JSZip();
+    let root = zip.folder(folder);
+    let invDir = root.folder('الفواتير');
+    let used = {};
+    invList.forEach(i => {
+        let base = safeFileName(`${i.id} - ${i.customerName}`), n = base, k = 1;
+        while (used[n]) n = `${base} (${++k})`;
+        used[n] = 1;
+        invDir.file(n + '.html', invoiceFileHtml(i));
+    });
+    // نسخة كاملة للنظام (تتسترجع من زرار "استرجاع JSON" الموجود في البرنامج)
+    root.file('نسخة الاسترجاع الكاملة.json', JSON.stringify(backupPayload(), null, 1));
+    let excelOk = true;
+    try {
+        await ensureXLSXLib();
+        let wb = XLSX.utils.book_new();
+        const add = (name, rows) => XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows.length ? rows : [{ ملاحظة: 'لا توجد بيانات' }]), name);
+        add('الفواتير', invList.map(i => { let b = invBreakdown(i); return { الرقم: i.id, التاريخ: i.date, العميل: i.customerName, الإجمالي: i.total, 'دفع ساعتها': b.initial, 'سداد لاحق': b.laterSum, مُرحّل: b.carried, المتبقي: i.remaining, الحالة: i.status }; }));
+        add('بنود الفواتير', invList.flatMap(i => (i.items || []).map(it => ({ الفاتورة: i.id, العميل: i.customerName, الصنف: it.name, الكمية: it.qty, السعر: it.price, الإجمالي: it.total }))));
+        add('دفعات الفواتير', invList.flatMap(i => (i.paymentHistory || []).map(p => ({ الفاتورة: i.id, العميل: i.customerName, التاريخ: p.date, المبلغ: p.amount, النوع: p.type === 'carried' ? 'مُرحّل' : p.type === 'return' ? 'مرتجع' : 'نقدي', ملاحظة: p.note || '' }))));
+        add('أرصدة العملاء وقت التنزيل', customers.map(c => ({ العميل: c.name, الهاتف: c.phone, 'صافي المديونية (موجب = عليه)': getCustomerNetDebt(c.name) })));
+        root.file('ملخص الفواتير.xlsx', XLSX.write(wb, { type: 'array', bookType: 'xlsx' }));
+    } catch (e) { excelOk = false; console.error('xlsx in zip', e); }
+    let total = sumOf(invList, i => i.total);
+    root.file('اقرأني.txt', [
+        title, `تاريخ التنزيل: ${new Date().toLocaleString('ar-EG')}`, `عدد الفواتير: ${invList.length}`, `إجمالي الفواتير: ${fmt(total)} ج.م`, '',
+        'محتويات الفولدر:',
+        '- الفواتير: ملف لكل فاتورة (افتحه بالمتصفح واطبعه أو احفظه PDF).',
+        excelOk ? '- ملخص الفواتير.xlsx: جدول بكل الفواتير وبنودها ودفعاتها وأرصدة العملاء.' : '- (ملخص Excel لم يُنشأ بسبب تعذر تحميل المكتبة، البيانات كلها موجودة في ملف JSON).',
+        '- نسخة الاسترجاع الكاملة.json: نسخة كاملة من النظام وقت التنزيل. تتسترجع من البرنامج (النسخ الاحتياطي ← استرجاع JSON) وبتستبدل كل البيانات الحالية.'
+    ].join('\r\n'));
+    let blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+    return { blob, excelOk };
+}
+
+// ---------- زرار: نسخة احتياطية لكل الفواتير ----------
+let ycBusy = false;
+window.downloadAllInvoicesBackup = async function () {
+    if (ycBusy) return;
+    if (!invoices.length) { alert('مفيش فواتير مسجلة لسه.'); return; }
+    ycBusy = true; toast('جاري تجهيز ملف الفواتير…');
+    try {
+        let name = `نسخة احتياطية للفواتير ${stamp()}`;
+        let { blob, excelOk } = await buildSalesZip({ folder: name, invList: invoices.slice(), title: 'نسخة احتياطية لكل الفواتير' });
+        downloadBlob(blob, name + '.zip');
+        settings.lastBackupAt = new Date().toISOString(); saveData();
+        toast(`تم تنزيل ${invoices.length} فاتورة` + (excelOk ? '' : ' (من غير ملخص Excel)'), 'ok');
+    } catch (e) {
+        console.error(e);
+        alert('تعذر تجهيز الملف (غالباً مشكلة في الإنترنت لتحميل مكتبة الضغط). جرّب تاني، أو استخدم تصدير JSON من صفحة النسخ الاحتياطي.');
+    } finally { ycBusy = false; }
+};
+
+// ---------- ترحيل الأرصدة (دالة صافية: بتتغيّر فيها العملاء بس) ----------
+// لكل عميل: صافي متبقي فواتيره المقفولة بيتضاف لرصيده السابق، فمفيش دين بيضيع
+function carryClosedBalances(custList, closedInvoices, label) {
+    let byCust = {}, phones = {};
+    closedInvoices.forEach(i => { byCust[i.customerName] = (byCust[i.customerName] || 0) + Number(i.remaining || 0); phones[i.customerName] = phones[i.customerName] || i.customerPhone || ''; });
+    let carried = [];
+    Object.keys(byCust).forEach(name => {
+        let delta = Math.round(byCust[name] * 100) / 100;
+        if (Math.abs(delta) < 0.005) return;
+        let c = custList.find(x => x.name === name);
+        if (!c) { c = { name, phone: phones[name], address: '', oldBalance: 0, balanceType: 'none', oldBalanceDate: '' }; custList.push(c); }
+        let cur = c.balanceType === 'on_him' ? Number(c.oldBalance || 0) : c.balanceType === 'for_him' ? -Number(c.oldBalance || 0) : 0;
+        let signed = Math.round((cur + delta) * 100) / 100;
+        c.oldBalance = Math.abs(signed);
+        c.balanceType = signed > 0 ? 'on_him' : signed < 0 ? 'for_him' : 'none';
+        c.oldBalanceDate = signed === 0 ? '' : label;
+        carried.push({ name, amount: signed });
+    });
+    return carried;
+}
+
+// ---------- نافذة إقفال السنة ----------
+let ycState = { key: null };
+function ycClosedList(year) { return invoices.filter(i => inCloseYear(i, year)); }
+function ycKey(list) { return list.length + '|' + sumOf(list, i => i.total) + '|' + sumOf(list, i => i.remaining) + '|' + list.map(i => i.id).sort().join(','); }
+
+function injectYearCloseModal() {
+    if (document.getElementById('yearCloseModal')) return;
+    injectV3Css();
+    let wrap = document.createElement('div');
+    wrap.innerHTML = `
+    <div id="yearCloseModal" class="modal" style="display:none"><div class="modal-content v5-card">
+        <div class="modal-header" style="background:#fffbeb"><h2 style="color:#b45309"><i class="fas fa-lock"></i> إقفال السنة وبدء سنة جديدة</h2><span class="close-btn" onclick="hideModal('yearCloseModal')">&times;</span></div>
+        <div class="modal-body">
+            <label class="v3-lab">سنة الإقفال (بتتقفل كل فواتير السنة دي وأي سنة قبلها)</label>
+            <input type="number" id="ycYear" class="v3-in" style="width:140px" min="2000" max="2100" oninput="ycRefresh()">
+            <div id="ycSummary" class="cp-sum" style="margin:12px 0"></div>
+            <div style="margin:10px 0 4px;font-weight:700">الخطوة ١: نزّل الملف</div>
+            <button class="v3-btn green" id="ycDlBtn" onclick="ycDownload()"><i class="fas fa-download"></i> <span id="ycDlLabel">نزّل ملف مبيعات</span></button>
+            <span id="ycDlState" class="v3-muted" style="margin-inline-start:8px"></span>
+            <div style="margin:16px 0 4px;font-weight:700">الخطوة ٢: امسح وابدأ السنة الجديدة</div>
+            <label class="rs-chk"><input type="checkbox" id="ycArchive" checked> امسح نسخ أرشيف الفواتير دي كمان <span class="v3-muted">(نسخها جوه الملف اللي نزل)</span></label>
+            <div class="cp-sum err" style="margin-top:8px"><i class="fas fa-triangle-exclamation"></i> المسح نهائي. المبالغ اللي لسه على العملاء (أو لهم) بتتنقل تلقائياً كرصيد سابق قبل المسح، فمفيش دين بيضيع.</div>
+            <div class="v5-two" style="margin-top:12px"><div><label class="v3-lab">اكتب كلمة: مسح</label><input id="ycWord" class="v3-in" style="width:100%" autocomplete="off"></div>
+            <div><label class="v3-lab">كلمة مرور النظام</label><input id="ycPass" type="password" class="v3-in" style="width:100%" autocomplete="off"></div></div>
+        </div>
+        <div class="modal-footer"><button class="v3-btn gray" onclick="hideModal('yearCloseModal')">إلغاء</button>
+            <button class="v3-btn red" id="ycApplyBtn" onclick="ycApply()" disabled><i class="fas fa-trash"></i> امسح الفواتير ورحّل الأرصدة</button></div>
+    </div></div>`;
+    while (wrap.firstChild) document.body.appendChild(wrap.firstChild);
+}
+window.openYearCloseModal = function () {
+    injectYearCloseModal();
+    document.getElementById('ycYear').value = new Date().getFullYear();
+    ['ycWord', 'ycPass'].forEach(id => document.getElementById(id).value = '');
+    ycState.key = null; ycRefresh(); showModal('yearCloseModal');
+};
+window.ycRefresh = function () {
+    let year = Number(document.getElementById('ycYear').value);
+    let list = year ? ycClosedList(year) : [];
+    let owedBy = 0, owedTo = 0, custs = new Set();
+    let net = {}; list.forEach(i => { net[i.customerName] = (net[i.customerName] || 0) + Number(i.remaining || 0); });
+    Object.keys(net).forEach(n => { if (Math.abs(net[n]) >= 0.005) { custs.add(n); if (net[n] > 0) owedBy += net[n]; else owedTo -= net[n]; } });
+    document.getElementById('ycSummary').innerHTML = list.length
+        ? `<b>${list.length}</b> فاتورة بإجمالي <b>${fmt(sumOf(list, i => i.total))}</b> ج.م<br>هيتنقل كرصيد سابق: <b>${custs.size}</b> عميل — عليهم <b>${fmt(owedBy)}</b> ج.م${owedTo > 0 ? ` ولهم <b>${fmt(owedTo)}</b> ج.م` : ''}`
+        : 'مفيش فواتير في السنة دي.';
+    document.getElementById('ycDlLabel').textContent = `نزّل ملف «مبيعات ${year || ''}»`;
+    let ok = ycState.key && ycState.key === ycKey(list) && ycState.year === year;
+    document.getElementById('ycDlState').textContent = ok ? '✔ تم التنزيل' : '';
+    document.getElementById('ycApplyBtn').disabled = !ok || !list.length;
+};
+window.ycDownload = async function () {
+    if (ycBusy) return;
+    let year = Number(document.getElementById('ycYear').value);
+    let list = ycClosedList(year);
+    if (!list.length) { alert('مفيش فواتير في السنة دي.'); return; }
+    ycBusy = true; document.getElementById('ycDlState').textContent = 'جاري التجهيز…';
+    try {
+        let name = `مبيعات ${year}`;
+        let { blob, excelOk } = await buildSalesZip({ folder: name, invList: list.slice(), title: `مبيعات سنة ${year}` });
+        downloadBlob(blob, name + '.zip');
+        ycState = { key: ycKey(list), year };
+        settings.lastBackupAt = new Date().toISOString();
+        toast(`تم تنزيل «${name}.zip»` + (excelOk ? '' : ' (من غير ملخص Excel)'), 'ok');
+    } catch (e) {
+        console.error(e); ycState = { key: null };
+        alert('تعذر تجهيز الملف (غالباً مشكلة في الإنترنت لتحميل مكتبة الضغط). لم يتم مسح أي شيء. جرّب تاني.');
+    } finally { ycBusy = false; ycRefresh(); }
+};
+window.ycApply = function () {
+    let year = Number(document.getElementById('ycYear').value);
+    let list = ycClosedList(year);
+    if (!list.length) return;
+    if (!ycState.key || ycState.year !== year || ycState.key !== ycKey(list)) { alert('الفواتير اتغيّرت بعد التنزيل (أو لم تنزّل الملف). نزّل الملف تاني الأول.'); ycRefresh(); return; }
+    if (document.getElementById('ycWord').value.trim() !== 'مسح') { alert('اكتب كلمة "مسح" بالظبط للتأكيد.'); return; }
+    if (document.getElementById('ycPass').value !== (settings.password || 'protech2026')) { alert('كلمة مرور النظام غير صحيحة.'); return; }
+    if (!confirm(`آخر تأكيد: هيتمسح ${list.length} فاتورة من السنة ${year} (الملف «مبيعات ${year}» اتنزّل). المتابعة؟`)) return;
+
+    // 1) نرحّل الأرصدة الأول
+    let carried = carryClosedBalances(customers, list, `رصيد مرحّل من ${year} (${todayAr()})`);
+    // 2) نمسح الفواتير ومرتجعاتها (المرتجعات المرتبطة بالفواتير المقفولة أو بدون فاتورة وتاريخها في السنة)
+    let ids = new Set(list.map(i => i.id)), closedSet = new Set(list);
+    let retBefore = returnsLog.length;
+    returnsLog = returnsLog.filter(r => !(r.invoiceId ? ids.has(r.invoiceId) : inCloseYear(r, year)));
+    invoices = invoices.filter(i => !closedSet.has(i));
+    // 3) الأرشيف (اختياري)
+    if (document.getElementById('ycArchive').checked) { invoiceArchive = invoiceArchive.filter(a => !inCloseYear(a, year)); saveArchive(); }
+    // 4) سجل الإقفال
+    settings.yearClosures = (settings.yearClosures || []).concat([{ year, closedAt: new Date().toISOString(), invoices: list.length, total: sumOf(list, i => i.total), carriedCustomers: carried.length }]);
+
+    saveData(); refreshAllData(); hideModal('yearCloseModal');
+    toast(`تم إقفال ${year}: مسح ${list.length} فاتورة وترحيل أرصدة ${carried.length} عميل.`, 'ok');
+};
+
+// =====================================================================
 // تشغيل v5
 // =====================================================================
 injectThemeButton();
